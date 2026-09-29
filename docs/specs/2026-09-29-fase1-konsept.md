@@ -74,7 +74,7 @@ Mål (periode) = Grunnforbruk + treningskcal (periode) − (tempo × 7700 / 7)
 ```
 
 - **Fase 1** (ingen Garmin): treningskcal = konstant fra oppstart (løpe-km + annen trening). Brukeren kan oppdatere treningsnivå i Profil (f.eks. "skadet, ingen trening nå") → mål faller tilsvarende.
-- **Fase 2** (Garmin): treningskcal fra faktiske økter → dagsmål varierer med trening. Løpekcal (~1 kcal/kg/km) brukes framfor klokkas pulsbaserte tall der mulig.
+- **Fase 2** (Garmin): dagsmål varierer med trening. Settes om morgenen fra **planlagt** økt, erstattes med **faktisk** når økten synkes; droppet økt → mål faller; uplanlagt økt legges til etter gjennomføring. Løpekcal (~1 kcal/kg/km) brukes framfor klokkas pulsbaserte tall der mulig.
 - Systematisk feil i treningskcal (f.eks. klokke overestimerer) absorberes av grunnforbruket over tid, så lenge feilen er stabil.
 
 ### 4.3 Ukentlig innsjekk

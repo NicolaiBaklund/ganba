@@ -36,9 +36,9 @@ Format: dato — beslutning — begrunnelse.
 | 2026-09-29 | Forbruk beregnes fra **faktisk inntak + faktisk trendendring**, aldri fra forrige mål. Glidende vindu 2–3 uker. Maks ±150 kcal endring/uke. Krever logg ≥5/7 dager | Brukerens presisering |
 | 2026-09-29 | Offisiell Garmin-tilgang er kun for bedrifter (og muligens pauset) | Sjekket Garmin FAQ, se research-notes |
 | 2026-09-29 | **Godkjent:** Forbruk deles i **grunnforbruk** (uten trening) + **treningsforbruk**. Adaptiv beregning finner grunnforbruk = inntak − vektendring − estimert treningskcal. Mål = grunnforbruk + treningskcal − underskudd. Fase 1: treningskcal = konstant fra oppstart (kan oppdateres). Fase 2: faktisk/planlagt fra Garmin → mål varierer | Brukeren påpekte: uke uten trening med samme inntak → vektøkning hvis forbruk er ett samlet tall |
+| 2026-09-29 | **Dagsmål fase 2 = plan + korreksjon (B):** mål settes om morgenen fra planlagt økt; erstattes med faktisk når økt synkes; droppet økt → mål faller; uplanlagt økt legges til etter gjennomføring. Mulig innstilling senere: jevnt fordelt over uka (C) | Muliggjør fueling før økt; unngår kveldsspising (MFP-problemet) |
 
 ## Åpne spørsmål
 - (Teknisk fase) Garmin-tilgang. Offisielt program er kun for bedrifter og muligens pauset (se research-notes). Sannsynlig vei: uoffisielt bibliotek i personlig fase, bak adapter-lag; offisielt når/om appen blir produkt.
 - (Teknisk fase) Stack, hosting, datamodell, auth, bildelagring, AI-kost per logg.
 - UI-språk: norsk eller engelsk?
-- Skal dagsmål i fase 2 variere med treningsbelastning (og hvordan)?
