@@ -62,7 +62,7 @@ Mål         = Vedlikehold − (tempo_kg_per_uke × 7700 / 7)
 - Bruker aldri forrige mål i beregningen — kun hva brukeren faktisk spiste og hva trendvekten faktisk gjorde.
 - Kun dager med logget mat teller. Uke med < 5/7 loggede dager gir ingen justering.
 
-### 4.2.1 Grunnforbruk vs. treningsforbruk *(foreslått, venter bekreftelse)*
+### 4.2.1 Grunnforbruk vs. treningsforbruk
 
 Problem: ett samlet forbrukstall antar at treningen er lik hver uke. Uke uten trening (skade, ferie) med samme inntak → vektøkning.
 

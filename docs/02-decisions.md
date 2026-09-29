@@ -35,7 +35,7 @@ Format: dato — beslutning — begrunnelse.
 | 2026-09-29 | Ukentlig innsjekk: **brukeren godkjenner** nytt mål (Godta / Behold forrige). Ingen auto-aksept | Brukeren valgte B |
 | 2026-09-29 | Forbruk beregnes fra **faktisk inntak + faktisk trendendring**, aldri fra forrige mål. Glidende vindu 2–3 uker. Maks ±150 kcal endring/uke. Krever logg ≥5/7 dager | Brukerens presisering |
 | 2026-09-29 | Offisiell Garmin-tilgang er kun for bedrifter (og muligens pauset) | Sjekket Garmin FAQ, se research-notes |
-| 2026-09-29 | *(Foreslått, venter svar)* Forbruk deles i **grunnforbruk** (uten trening) + **treningsforbruk**. Adaptiv beregning finner grunnforbruk = inntak − vektendring − estimert treningskcal. Mål = grunnforbruk + treningskcal − underskudd. Fase 1: treningskcal = konstant fra oppstart (kan oppdateres). Fase 2: faktisk/planlagt fra Garmin → mål varierer | Brukeren påpekte: uke uten trening med samme inntak → vektøkning hvis forbruk er ett samlet tall |
+| 2026-09-29 | **Godkjent:** Forbruk deles i **grunnforbruk** (uten trening) + **treningsforbruk**. Adaptiv beregning finner grunnforbruk = inntak − vektendring − estimert treningskcal. Mål = grunnforbruk + treningskcal − underskudd. Fase 1: treningskcal = konstant fra oppstart (kan oppdateres). Fase 2: faktisk/planlagt fra Garmin → mål varierer | Brukeren påpekte: uke uten trening med samme inntak → vektøkning hvis forbruk er ett samlet tall |
 
 ## Åpne spørsmål
 - (Teknisk fase) Garmin-tilgang. Offisielt program er kun for bedrifter og muligens pauset (se research-notes). Sannsynlig vei: uoffisielt bibliotek i personlig fase, bak adapter-lag; offisielt når/om appen blir produkt.
