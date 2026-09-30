@@ -1,3 +1,13 @@
 {
-  "app": { "name": "Loop" }
+  "app": { "name": "Loop" },
+  "login": {
+    "title": "Loop",
+    "subtitle": "Training and nutrition, together.",
+    "emailPlaceholder": "you@example.com",
+    "sendLink": "Send magic link",
+    "checkEmail": "Check {email} for a sign-in link.",
+    "error": "Couldn't send the link. Try again.",
+    "or": "or",
+    "google": "Continue with Google"
+  }
 }
