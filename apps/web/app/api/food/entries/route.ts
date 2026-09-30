@@ -18,7 +18,9 @@ export async function POST(req: Request) {
 
   const { data: profile } = await supabase.from("profiles").select("timezone").eq("user_id", user.id).single();
   const loggedAt = b.loggedAt ? new Date(b.loggedAt) : new Date();
-  const day = b.localDate ?? localDate(profile?.timezone ?? "UTC", loggedAt);
+  const tz = profile?.timezone ?? "UTC";
+  const day = b.localDate ?? localDate(tz, loggedAt);
+  if (day > localDate(tz)) return NextResponse.json({ error: "invalid_input" }, { status: 400 });
 
   const { data: entry, error } = await supabase
     .from("food_entries")

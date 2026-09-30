@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Suspense } from "react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { CalendarDays, Scale, User, Utensils } from "lucide-react";
@@ -42,7 +43,9 @@ export function BottomNav() {
       <div className="mx-auto flex max-w-md items-center px-2">
         {LEFT.map(item)}
         <div className="flex flex-1 justify-center">
-          <PlusMenu />
+          <Suspense>
+            <PlusMenu />
+          </Suspense>
         </div>
         {RIGHT.map(item)}
       </div>

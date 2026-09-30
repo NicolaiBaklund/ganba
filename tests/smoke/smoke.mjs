@@ -36,6 +36,7 @@ const { data: created, error: createErr } = await admin.auth.admin.createUser({ 
 if (createErr) throw createErr;
 const uid = created.user.id;
 let failed = null;
+let draftCheck = { uploaded: 0, left: -1 };
 
 try {
   const { data: signIn, error } = await anon.auth.signInWithPassword({ email, password });
@@ -120,6 +121,19 @@ try {
       },
     }),
   );
+  // Draft with a photo that is abandoned: the uploaded file must be removed.
+  await page.goto(`${BASE}/food/log?mode=text`);
+  await page.locator('input[type="file"]').setInputFiles("apps/web/public/icon-512.png");
+  await page.waitForTimeout(1000);
+  await page.getByRole("button", { name: "Estimate" }).click();
+  await page.locator('input[value="Bolognese sauce"]').waitFor();
+  const { data: draftFiles } = await admin.storage.from("food").list(uid);
+  await page.getByRole("link", { name: "Back" }).click();
+  await page.waitForURL(/today/);
+  await page.waitForTimeout(1500);
+  const { data: afterLeave } = await admin.storage.from("food").list(uid);
+  draftCheck = { uploaded: draftFiles?.length ?? 0, left: afterLeave?.length ?? 0 };
+
   await page.goto(`${BASE}/food/log?mode=text`);
   await page.getByPlaceholder(/Describe it/).fill("spaghetti bolognese");
   await page.getByRole("button", { name: "Estimate" }).click();
@@ -169,6 +183,7 @@ try {
     "delete weight → 200": del?.ok() === true,
     "photo file removed on delete": (left ?? []).length === 0,
     "no console/hydration errors": consoleErrors.length === 0,
+    [`abandoned draft photo removed (${draftCheck.uploaded} → ${draftCheck.left})`]: draftCheck.uploaded === 1 && draftCheck.left === 0,
     "energy plan created": plans?.length === 1,
   };
   console.log(checks);

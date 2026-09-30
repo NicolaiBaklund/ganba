@@ -8,5 +8,7 @@
   { "id": "protein-shake", "text": "Protein shake: 1 scoop whey (30 g) in 300 ml water", "expected": { "kcal": 120, "protein_g": 24 } },
   { "id": "pizza", "text": "Half of a medium pepperoni pizza from a restaurant", "expected": { "kcal": 950, "protein_g": 40 } },
   { "id": "apple-pb", "text": "An apple and 2 tablespoons of peanut butter", "expected": { "kcal": 285, "protein_g": 8 } },
+  { "id": "pizza-beer", "text": "Two slices of margherita pizza and a 500 ml lager beer", "expected": { "kcal": 750, "protein_g": 22 } },
+  { "id": "red-wine", "text": "A large glass of red wine, about 250 ml", "expected": { "kcal": 210 } },
   { "id": "taco-no", "text": "Norwegian Friday taco: 3 soft tortillas with minced beef, cheese, salsa, sour cream and vegetables", "expected": { "kcal": 900, "protein_g": 45 } }
 ]

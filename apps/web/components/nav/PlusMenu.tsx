@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { localDateNow } from "@/lib/dates";
 import { useTranslations } from "next-intl";
 import { Camera, PenLine, Plus, Scale, Zap } from "lucide-react";
 import { BottomSheet } from "@/components/common/BottomSheet";
@@ -14,6 +15,15 @@ export function PlusMenu() {
   const [open, setOpen] = useState(false);
   const [quick, setQuick] = useState(false);
   const [weight, setWeight] = useState(false);
+  const pathname = usePathname();
+  const params = useSearchParams();
+  // When browsing a past day on Today/Food, food is added to that day.
+  const viewed = params.get("date");
+  const pastDate =
+    (pathname.startsWith("/today") || pathname === "/food") && viewed && /^\d{4}-\d{2}-\d{2}$/.test(viewed) && viewed < localDateNow()
+      ? viewed
+      : undefined;
+  const q = pastDate ? `&date=${pastDate}` : "";
 
   const go = (fn: () => void) => () => {
     setOpen(false);
@@ -21,8 +31,8 @@ export function PlusMenu() {
   };
 
   const options = [
-    { key: "photo", Icon: Camera, onClick: go(() => router.push("/food/log?mode=photo")) },
-    { key: "text", Icon: PenLine, onClick: go(() => router.push("/food/log?mode=text")) },
+    { key: "photo", Icon: Camera, onClick: go(() => router.push(`/food/log?mode=photo${q}`)) },
+    { key: "text", Icon: PenLine, onClick: go(() => router.push(`/food/log?mode=text${q}`)) },
     { key: "quick", Icon: Zap, onClick: go(() => setQuick(true)) },
     { key: "weight", Icon: Scale, onClick: go(() => setWeight(true)) },
   ] as const;
@@ -57,7 +67,7 @@ export function PlusMenu() {
         </div>
       </BottomSheet>
 
-      <QuickAddSheet open={quick} onOpenChange={setQuick} />
+      <QuickAddSheet open={quick} onOpenChange={setQuick} date={pastDate} />
       <WeightSheet open={weight} onOpenChange={setWeight} />
     </>
   );

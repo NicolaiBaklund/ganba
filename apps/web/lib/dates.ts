@@ -1,5 +1,8 @@
 import type { MealType } from "@/lib/db/today";
 
+/** Browser-local calendar date (YYYY-MM-DD). */
+export const localDateNow = (): string => new Intl.DateTimeFormat("en-CA").format(new Date());
+
 export const MEAL_ORDER: MealType[] = ["breakfast", "lunch", "dinner", "evening", "snack"];
 
 export function mealTypeForHour(h: number): MealType {

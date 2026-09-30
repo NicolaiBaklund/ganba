@@ -67,7 +67,6 @@ export function PhotoPicker({
         ref={input}
         type="file"
         accept="image/*"
-        capture="environment"
         multiple
         hidden
         onChange={(e) => {

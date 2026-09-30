@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -13,6 +13,7 @@ import { PhotoPicker } from "@/components/photos/PhotoPicker";
 import { QuickAddSheet } from "@/components/food/QuickAddSheet";
 import { ItemRow, type EditableItem } from "@/components/food/ItemRow";
 import { uploadPhoto } from "@/lib/photos";
+import { createClient } from "@/lib/supabase/client";
 import { MEAL_ORDER, mealTypeForHour } from "@/lib/dates";
 import type { MealType } from "@/lib/db/today";
 
@@ -23,7 +24,7 @@ const DRAFT_KEY = "loop.foodDraft";
 const toEditable = (e: FoodEstimate): EditableItem[] =>
   e.items.map((i) => ({ ...i, key: crypto.randomUUID() }));
 
-export function FoodLogger({ hasKey, mode }: { hasKey: boolean; mode: "photo" | "text" }) {
+export function FoodLogger({ hasKey, mode, date }: { hasKey: boolean; mode: "photo" | "text"; date?: string }) {
   const t = useTranslations("foodLog");
   const tm = useTranslations("meals");
   const router = useRouter();
@@ -40,10 +41,28 @@ export function FoodLogger({ hasKey, mode }: { hasKey: boolean; mode: "photo" | 
   const [error, setError] = useState<ErrorKind | null>(null);
   const [quickOpen, setQuickOpen] = useState(false);
 
+  // Photos uploaded for an estimate but never saved are removed when replaced or when leaving the page.
+  const uploadedRef = useRef<string[]>([]);
+  const savedRef = useRef(false);
+  const discardUploads = (paths: string[]) => {
+    if (paths.length) createClient().storage.from("food").remove(paths).catch(() => {});
+  };
+  useEffect(() => {
+    uploadedRef.current = photoPaths;
+  }, [photoPaths]);
+  useEffect(
+    () => () => {
+      if (!savedRef.current) discardUploads(uploadedRef.current);
+    },
+    [],
+  );
+
   useEffect(() => {
     setMeal(mealTypeForHour(new Date().getHours()));
     try {
-      setText(sessionStorage.getItem(DRAFT_KEY) ?? "");
+      // Restore the draft without overwriting anything typed before hydration finished.
+      const stored = sessionStorage.getItem(DRAFT_KEY) ?? "";
+      setText((current) => current || stored);
     } catch {}
   }, []);
   useEffect(() => {
@@ -125,6 +144,7 @@ export function FoodLogger({ hasKey, mode }: { hasKey: boolean; mode: "photo" | 
         })),
         estimateId: estimateId ?? undefined,
         photoPaths,
+        ...(date ? { localDate: date } : {}),
       }),
     }).catch(() => null);
     if (!res?.ok) {
@@ -132,11 +152,12 @@ export function FoodLogger({ hasKey, mode }: { hasKey: boolean; mode: "photo" | 
       setPhase("review");
       return;
     }
+    savedRef.current = true;
     try {
       sessionStorage.removeItem(DRAFT_KEY);
     } catch {}
     toast.success(t("saved"));
-    router.push("/today");
+    router.push(date ? `/today?date=${date}` : "/today");
     router.refresh();
   }
 
@@ -151,6 +172,7 @@ export function FoodLogger({ hasKey, mode }: { hasKey: boolean; mode: "photo" | 
         </Link>
         <h1 className="font-heading text-2xl font-bold">{t("title")}</h1>
       </header>
+      {date && <p className="-mt-2 text-sm text-primary">{t("forDate", { date })}</p>}
 
       {!hasKey && (
         <div className="rounded-2xl border border-primary/30 bg-primary/10 p-4 text-sm">
@@ -169,7 +191,7 @@ export function FoodLogger({ hasKey, mode }: { hasKey: boolean; mode: "photo" | 
 
       {(phase === "input" || (phase === "estimating" && !items.length)) && (
         <section className="flex flex-col gap-3">
-          <PhotoPicker photos={photos} onChange={(p) => { setPhotos(p); setPhotoPaths([]); }} max={4} label={t("photo")} autoOpen={mode === "photo" && hasKey} />
+          <PhotoPicker photos={photos} onChange={(p) => { setPhotos(p); discardUploads(photoPaths); setPhotoPaths([]); }} max={4} label={t("photo")} autoOpen={mode === "photo" && hasKey} />
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}

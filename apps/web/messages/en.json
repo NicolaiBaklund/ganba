@@ -6,11 +6,15 @@
     "title": "Loop",
     "subtitle": "Training and nutrition, together.",
     "emailPlaceholder": "you@example.com",
-    "sendLink": "Send magic link",
-    "checkEmail": "Check {email} for a sign-in link.",
+    "sendLink": "Email me a sign-in link",
+    "checkEmail": "We sent a link and a 6-digit code to {email}. Tap the link, or type the code here.",
     "error": "Couldn't send the link. Try again.",
     "or": "or",
-    "google": "Continue with Google"
+    "google": "Continue with Google",
+    "verify": "Sign in",
+    "badCode": "That code didn’t work. Check it or request a new one.",
+    "otherEmail": "Use another email",
+    "linkError": "That sign-in link didn’t work here. Request a new one and type the 6-digit code instead."
   },
   "onboarding": {
     "back": "Back",
@@ -106,7 +110,8 @@
     "save": "Add",
     "saved": "Added",
     "queued": "Saved offline – will sync",
-    "error": "Couldn't save. Try again."
+    "error": "Couldn't save. Try again.",
+    "forDate": "Adding to {date}"
   },
   "today": {
     "todayLabel": "Today",
@@ -243,7 +248,8 @@
       "invalid_output": "Couldn’t estimate this.",
       "photo_upload": "Photo upload failed.",
       "network": "No connection."
-    }
+    },
+    "forDate": "Adding to {date}"
   },
   "food": {
     "protein": "Protein",

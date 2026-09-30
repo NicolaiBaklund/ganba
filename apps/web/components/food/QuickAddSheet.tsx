@@ -12,7 +12,16 @@ import { MEAL_ORDER, mealTypeForHour } from "@/lib/dates";
 import { postOrQueue } from "@/lib/offline-queue";
 import type { MealType } from "@/lib/db/today";
 
-export function QuickAddSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+export function QuickAddSheet({
+  open,
+  onOpenChange,
+  date,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  /** Local date to log to when adding to a past day; omitted = now. */
+  date?: string;
+}) {
   const t = useTranslations("quickAdd");
   const tm = useTranslations("meals");
   const router = useRouter();
@@ -46,6 +55,7 @@ export function QuickAddSheet({ open, onOpenChange }: { open: boolean; onOpenCha
       source: "quick",
       mealType: meal,
       loggedAt: new Date().toISOString(),
+      ...(date ? { localDate: date } : {}),
       items: [
         {
           name: name.trim() || t("defaultName"),
@@ -66,6 +76,7 @@ export function QuickAddSheet({ open, onOpenChange }: { open: boolean; onOpenCha
   return (
     <BottomSheet open={open} onOpenChange={onOpenChange} title={t("title")}>
       <div className="flex flex-col gap-4 pt-2">
+        {date && <p className="-mt-2 text-sm text-primary">{t("forDate", { date })}</p>}
         <NumberField label={t("kcal")} unit="kcal" value={kcal} onChange={setKcal} decimal={false} />
         {showMacros ? (
           <div className="grid grid-cols-3 gap-2">

@@ -16,6 +16,14 @@ const Body = z
   })
   .refine((b) => (b.parentEstimateId ? !!b.text : !!b.text || b.photoPaths.length > 0));
 
+/** Media type from the file's first bytes; never trust the extension or declared type. */
+function sniffImageType(b: Buffer): "image/webp" | "image/jpeg" | "image/png" | null {
+  if (b.length > 12 && b.toString("ascii", 0, 4) === "RIFF" && b.toString("ascii", 8, 12) === "WEBP") return "image/webp";
+  if (b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
+  if (b.length > 8 && b[0] === 0x89 && b.toString("ascii", 1, 4) === "PNG") return "image/png";
+  return null;
+}
+
 const STATUS = { invalid_key: 401, unavailable: 503, refused: 422, invalid_output: 422 } as const;
 
 export async function POST(req: Request) {
@@ -54,7 +62,10 @@ export async function POST(req: Request) {
   for (const path of photoPaths) {
     const { data, error } = await supabase.storage.from("food").download(path);
     if (error || !data) return NextResponse.json({ error: "photo_missing" }, { status: 400 });
-    images.push({ data: Buffer.from(await data.arrayBuffer()).toString("base64"), mediaType: "image/webp" as const });
+    const bytes = Buffer.from(await data.arrayBuffer());
+    const mediaType = sniffImageType(bytes);
+    if (!mediaType) return NextResponse.json({ error: "photo_missing" }, { status: 400 });
+    images.push({ data: bytes.toString("base64"), mediaType });
   }
 
   const outcome = await estimateFood({ apiKey, text: b.text, images, previous });

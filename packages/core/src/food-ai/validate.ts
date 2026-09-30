@@ -3,9 +3,9 @@ import type { FoodEstimate, FoodEstimateItem } from "./schema";
 
 export function validateEstimate(e: FoodEstimate): { ok: true } | { ok: false; reason: string } {
   for (const it of e.items) {
-    if ([it.grams, it.kcal, it.protein_g, it.carbs_g, it.fat_g].some((n) => !Number.isFinite(n) || n < 0))
+    if ([it.grams, it.kcal, it.protein_g, it.carbs_g, it.fat_g, it.alcohol_g].some((n) => !Number.isFinite(n) || n < 0))
       return { ok: false, reason: `negative_or_nan:${it.name}` };
-    const fromMacros = it.protein_g * 4 + it.carbs_g * 4 + it.fat_g * 9;
+    const fromMacros = it.protein_g * 4 + it.carbs_g * 4 + it.fat_g * 9 + it.alcohol_g * 7;
     const diff = Math.abs(fromMacros - it.kcal);
     if (diff > 20 && diff > it.kcal * 0.15) return { ok: false, reason: `macro_mismatch:${it.name}` };
   }

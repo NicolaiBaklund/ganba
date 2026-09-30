@@ -8,6 +8,7 @@ import {
   FOOD_PROMPT_VERSION,
   FOOD_SYSTEM_PROMPT,
   FoodEstimateSchema,
+  validateEstimate,
 } from "../../packages/core/src/index.ts";
 
 type Case = { id: string; text?: string; image?: string; expected: { kcal: number; protein_g?: number } };
@@ -48,15 +49,17 @@ for (const c of cases) {
       output_config: { effort, format: zodOutputFormat(FoodEstimateSchema) },
     });
     const est = res.parsed_output;
+    const valid = est ? validateEstimate(est) : { ok: false as const, reason: "no_output" };
     const totals = est ? estimateTotals(est.items) : null;
     const price = PRICES[model] ?? [0, 0];
     const cost = (res.usage.input_tokens * price[0] + res.usage.output_tokens * price[1]) / 1e6;
     totalCost += cost;
     const errPct = totals ? ((totals.kcal - c.expected.kcal) / c.expected.kcal) * 100 : null;
-    results.push({ id: c.id, expected: c.expected, totals, errPct, cost, ms: Date.now() - started, items: est?.items });
+    results.push({ id: c.id, expected: c.expected, totals, errPct, valid, cost, ms: Date.now() - started, items: est?.items });
     console.log(
       `${c.id.padEnd(18)} exp ${String(c.expected.kcal).padStart(5)}  got ${String(Math.round(totals?.kcal ?? NaN)).padStart(5)}  ` +
-        `${errPct == null ? "  n/a" : `${errPct >= 0 ? "+" : ""}${errPct.toFixed(0)}%`.padStart(5)}  $${cost.toFixed(4)}`,
+        `${errPct == null ? "  n/a" : `${errPct >= 0 ? "+" : ""}${errPct.toFixed(0)}%`.padStart(5)}  $${cost.toFixed(4)}` +
+        (valid.ok ? "" : `  REJECTED by app (${valid.reason})`),
     );
   } catch (e) {
     results.push({ id: c.id, error: String(e) });
