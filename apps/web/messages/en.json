@@ -1,5 +1,7 @@
 {
-  "app": { "name": "Loop" },
+  "app": {
+    "name": "Loop"
+  },
   "login": {
     "title": "Loop",
     "subtitle": "Training and nutrition, together.",
@@ -9,5 +11,54 @@
     "error": "Couldn't send the link. Try again.",
     "or": "or",
     "google": "Continue with Google"
+  },
+  "onboarding": {
+    "back": "Back",
+    "next": "Continue",
+    "start": "Start",
+    "error": "Something went wrong. Try again.",
+    "body": {
+      "title": "About you",
+      "subtitle": "Used to estimate what you burn.",
+      "sex": "Sex (for the formula)",
+      "male": "Male",
+      "female": "Female",
+      "birthDate": "Date of birth",
+      "height": "Height",
+      "weight": "Current weight"
+    },
+    "activity": {
+      "title": "How active are you?",
+      "subtitle": "Rough averages are fine. We correct this from your real data.",
+      "steps": "Steps per day",
+      "stepsHint": "Check your watch or phone health app.",
+      "runKm": "Running per week",
+      "otherHours": "Other training per week",
+      "otherHint": "Gym, cycling, sports – hours per week."
+    },
+    "goal": {
+      "title": "Your goal",
+      "subtitle": "Where you want to go, and how fast.",
+      "target": "Target weight",
+      "rate": "Rate (kg per week)",
+      "unit": "Negative = lose, positive = gain.",
+      "limit": "Max loss for you: {max} kg/week (1 % of body weight)."
+    },
+    "result": {
+      "title": "Your plan",
+      "subtitle": "A starting point. It adapts after 2–3 weeks of logging.",
+      "daily": "Daily target",
+      "maintenance": "Maintenance ≈ {low}–{high} kcal",
+      "floored": "This hits the minimum safe target. Consider a slower rate.",
+      "breakdown": "How we got there",
+      "rest": "Resting + daily life",
+      "walking": "Extra walking",
+      "training": "Training",
+      "goalAdjust": "Goal adjustment",
+      "protein": "Protein",
+      "carbs": "Carbs",
+      "fat": "Fat",
+      "adaptiveNote": "After 14 days with enough logs, Loop calculates what you actually burn and suggests a new target each week."
+    }
   }
 }
