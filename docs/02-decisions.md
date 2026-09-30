@@ -55,6 +55,7 @@ Format: dato — beslutning — begrunnelse.
 | 2026-09-30 | Teknisk spec skrevet: specs/2026-09-30-fase1-teknisk.md | — |
 | 2026-09-30 | Garmin Developer Program-søknad sendt inn via en kompis sitt ENK (Activity, Health, Training API) | Programmet krever bedrift. Avtale/ansvar ligger hos ENK-eier |
 | 2026-09-30 | **Teknisk spec godkjent** (uten enhetstester) | Brukeren: "da fortsetter vi" |
+| 2026-09-30 | **Design: appen skal se kul ut, Runna-inspirert.** Før UI-oppgavene: finn gode UX/design-inspirasjonskilder og lag en liten designretning | Brukerens ønske |
 
 ## Åpne spørsmål
 - (Teknisk fase) Garmin-tilgang. Offisielt program er kun for bedrifter og muligens pauset (se research-notes). Sannsynlig vei: uoffisielt bibliotek i personlig fase, bak adapter-lag; offisielt når/om appen blir produkt.
