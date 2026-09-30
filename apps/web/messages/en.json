@@ -60,5 +60,103 @@
       "fat": "Fat",
       "adaptiveNote": "After 14 days with enough logs, Loop calculates what you actually burn and suggests a new target each week."
     }
+  },
+  "nav": {
+    "today": "Today",
+    "food": "Food",
+    "body": "Body",
+    "profile": "Profile"
+  },
+  "meals": {
+    "breakfast": "Breakfast",
+    "lunch": "Lunch",
+    "dinner": "Dinner",
+    "evening": "Evening",
+    "snack": "Snack"
+  },
+  "plus": {
+    "open": "Log something",
+    "title": "Log",
+    "photo": {
+      "title": "Photo",
+      "hint": "AI estimates it"
+    },
+    "text": {
+      "title": "Describe",
+      "hint": "Write what you ate"
+    },
+    "quick": {
+      "title": "Quick add",
+      "hint": "Just the calories"
+    },
+    "weight": {
+      "title": "Weight",
+      "hint": "Weigh-in + photo"
+    }
+  },
+  "quickAdd": {
+    "title": "Quick add",
+    "kcal": "Calories",
+    "protein": "Protein",
+    "carbs": "Carbs",
+    "fat": "Fat",
+    "addMacros": "+ Add macros",
+    "namePlaceholder": "Name (optional)",
+    "defaultName": "Quick add",
+    "save": "Add",
+    "saved": "Added",
+    "queued": "Saved offline – will sync",
+    "error": "Couldn't save. Try again."
+  },
+  "today": {
+    "todayLabel": "Today",
+    "yesterday": "Yesterday",
+    "prevDay": "Previous day",
+    "nextDay": "Next day",
+    "left": "kcal left",
+    "over": "kcal over",
+    "eaten": "Eaten",
+    "target": "Target",
+    "protein": "Protein",
+    "carbs": "Carbs",
+    "fat": "Fat",
+    "floored": "Target is at the safe minimum. Consider a slower rate.",
+    "noMeals": "Nothing logged yet. Tap + to log a meal.",
+    "trendWeight": "Trend weight",
+    "perWeek": "/wk",
+    "goal": "Goal"
+  },
+  "weight": {
+    "title": "Log weight",
+    "weight": "Weight",
+    "hint": "Best: morning, after the toilet, before food.",
+    "addPhoto": "Photo",
+    "save": "Save",
+    "saved": "Weight saved",
+    "queued": "Saved offline – will sync",
+    "error": "Couldn't save. Try again.",
+    "photoFailed": "Photo upload failed – saved without photo."
+  },
+  "body": {
+    "title": "Body",
+    "trend": "Trend",
+    "perWeek": "Per week",
+    "goal": "Goal",
+    "weight": "Weight",
+    "forecast": "Forecast",
+    "eta": "At this pace you reach your goal around {date}.",
+    "noData": "No weigh-ins yet.",
+    "photos": "Progress photos",
+    "noPhotos": "No photos yet. Add one when you log your weight.",
+    "compareHint": "Tap two photos to compare them side by side.",
+    "history": "History",
+    "delete": "Delete",
+    "confirmDelete": "Delete?",
+    "deleteError": "Couldn't delete.",
+    "range": {
+      "1m": "1 month",
+      "3m": "3 months",
+      "all": "All"
+    }
   }
 }

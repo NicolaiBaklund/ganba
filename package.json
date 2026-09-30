@@ -4,10 +4,13 @@
   "scripts": {
     "dev": "pnpm --filter web dev",
     "build": "pnpm --filter web build",
-    "typecheck": "pnpm -r exec tsc --noEmit"
+    "typecheck": "pnpm -r typecheck"
   },
   "packageManager": "pnpm@12.8.1",
   "devDependencies": {
+    "@supabase/supabase-js": "^2.117.2",
+    "dotenv": "^18.0.4",
+    "playwright": "^1.63.0",
     "supabase": "^2.118.0",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3"
