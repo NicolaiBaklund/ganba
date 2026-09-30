@@ -160,7 +160,36 @@
     }
   },
   "profile": {
-    "title": "Profile"
+    "title": "Profile",
+    "save": "Save",
+    "saved": "Saved",
+    "error": "Couldn’t save. Try again.",
+    "goal": {
+      "title": "Goal",
+      "target": "Target weight"
+    },
+    "activity": {
+      "title": "Activity",
+      "hint": "Injured or pausing training? Set running to 0 — your target drops automatically.",
+      "steps": "Steps per day",
+      "run": "Running / week",
+      "other": "Other training / week"
+    },
+    "macros": {
+      "title": "Nutrition targets",
+      "protein": "Protein",
+      "fat": "Fat",
+      "override": "Fixed calorie target (optional)",
+      "overrideHint": "Leave empty to let Loop calculate and adapt it."
+    },
+    "checkinDay": "Weekly check-in day",
+    "account": {
+      "title": "Account",
+      "signOut": "Sign out",
+      "deleteTitle": "Delete account",
+      "deleteExplain": "Deletes all your data and photos permanently. Type DELETE to confirm.",
+      "delete": "Delete everything"
+    }
   },
   "apiKey": {
     "title": "AI food logging",
@@ -249,5 +278,14 @@
       "few_food_days_last_week": "Log food at least 5 days a week to get an update.",
       "few_weigh_ins": "Weigh in a few more times to get an update."
     }
+  },
+  "weekdays": {
+    "0": "Sun",
+    "1": "Mon",
+    "2": "Tue",
+    "3": "Wed",
+    "4": "Thu",
+    "5": "Fri",
+    "6": "Sat"
   }
 }

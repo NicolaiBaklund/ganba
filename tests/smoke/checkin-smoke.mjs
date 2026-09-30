@@ -26,14 +26,14 @@ try {
 
   await page.goto(`${BASE}/today`);
   await page.getByText("Weekly check-in").waitFor();
-  await page.screenshot({ path: "tests/smoke/out/20-checkin.png", fullPage: true });
+  await page.screenshot({ path: "tests/smoke/out/20-checkin.png", fullPage: true, caret: "initial" });
   const before = await page.locator(".num").nth(0).textContent();
   await page.getByRole("button", { name: "Accept" }).click();
   await page.getByText("New target set").waitFor();
   await page.reload();
   await page.waitForTimeout(500);
   const cardGone = (await page.getByText("Weekly check-in").count()) === 0;
-  await page.screenshot({ path: "tests/smoke/out/21-after-accept.png", fullPage: true });
+  await page.screenshot({ path: "tests/smoke/out/21-after-accept.png", fullPage: true, caret: "initial" });
   await browser.close();
 
   const [{ data: rows }, { data: plans }] = await Promise.all([

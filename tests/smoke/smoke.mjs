@@ -17,7 +17,7 @@ const password = `Smoke-${crypto.randomUUID()}`;
 const shots = [];
 const shot = async (page, name) => {
   await page.waitForTimeout(400);
-  await page.screenshot({ path: `tests/smoke/out/${name}.png`, fullPage: true });
+  await page.screenshot({ path: `tests/smoke/out/${name}.png`, fullPage: true, caret: "initial" });
   shots.push(name);
 };
 
