@@ -158,5 +158,20 @@
       "3m": "3 months",
       "all": "All"
     }
+  },
+  "profile": {
+    "title": "Profile"
+  },
+  "apiKey": {
+    "title": "AI food logging",
+    "explain": "Photo and text logging uses your own Anthropic API key. Create one at console.anthropic.com → API keys. Usage is billed to your Anthropic account (roughly 0.3–0.5 kr per log).",
+    "save": "Save key",
+    "checking": "Checking…",
+    "saved": "Key saved and verified",
+    "invalid": "That key doesn’t work. Check it and try again.",
+    "unavailable": "Couldn’t verify the key right now. Try again.",
+    "verified": "Verified {date}",
+    "replace": "Replace",
+    "remove": "Remove"
   }
 }
