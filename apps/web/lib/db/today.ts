@@ -12,7 +12,7 @@ import {
   type Macros,
   type TrendPoint,
 } from "@loop/core";
-import { currentRow, getProfile, toActivityBaseline, toEnergyPlan, type DB } from "./current";
+import { getProfile, rowForDate, toActivityBaseline, toEnergyPlan, type DB } from "./current";
 
 export type MealType = "breakfast" | "lunch" | "dinner" | "evening" | "snack";
 
@@ -68,9 +68,9 @@ export async function getDaySnapshot(supabase: DB, userId: string, dateArg?: ISO
   const date = dateArg && /^\d{4}-\d{2}-\d{2}$/.test(dateArg) ? dateArg : today;
 
   const [goalRow, planRow, baselineRow, entriesRes, weightsRes] = await Promise.all([
-    currentRow(supabase, "goals", userId, date),
-    currentRow(supabase, "energy_plans", userId, date),
-    currentRow(supabase, "activity_baselines", userId, date),
+    rowForDate(supabase, "goals", userId, date),
+    rowForDate(supabase, "energy_plans", userId, date),
+    rowForDate(supabase, "activity_baselines", userId, date),
     supabase
       .from("food_entries")
       .select("id, logged_at, meal_type, source, items:food_items(id, name, grams, kcal, protein_g, carbs_g, fat_g, confidence), photos(id, storage_path)")

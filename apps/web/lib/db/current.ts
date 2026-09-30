@@ -34,6 +34,26 @@ export async function currentRow<T extends Versioned>(
   return data as Tables[T]["Row"] | null;
 }
 
+/** Row for a date; for dates before the first row (e.g. browsing back past onboarding) the earliest row. */
+export async function rowForDate<T extends Versioned>(
+  supabase: DB,
+  table: T,
+  userId: string,
+  date: ISODate,
+): Promise<Tables[T]["Row"] | null> {
+  const row = await currentRow(supabase, table, userId, date);
+  if (row) return row;
+  const { data, error } = await (supabase as unknown as SupabaseClient)
+    .from(table)
+    .select("*")
+    .eq("user_id", userId)
+    .order("valid_from", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data as Tables[T]["Row"] | null;
+}
+
 export const toEnergyPlan = (r: Tables["energy_plans"]["Row"]): EnergyPlan => ({
   baseExpenditureKcal: Number(r.base_expenditure_kcal),
   proteinGPerKg: Number(r.protein_g_per_kg),
