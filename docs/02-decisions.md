@@ -44,7 +44,10 @@ Format: dato — beslutning — begrunnelse.
 | 2026-09-29 | Arkitektur godkjent: `packages/core` (ren TS) for energi/trend/food-ai, gjenbrukbar i senere Expo-app | Mulig native app senere |
 | 2026-09-29 | AI-modell = konfigurasjon; start Opus 5.5, test billigere mot eval-sett | Kvalitet først, kutt kost basert på måling |
 | 2026-09-29 | **Bring your own key** for nå: bruker legger inn egen Anthropic-nøkkel, kryptert server-side. Plattformnøkkel hvis produkt | Eier betaler ikke for andres bruk |
+| 2026-09-30 | **Datamodell godkjent** (se 03-tech-notes): local_date/tidssone, energy_plans med grunnforbruk, totaler kun i food_items, flere bilder per innslag, separate buckets, AI-estimat-kjede, innsjekk lagrer grunnlag, api_keys kun server, alle vektmålinger lagres | Claude-gjennomgang, brukeren godkjente |
+| 2026-09-30 | Ikke pose på bilder, ikke fiber | Liten verdi, mer innsats for bruker |
+| 2026-09-30 | **Produktprinsipp: minst mulig innsats for brukeren.** Mye data, men samlet automatisk. Ikke for detaljert | "Om bruker alltid må gjøre masse, går man lei" |
 
 ## Åpne spørsmål
 - (Teknisk fase) Garmin-tilgang. Offisielt program er kun for bedrifter og muligens pauset (se research-notes). Sannsynlig vei: uoffisielt bibliotek i personlig fase, bak adapter-lag; offisielt når/om appen blir produkt.
-- (Teknisk fase) Datamodell, ukentlig jobb, bildelagring, feilhåndtering, AI-priser. Se 03-tech-notes.
+- (Teknisk fase) Ukentlig jobb, bildelagring, feilhåndtering, AI-priser. Se 03-tech-notes.

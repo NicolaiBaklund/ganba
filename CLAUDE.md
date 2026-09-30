@@ -13,6 +13,9 @@ Systemet er **generelt/flerbruker** — aldri hardkod brukerens personlige verdi
 - [docs/03-tech-notes.md](docs/03-tech-notes.md) — teknisk design under arbeid
 - [docs/01-research-notes.md](docs/01-research-notes.md) — fakta om API-er (Strava, Garmin, Anthropic)
 
+## Produktprinsipp
+**Minst mulig innsats for brukeren.** Mye data, men samlet automatisk/utledet. Hvis brukeren alltid må fylle ut masse, går de lei. Alt utover det nødvendige er valgfritt og kan hoppes over. Test hver ny funksjon mot dette.
+
 ## Regler
 - Oppdater `docs/02-decisions.md` hver gang noe blir bestemt.
 - Brukeren skriver norsk. Docs på norsk.

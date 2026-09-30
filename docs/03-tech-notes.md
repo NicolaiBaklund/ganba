@@ -48,8 +48,35 @@ packages/core (ren TS, ingen rammeverk-avhengighet)
 - Ett sted i koden avgjør hvilken nøkkel brukes → lett å legge til plattformnøkkel + grenser/abonnement hvis produkt.
 - Ingen per-bruker-kvote nødvendig nå (hver betaler selv).
 
+### Datamodell
+Alle tabeller har `user_id` (→ `auth.users`, `on delete cascade`) + RLS: bruker ser kun egne rader. `id uuid`, `created_at`, `updated_at`. Metrisk kanonisk (kg, cm, g, kcal).
+
+| Tabell | Innhold |
+|---|---|
+| `profiles` | kjønn (for formel), fødselsdato, høyde, `timezone` (auto fra enhet), innsjekk-ukedag, enheter, språk |
+| `activity_baselines` | skritt/dag, løpe-km/uke, timer annen trening/uke, `valid_from` |
+| `goals` | målvekt, tempo kg/uke, `valid_from` |
+| `energy_plans` | `base_expenditure_kcal`, kilde (formula/adaptive/manual), proteinregel (g/kg), fettandel, `manual_kcal_override` (null), `checkin_id` (null), `valid_from` |
+| `food_entries` | `logged_at` (timestamptz), `local_date`, måltidstype, kilde (ai/quick) |
+| `food_items` | `food_entry_id`, navn, gram (null), kcal, protein, karbo, fett, sikkerhet (null). **Eneste sted totaler lagres** |
+| `ai_estimates` | `food_entry_id` (null), `parent_estimate_id` (null, kjede ved korrigering), input-tekst, modell, `prompt_version`, rått svar (jsonb), tokens inn/ut, kost, latens, feil |
+| `weight_entries` | `measured_at`, `local_date`, vekt kg, `source` (manual; senere garmin) |
+| `photos` | `storage_path`, `bucket` (food/body), `food_entry_id` / `weight_entry_id` (én satt). Flere bilder per innslag |
+| `weekly_checkins` | `week_start` (unik per bruker), vindu, snitt inntak, trendendring, loggede dager, treningskcal, beregnet grunnforbruk, foreslått mål, status (pending/accepted/kept) |
+| `api_keys` | leverandør, kryptert nøkkel + IV, siste 4 tegn, `validated_at`. **Ingen RLS-tilgang for klient** — kun server (service role) |
+
+Prinsipper:
+- **Dag = `local_date`** (brukerens tidssone ved logging). Alle summer og uker bruker den.
+- **Dagsmål lagres ikke** — regnes i `packages/core`: grunnforbruk + trening(dag) − underskudd (eller manuell overstyring). Klar for fase 2.
+- **Trendvekt lagres ikke** — regnes fra `weight_entries`. Første måling per dag brukes.
+- Hurtigtillegg = innslag med én `food_items`-linje.
+- Dagssummer via database-view.
+- Mat- og kroppsbilder i **separate buckets**. Kroppsbilder sendes aldri til AI. Sletting av innslag/konto sletter også filer.
+- `ai_estimates` (AI-forslag) vs. `food_items` (lagret) = datagrunnlag for prompt-forbedring.
+
+Bevisst utelatt: pose på bilder, fiber/sukker/salt, `daily_targets`-tabell, myk sletting, favoritter (men modellen gjør "logg igjen" enkelt senere).
+
 ## Gjenstår
-- Datamodell
 - Ukentlig jobb: hvordan kjøres (cron)
 - Bildelagring: struktur, sletting
 - Feilhåndtering, observabilitet
