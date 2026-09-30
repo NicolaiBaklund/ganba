@@ -11,6 +11,7 @@ Systemet er **generelt/flerbruker** — aldri hardkod brukerens personlige verdi
 - [docs/specs/2026-09-30-fase1-teknisk.md](docs/specs/2026-09-30-fase1-teknisk.md) — **teknisk spec** fase 1 (hvordan)
 - [docs/00-idea.md](docs/00-idea.md) — hva appen er
 - [docs/02-decisions.md](docs/02-decisions.md) — hva vi er enige om + åpne spørsmål
+- [docs/design.md](docs/design.md) — designretning + tokens (følg ved all UI)
 - [docs/03-tech-notes.md](docs/03-tech-notes.md) — teknisk design under arbeid
 - [docs/01-research-notes.md](docs/01-research-notes.md) — fakta om API-er (Strava, Garmin, Anthropic)
 
