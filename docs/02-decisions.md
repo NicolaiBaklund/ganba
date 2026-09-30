@@ -37,8 +37,14 @@ Format: dato — beslutning — begrunnelse.
 | 2026-09-29 | Offisiell Garmin-tilgang er kun for bedrifter (og muligens pauset) | Sjekket Garmin FAQ, se research-notes |
 | 2026-09-29 | **Godkjent:** Forbruk deles i **grunnforbruk** (uten trening) + **treningsforbruk**. Adaptiv beregning finner grunnforbruk = inntak − vektendring − estimert treningskcal. Mål = grunnforbruk + treningskcal − underskudd. Fase 1: treningskcal = konstant fra oppstart (kan oppdateres). Fase 2: faktisk/planlagt fra Garmin → mål varierer | Brukeren påpekte: uke uten trening med samme inntak → vektøkning hvis forbruk er ett samlet tall |
 | 2026-09-29 | **Dagsmål fase 2 = plan + korreksjon (B):** mål settes om morgenen fra planlagt økt; erstattes med faktisk når økt synkes; droppet økt → mål faller; uplanlagt økt legges til etter gjennomføring. Mulig innstilling senere: jevnt fordelt over uka (C) | Muliggjør fueling før økt; unngår kveldsspising (MFP-problemet) |
+| 2026-09-29 | **Fase 1 konsept-spec godkjent** | Brukeren: "ser veldig bra ut" |
+| 2026-09-29 | UI-språk: engelsk + i18n-klar (Claude-default, ikke eksplisitt bekreftet) | Appen skal åpnes for andre |
+| 2026-09-29 | Brukerens erfaring: mest Python, kjent med TS/React. Claude skriver det meste | Påvirker stack-valg |
+| 2026-09-29 | **Stack: Next.js + TypeScript (PWA) + Supabase**, Vercel-hosting. Garmin fase 2 som liten Python-tjeneste | Ett språk, raskest, flerbruker/RLS i grunnmur. Se 03-tech-notes |
+| 2026-09-29 | Arkitektur godkjent: `packages/core` (ren TS) for energi/trend/food-ai, gjenbrukbar i senere Expo-app | Mulig native app senere |
+| 2026-09-29 | AI-modell = konfigurasjon; start Opus 5.5, test billigere mot eval-sett | Kvalitet først, kutt kost basert på måling |
+| 2026-09-29 | **Bring your own key** for nå: bruker legger inn egen Anthropic-nøkkel, kryptert server-side. Plattformnøkkel hvis produkt | Eier betaler ikke for andres bruk |
 
 ## Åpne spørsmål
 - (Teknisk fase) Garmin-tilgang. Offisielt program er kun for bedrifter og muligens pauset (se research-notes). Sannsynlig vei: uoffisielt bibliotek i personlig fase, bak adapter-lag; offisielt når/om appen blir produkt.
-- (Teknisk fase) Stack, hosting, datamodell, auth, bildelagring, AI-kost per logg.
-- UI-språk: norsk eller engelsk?
+- (Teknisk fase) Datamodell, ukentlig jobb, bildelagring, feilhåndtering, AI-priser. Se 03-tech-notes.

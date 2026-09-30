@@ -1,6 +1,6 @@
 # Loop — Fase 1 konsept-spec: Mat + vekt
 
-Status: **konsept godkjent i diskusjon, venter på gjennomlesing**. Teknisk design (stack, hosting, datamodell) kommer i egen spec.
+Status: **godkjent av bruker 2026-09-29**. Teknisk design (stack, hosting, datamodell) kommer i egen spec.
 Bakgrunn og full beslutningslogg: [../00-idea.md](../00-idea.md), [../02-decisions.md](../02-decisions.md).
 
 ## 1. Mål og avgrensning
@@ -147,7 +147,7 @@ Mål (periode) = Grunnforbruk + treningskcal (periode) − (tempo × 7700 / 7)
 ## 9. Enheter og språk
 
 - Metrisk (kg, cm, kcal) i fase 1. Lagres slik at imperialt kan legges til.
-- UI-språk: **ikke bestemt** (norsk vs. engelsk) — avklares i teknisk fase.
+- UI-språk: **engelsk** fra start, bygget for oversettelse (i18n) så norsk kan legges til. (Claude-default, kan overstyres.)
 
 ## 10. Kjente risikoer
 
