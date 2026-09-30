@@ -2,7 +2,7 @@
 
 Personlig trenings- + ernæringsapp (Runna + MyFitnessPal i ett). Webapp, må fungere på mobil.
 
-**Fase nå:** specs godkjent. Implementasjonsplan skrevet ([docs/plans/2026-09-30-fase1-plan.md](docs/plans/2026-09-30-fase1-plan.md)), venter godkjenning + valg av kjøremåte. Ingen kode før plan er godkjent.
+**Fase nå:** fase 1 (mat + vekt) implementert på grenen `fase1` (plan: docs/plans/2026-09-30-fase1-plan.md). Gjenstår: publisering (Vercel), ekte AI-test med brukerens nøkkel, utsatte småfunn (se ledger/oppsummering). Neste store: fase 2 (Garmin + treningsplan).
 
 Systemet er **generelt/flerbruker** — aldri hardkod brukerens personlige verdier.
 
