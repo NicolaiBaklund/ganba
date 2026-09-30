@@ -215,5 +215,19 @@
       "photo_upload": "Photo upload failed.",
       "network": "No connection."
     }
+  },
+  "food": {
+    "protein": "Protein",
+    "carbs": "Carbs",
+    "fat": "Fat",
+    "ofTarget": "{pct}% of today’s target",
+    "empty": "Nothing logged this day.",
+    "edit": "Edit entry",
+    "addItem": "Add item",
+    "save": "Save changes",
+    "saveError": "Couldn’t save. Try again.",
+    "delete": "Delete entry",
+    "confirmDelete": "Yes, delete",
+    "deleteError": "Couldn’t delete."
   }
 }

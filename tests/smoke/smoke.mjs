@@ -130,6 +130,22 @@ try {
   await page.waitForURL(/today/);
   await shot(page, "12-today-after-ai");
 
+  // Food history: edit quick add 650 → 700, delete the AI entry.
+  await page.goto(`${BASE}/food`);
+  await shot(page, "13-food-history");
+  await page.getByRole("button", { name: /Quick add/ }).click();
+  const kcalInput = page.getByRole("dialog").locator('input[inputmode="decimal"]').nth(1);
+  await kcalInput.fill("700");
+  await kcalInput.blur();
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await page.getByRole("dialog").waitFor({ state: "hidden" });
+  await page.getByRole("button", { name: /Spaghetti/ }).click();
+  await page.getByRole("button", { name: "Delete entry" }).click();
+  await page.getByRole("button", { name: "Yes, delete" }).click();
+  await page.getByRole("dialog").waitFor({ state: "hidden" });
+  await page.waitForTimeout(800);
+  await shot(page, "14-food-after-edit");
+
   // Delete the weigh-in that has the photo; its file must disappear from storage.
   const { data: photoRows } = await admin.from("photos").select("storage_path, weight_entry_id").eq("user_id", uid);
   const photoPath = photoRows?.[0]?.storage_path;
@@ -145,10 +161,9 @@ try {
   ]);
   const osloToday = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Oslo" }).format(new Date());
   const checks = {
-    "2 food entries (quick + ai)": entries?.length === 2,
-    "ai entry has 2 items": entries?.[1]?.source === "ai" && entries?.[1]?.food_items?.length === 2,
+    "1 food entry left (ai deleted)": entries?.length === 1 && entries?.[0]?.source === "quick",
     "entry on Oslo local date": entries?.[0]?.local_date === osloToday,
-    "650 kcal item": Number(entries?.[0]?.food_items?.[0]?.kcal) === 650,
+    "quick add edited to 700 kcal": Number(entries?.[0]?.food_items?.[0]?.kcal) === 700,
     "1 weight left (onboarding; logged one deleted)": weights?.length === 1,
     "body photo uploaded + linked": !!photoPath,
     "delete weight → 200": del?.ok() === true,
