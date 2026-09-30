@@ -1,6 +1,6 @@
 # Teknisk design — arbeidsnotater (fase 1)
 
-Status: under diskusjon. Blir til teknisk spec når alle deler er godkjent.
+Status: **samlet i [specs/2026-09-30-fase1-teknisk.md](specs/2026-09-30-fase1-teknisk.md)** — den er gjeldende. Denne fila er diskusjonshistorikk.
 
 ## Godkjent
 

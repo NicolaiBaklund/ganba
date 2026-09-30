@@ -5,6 +5,10 @@
 - Claude-appen har egen systemprompt og kan ha tools (f.eks. websøk), men selve bildeforståelsen er den samme modellen. Med god prompt + strukturert output (JSON med matvarer, gram, makroer, usikkerhet) bør resultatet bli likt eller bedre enn i appen.
 - Kost: betales per token (ikke dekket av Claude-abonnement). Ett bilde + svar er typisk noen få øre–kroner per logg. Må regnes ut når vi vet volum.
 - API-nøkkel må ligge på server, aldri i nettleseren.
+- **Priser (claude-api-skill, cache 2026-06-24), per 1M tokens inn / ut:** Opus 5.5 $4 / $20 (cache-lesing $0.20) · Sonnet 5 $2 / $10 · Haiku 4.5 $1 / $5.
+- Bilde ≈ (bredde × høyde) / 750 tokens → 1024×768 ≈ 1050 tokens (tommelfingerregel, ikke verifisert for nyeste modeller).
+- Opus 5.5: thinking kan ikke slås av; styres med `effort` (default `medium`). Thinking faktureres som output. Ingen prefill, ingen tvungen tool_choice → bruk structured outputs (`output_config.format`).
+- Grovt estimat per matlogg (Opus 5.5): ~2.5k tokens inn (bilde + prompt, prompt caches) + ~1–2k ut (JSON + thinking) ≈ **$0.03–0.05**. 5 logger/dag ≈ $5–7.5/mnd per bruker. Må måles i praksis; `effort: low` og Sonnet 5 er spakene.
 
 ## Strava API
 - Lese aktiviteter: ja (distanse, tid, puls, splits, kalorier på detaljert aktivitet).

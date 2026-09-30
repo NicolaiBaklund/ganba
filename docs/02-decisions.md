@@ -47,7 +47,11 @@ Format: dato — beslutning — begrunnelse.
 | 2026-09-30 | **Datamodell godkjent** (se 03-tech-notes): local_date/tidssone, energy_plans med grunnforbruk, totaler kun i food_items, flere bilder per innslag, separate buckets, AI-estimat-kjede, innsjekk lagrer grunnlag, api_keys kun server, alle vektmålinger lagres | Claude-gjennomgang, brukeren godkjente |
 | 2026-09-30 | Ikke pose på bilder, ikke fiber | Liten verdi, mer innsats for bruker |
 | 2026-09-30 | **Produktprinsipp: minst mulig innsats for brukeren.** Mye data, men samlet automatisk. Ikke for detaljert | "Om bruker alltid må gjøre masse, går man lei" |
+| 2026-09-30 | Ukentlig innsjekk beregnes ved første app-åpning på/etter innsjekkdag (ingen cron). Unik per uke | Brukeren må uansett godta; mindre drift |
+| 2026-09-30 | Bilder: WebP ~1024 px klientside, private buckets, signerte URL-er, sletting følger innslag/konto | — |
+| 2026-09-30 | Feilhåndtering: 2 SDK-retries, bilde/tekst beholdes ved feil, hurtigtillegg som fallback, offline-utkast lokalt. Observabilitet via ai_estimates + Vercel-logger | — |
+| 2026-09-30 | AI-kost estimert ~$0.03–0.05 per logg med Opus 5.5 (se research-notes). Spaker: effort, Sonnet 5 | Må måles |
+| 2026-09-30 | Teknisk spec skrevet: specs/2026-09-30-fase1-teknisk.md | Venter gjennomlesing |
 
 ## Åpne spørsmål
 - (Teknisk fase) Garmin-tilgang. Offisielt program er kun for bedrifter og muligens pauset (se research-notes). Sannsynlig vei: uoffisielt bibliotek i personlig fase, bak adapter-lag; offisielt når/om appen blir produkt.
-- (Teknisk fase) Ukentlig jobb, bildelagring, feilhåndtering, AI-priser. Se 03-tech-notes.
