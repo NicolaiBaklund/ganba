@@ -6,3 +6,6 @@ export * from "./energy/target";
 export * from "./energy/macros";
 export * from "./trend/trend";
 export * from "./checkin/checkin";
+export * from "./food-ai/schema";
+export * from "./food-ai/prompt";
+export * from "./food-ai/validate";
