@@ -173,5 +173,47 @@
     "verified": "Verified {date}",
     "replace": "Replace",
     "remove": "Remove"
+  },
+  "foodLog": {
+    "title": "Log food",
+    "back": "Back",
+    "photo": "Photo",
+    "placeholder": "Describe it, e.g. “dinner, extra sauce” or “2 eggs and toast with cheese”",
+    "estimate": "Estimate",
+    "estimating": "Estimating…",
+    "total": "Total",
+    "addItem": "Add item",
+    "removeItem": "Remove item",
+    "unnamed": "Item",
+    "correctionPlaceholder": "Correct it, e.g. “2 eggs, not 3”",
+    "update": "Update",
+    "save": "Save",
+    "saved": "Logged",
+    "saveError": "Couldn’t save. Try again.",
+    "noFood": "No food recognised.",
+    "noKey": "AI logging needs your Anthropic API key.",
+    "addKey": "Add API key",
+    "quickInstead": "Quick add instead",
+    "retry": "Try again",
+    "confidence": {
+      "low": "Low confidence",
+      "medium": "Medium confidence",
+      "high": "High confidence"
+    },
+    "short": {
+      "kcal": "kcal",
+      "protein_g": "P",
+      "carbs_g": "C",
+      "fat_g": "F"
+    },
+    "errors": {
+      "no_key": "Add your Anthropic API key in Profile to use AI logging.",
+      "invalid_key": "Your API key doesn’t work anymore.",
+      "unavailable": "The AI is busy right now.",
+      "refused": "Couldn’t estimate this.",
+      "invalid_output": "Couldn’t estimate this.",
+      "photo_upload": "Photo upload failed.",
+      "network": "No connection."
+    }
   }
 }

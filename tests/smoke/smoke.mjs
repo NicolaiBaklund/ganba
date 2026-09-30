@@ -100,6 +100,36 @@ try {
   await page.goto(`${BASE}/body`);
   await shot(page, "09-body");
 
+  // AI logging UI: no key banner, then with a dummy key row and a mocked estimate response.
+  await page.goto(`${BASE}/food/log?mode=text`);
+  await page.getByText("AI logging needs your Anthropic API key.").waitFor();
+  await shot(page, "10-foodlog-nokey");
+  await admin.from("api_keys").insert({ user_id: uid, ciphertext: "x", iv: "x", auth_tag: "x", last4: "test" });
+  await page.route("**/api/food/estimate", (route) =>
+    route.fulfill({
+      json: {
+        estimateId: null,
+        estimate: {
+          notes: "Sauce amount is a guess.",
+          items: [
+            { name: "Spaghetti, cooked", grams: 250, kcal: 395, protein_g: 14.5, carbs_g: 77, fat_g: 2.3, confidence: "medium", assumptions: "Assumed a normal plate." },
+            { name: "Bolognese sauce", grams: 200, kcal: 300, protein_g: 20, carbs_g: 12, fat_g: 19, confidence: "low", assumptions: "Beef mince, some oil." },
+          ],
+        },
+        totals: { kcal: 695, proteinG: 34.5, carbsG: 89, fatG: 21.3 },
+      },
+    }),
+  );
+  await page.goto(`${BASE}/food/log?mode=text`);
+  await page.getByPlaceholder(/Describe it/).fill("spaghetti bolognese");
+  await page.getByRole("button", { name: "Estimate" }).click();
+  await page.getByText("Bolognese sauce").first().waitFor().catch(() => {});
+  await page.locator('input[value="Bolognese sauce"]').waitFor();
+  await shot(page, "11-foodlog-review");
+  await page.getByRole("button", { name: "Save" }).click();
+  await page.waitForURL(/today/);
+  await shot(page, "12-today-after-ai");
+
   // Delete the weigh-in that has the photo; its file must disappear from storage.
   const { data: photoRows } = await admin.from("photos").select("storage_path, weight_entry_id").eq("user_id", uid);
   const photoPath = photoRows?.[0]?.storage_path;
@@ -109,13 +139,14 @@ try {
 
   // DB assertions
   const [{ data: entries }, { data: weights }, { data: plans }] = await Promise.all([
-    admin.from("food_entries").select("local_date, food_items(kcal)").eq("user_id", uid),
+    admin.from("food_entries").select("local_date, source, food_items(kcal)").eq("user_id", uid).order("created_at"),
     admin.from("weight_entries").select("weight_kg").eq("user_id", uid),
     admin.from("energy_plans").select("base_expenditure_kcal").eq("user_id", uid),
   ]);
   const osloToday = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Oslo" }).format(new Date());
   const checks = {
-    "1 food entry": entries?.length === 1,
+    "2 food entries (quick + ai)": entries?.length === 2,
+    "ai entry has 2 items": entries?.[1]?.source === "ai" && entries?.[1]?.food_items?.length === 2,
     "entry on Oslo local date": entries?.[0]?.local_date === osloToday,
     "650 kcal item": Number(entries?.[0]?.food_items?.[0]?.kcal) === 650,
     "1 weight left (onboarding; logged one deleted)": weights?.length === 1,

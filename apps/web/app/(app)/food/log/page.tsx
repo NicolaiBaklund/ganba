@@ -1,3 +1,10 @@
-export default function FoodLogPage() {
-  return <h1 className="px-4 pt-4 font-heading text-2xl font-bold">Log food</h1>;
+import { requireUser } from "@/lib/supabase/server";
+import { getApiKeyStatus } from "@/lib/ai/keys";
+import { FoodLogger } from "@/components/food/FoodLogger";
+
+export default async function FoodLogPage({ searchParams }: PageProps<"/food/log">) {
+  const { mode } = await searchParams;
+  const { user } = await requireUser();
+  const hasKey = !!(await getApiKeyStatus(user.id));
+  return <FoodLogger hasKey={hasKey} mode={mode === "photo" ? "photo" : "text"} />;
 }
