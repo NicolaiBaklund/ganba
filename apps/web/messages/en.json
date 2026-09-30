@@ -229,5 +229,25 @@
     "delete": "Delete entry",
     "confirmDelete": "Yes, delete",
     "deleteError": "Couldn’t delete."
+  },
+  "checkin": {
+    "title": "Weekly check-in",
+    "trend": "Trend",
+    "perWeek": "kg/wk (goal {goal})",
+    "burn": "You actually burn",
+    "newTarget": "Suggested daily target",
+    "basedOn": "Based on {days} logged days and your weight trend.",
+    "accept": "Accept",
+    "keep": "Keep current",
+    "accepted": "New target set",
+    "kept": "Kept your current target",
+    "error": "Couldn’t update. Try again.",
+    "dismiss": "OK",
+    "insufficient": {
+      "too_early": "Keep logging — your first adaptive update comes after about two weeks.",
+      "few_food_days": "Not enough food logged in the last 3 weeks to update your target.",
+      "few_food_days_last_week": "Log food at least 5 days a week to get an update.",
+      "few_weigh_ins": "Weigh in a few more times to get an update."
+    }
   }
 }
