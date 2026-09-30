@@ -56,6 +56,9 @@ Format: dato — beslutning — begrunnelse.
 | 2026-09-30 | Garmin Developer Program-søknad sendt inn via en kompis sitt ENK (Activity, Health, Training API) | Programmet krever bedrift. Avtale/ansvar ligger hos ENK-eier |
 | 2026-09-30 | **Teknisk spec godkjent** (uten enhetstester) | Brukeren: "da fortsetter vi" |
 | 2026-09-30 | **Design: appen skal se kul ut, Runna-inspirert.** Før UI-oppgavene: finn gode UX/design-inspirasjonskilder og lag en liten designretning | Brukerens ønske |
+| 2026-09-30 | Fase 1 implementert (grenen `fase1`): alle planoppgaver unntatt publisering. Final review (1 kritisk, 6 viktige) rettet | Se docs/plans/2026-09-30-fase1-plan.md |
+| 2026-09-30 | Innlogging: e-post med **6-sifret kode + token_hash-lenke** (virker i alle nettlesere/PWA). Krever tilpasset Magic Link-mal i Supabase | PKCE-lenke feiler i annen nettleser |
+| 2026-09-30 | AI-skjema har `alcohol_g` (prompt v2) | Øl/vin ble ellers avvist av kcal-sjekken |
 
 ## Åpne spørsmål
 - (Teknisk fase) Garmin-tilgang. Offisielt program er kun for bedrifter og muligens pauset (se research-notes). Sannsynlig vei: uoffisielt bibliotek i personlig fase, bak adapter-lag; offisielt når/om appen blir produkt.
