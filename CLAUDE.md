@@ -21,3 +21,4 @@ Systemet er **generelt/flerbruker** — aldri hardkod brukerens personlige verdi
 - Oppdater `docs/02-decisions.md` hver gang noe blir bestemt.
 - Brukeren skriver norsk. Docs på norsk.
 - Ett spørsmål om gangen i diskusjon.
+- **Ingen enhetstester / TDD.** Kun integrasjonstester, og først når flytene står. Ikke bruk tokens på småtester.

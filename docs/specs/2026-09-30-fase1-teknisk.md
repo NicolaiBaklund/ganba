@@ -16,7 +16,7 @@ Valg merket *(Claude-default)* ble ikke diskutert eksplisitt — si fra hvis noe
 | Validering | zod (skjema for API-input og AI-svar) |
 | Backend | **Supabase**: Postgres + RLS, Auth, Storage |
 | AI | Anthropic TypeScript SDK (`@anthropic-ai/sdk`), modell konfigurerbar, start `claude-opus-5-5` |
-| Tester | Vitest (enhet), Playwright for noen få kjerneflyter *(Claude-default)* |
+| Tester | Kun integrasjonstester etter hvert (Vitest mot lokal Supabase, evt. Playwright) |
 | Hosting | Vercel (app) + Supabase (hostet) |
 | Pakkehåndtering | pnpm workspaces (monorepo) *(Claude-default)* |
 
@@ -201,10 +201,12 @@ Observabilitet: `ai_estimates` (AI-feil, kost, latens) + Vercel-logger. Sentry s
 
 ## 11. Testing
 
-- **`packages/core`:** grundige enhetstester (BMR, startestimat, dagsmål, gulv/tak, makro, trend med hull, innsjekk inkl. aktiveringskrav, ±150-grense, insufficient_data). Kjente tall som fasit.
-- **RLS:** integrasjonstest mot lokal Supabase (to brukere).
-- **API-ruter:** zod-validering, nøkkelhåndtering (ingen lekkasje), AI-kall mocket.
-- **E2E (Playwright):** oppstart → hurtigtillegg → vekt → I dag viser riktige tall.
+**Ingen enhetstester / TDD.** Brukerens valg: ikke bruk tokens på småtester.
+
+Integrasjonstester legges til **etter hvert**, når flytene står:
+- **RLS:** bruker A ser ikke B sine rader/filer (sikkerhet, prioriteres først).
+- **Kjerneflyt:** oppstart → hurtigtillegg → vekt → I dag viser riktige tall.
+- **Innsjekk:** seedet data (3 uker mat + vekt) → riktig foreslått mål.
 - **AI-eval:** manuelt skript (§5.4).
 
 ## 12. Utenfor fase 1
