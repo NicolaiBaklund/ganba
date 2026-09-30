@@ -2,7 +2,7 @@
 
 Personlig trenings- + ernæringsapp (Runna + MyFitnessPal i ett). Webapp, må fungere på mobil.
 
-**Fase nå:** konsept + teknisk spec for fase 1 (mat + vekt) skrevet. Teknisk spec venter gjennomlesing. Deretter: implementasjonsplan. Ingen kode før plan er godkjent.
+**Fase nå:** specs godkjent. Implementasjonsplan skrevet ([docs/plans/2026-09-30-fase1-plan.md](docs/plans/2026-09-30-fase1-plan.md)), venter godkjenning + valg av kjøremåte. Ingen kode før plan er godkjent.
 
 Systemet er **generelt/flerbruker** — aldri hardkod brukerens personlige verdier.
 

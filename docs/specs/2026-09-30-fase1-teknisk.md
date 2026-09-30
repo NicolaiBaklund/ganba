@@ -1,6 +1,6 @@
 # Loop — Fase 1 teknisk spec
 
-Status: **utkast, venter på gjennomlesing**.
+Status: **godkjent av bruker 2026-09-30**.
 Bygger på: [konsept-spec](2026-09-29-fase1-konsept.md). Beslutninger: [../02-decisions.md](../02-decisions.md). Arbeidsnotater: [../03-tech-notes.md](../03-tech-notes.md).
 
 Valg merket *(Claude-default)* ble ikke diskutert eksplisitt — si fra hvis noe skal endres.

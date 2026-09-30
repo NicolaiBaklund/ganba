@@ -51,7 +51,10 @@ Format: dato — beslutning — begrunnelse.
 | 2026-09-30 | Bilder: WebP ~1024 px klientside, private buckets, signerte URL-er, sletting følger innslag/konto | — |
 | 2026-09-30 | Feilhåndtering: 2 SDK-retries, bilde/tekst beholdes ved feil, hurtigtillegg som fallback, offline-utkast lokalt. Observabilitet via ai_estimates + Vercel-logger | — |
 | 2026-09-30 | AI-kost estimert ~$0.03–0.05 per logg med Opus 5.5 (se research-notes). Spaker: effort, Sonnet 5 | Må måles |
-| 2026-09-30 | Teknisk spec skrevet: specs/2026-09-30-fase1-teknisk.md | Venter gjennomlesing |
+| 2026-09-30 | Appen skal være **gratis** for brukere | Brukerens avklaring (brukt i Garmin-søknad) |
+| 2026-09-30 | Teknisk spec skrevet: specs/2026-09-30-fase1-teknisk.md | — |
+| 2026-09-30 | Garmin Developer Program-søknad sendt inn via en kompis sitt ENK (Activity, Health, Training API) | Programmet krever bedrift. Avtale/ansvar ligger hos ENK-eier |
+| 2026-09-30 | **Teknisk spec godkjent** (uten enhetstester) | Brukeren: "da fortsetter vi" |
 
 ## Åpne spørsmål
 - (Teknisk fase) Garmin-tilgang. Offisielt program er kun for bedrifter og muligens pauset (se research-notes). Sannsynlig vei: uoffisielt bibliotek i personlig fase, bak adapter-lag; offisielt når/om appen blir produkt.
