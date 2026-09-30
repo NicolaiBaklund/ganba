@@ -1,0 +1,12 @@
+[
+  { "id": "eggs-bread", "text": "2 boiled eggs and a slice of whole-grain bread with butter", "expected": { "kcal": 330, "protein_g": 17 } },
+  { "id": "oatmeal", "text": "Oatmeal made with 60 g oats and 250 ml semi-skimmed milk, a banana on top", "expected": { "kcal": 470, "protein_g": 18 } },
+  { "id": "chicken-rice", "text": "150 g grilled chicken breast, 200 g cooked white rice, a tablespoon of olive oil", "expected": { "kcal": 650, "protein_g": 52 } },
+  { "id": "greek-yogurt", "text": "200 g plain Greek yogurt 2% with 30 g granola", "expected": { "kcal": 290, "protein_g": 22 } },
+  { "id": "salmon-potatoes", "text": "Oven-baked salmon fillet about 180 g, 250 g boiled potatoes, some butter", "expected": { "kcal": 720, "protein_g": 40 } },
+  { "id": "brunost-bread", "text": "2 slices of bread with brunost (brown cheese), around 20 g cheese per slice", "expected": { "kcal": 320, "protein_g": 10 } },
+  { "id": "protein-shake", "text": "Protein shake: 1 scoop whey (30 g) in 300 ml water", "expected": { "kcal": 120, "protein_g": 24 } },
+  { "id": "pizza", "text": "Half of a medium pepperoni pizza from a restaurant", "expected": { "kcal": 950, "protein_g": 40 } },
+  { "id": "apple-pb", "text": "An apple and 2 tablespoons of peanut butter", "expected": { "kcal": 285, "protein_g": 8 } },
+  { "id": "taco-no", "text": "Norwegian Friday taco: 3 soft tortillas with minced beef, cheese, salsa, sour cream and vegetables", "expected": { "kcal": 900, "protein_g": 45 } }
+]
