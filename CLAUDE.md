@@ -21,4 +21,5 @@ Systemet er **generelt/flerbruker** — aldri hardkod brukerens personlige verdi
 - Oppdater `docs/02-decisions.md` hver gang noe blir bestemt.
 - Brukeren skriver norsk. Docs på norsk.
 - Ett spørsmål om gangen i diskusjon.
+- **Ingen `Co-Authored-By: Claude`** eller annen Claude-attribusjon i commits.
 - **Ingen enhetstester / TDD.** Kun integrasjonstester, og først når flytene står. Ikke bruk tokens på småtester.
