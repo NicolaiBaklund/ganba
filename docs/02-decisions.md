@@ -59,6 +59,8 @@ Format: dato — beslutning — begrunnelse.
 | 2026-09-30 | Fase 1 implementert (grenen `fase1`): alle planoppgaver unntatt publisering. Final review (1 kritisk, 6 viktige) rettet | Se docs/plans/2026-09-30-fase1-plan.md |
 | 2026-09-30 | Innlogging: e-post med **6-sifret kode + token_hash-lenke** (virker i alle nettlesere/PWA). Krever tilpasset Magic Link-mal i Supabase | PKCE-lenke feiler i annen nettleser |
 | 2026-09-30 | AI-skjema har `alcohol_g` (prompt v2) | Øl/vin ble ellers avvist av kcal-sjekken |
+| 2026-10-01 | Skritt: i fase 2 hentes daglige skritt fra Garmin og telles som egen aktivitetsdel sammen med trening (valg C). Fase 1: skritt brukes kun i startestimatet | Brukeren valgte C |
+| 2026-10-01 | **Fase 2 startet** (Garmin + treningsplan): idémyldring | Brukeren: "start on phase 2 now" |
 
 ## Åpne spørsmål
 - (Teknisk fase) Garmin-tilgang. Offisielt program er kun for bedrifter og muligens pauset (se research-notes). Sannsynlig vei: uoffisielt bibliotek i personlig fase, bak adapter-lag; offisielt når/om appen blir produkt.
