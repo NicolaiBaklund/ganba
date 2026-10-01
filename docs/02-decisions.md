@@ -61,6 +61,8 @@ Format: dato — beslutning — begrunnelse.
 | 2026-09-30 | AI-skjema har `alcohol_g` (prompt v2) | Øl/vin ble ellers avvist av kcal-sjekken |
 | 2026-10-01 | Skritt: i fase 2 hentes daglige skritt fra Garmin og telles som egen aktivitetsdel sammen med trening (valg C). Fase 1: skritt brukes kun i startestimatet | Brukeren valgte C |
 | 2026-10-01 | **Fase 2 startet** (Garmin + treningsplan): idémyldring | Brukeren: "start on phase 2 now" |
+| 2026-10-01 | Garmin-tilgang fase 2: **uoffisielt bibliotek** (garminconnect/garth), kun krypterte tokens lagres (aldri passord), Python-funksjon i samme Vercel-prosjekt, bak adapter-lag | Ingen svar fra Garmin på offisiell søknad |
+| 2026-10-01 | **Grunnforbruk = passivt (BMR × 1.2).** All aktivitet (skritt over grunnnivå + økter) kommer fra Garmin per dag: forventet om morgenen (14-d snitt/plan), korrigert med faktisk. Ukentlig innsjekk trekker fra faktisk Garmin-aktivitet. Ved tilkobling trekkes onboarding-gangtillegget ut av grunnforbruket | Brukerens ønske: base skal ikke inneholde ekstra aktivitet |
 
 ## Åpne spørsmål
 - (Teknisk fase) Garmin-tilgang. Offisielt program er kun for bedrifter og muligens pauset (se research-notes). Sannsynlig vei: uoffisielt bibliotek i personlig fase, bak adapter-lag; offisielt når/om appen blir produkt.
