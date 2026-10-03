@@ -39,6 +39,75 @@ export type Database = {
   }
   public: {
     Tables: {
+      activities: {
+        Row: {
+          avg_hr: number | null
+          created_at: string
+          distance_m: number | null
+          duration_s: number | null
+          elevation_gain_m: number | null
+          garmin_activity_id: number
+          garmin_kcal: number | null
+          hr_zones: Json | null
+          id: string
+          local_date: string
+          max_hr: number | null
+          moving_s: number | null
+          name: string | null
+          raw: Json | null
+          splits: Json | null
+          start_time: string
+          steps: number | null
+          type_key: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avg_hr?: number | null
+          created_at?: string
+          distance_m?: number | null
+          duration_s?: number | null
+          elevation_gain_m?: number | null
+          garmin_activity_id: number
+          garmin_kcal?: number | null
+          hr_zones?: Json | null
+          id?: string
+          local_date: string
+          max_hr?: number | null
+          moving_s?: number | null
+          name?: string | null
+          raw?: Json | null
+          splits?: Json | null
+          start_time: string
+          steps?: number | null
+          type_key: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avg_hr?: number | null
+          created_at?: string
+          distance_m?: number | null
+          duration_s?: number | null
+          elevation_gain_m?: number | null
+          garmin_activity_id?: number
+          garmin_kcal?: number | null
+          hr_zones?: Json | null
+          id?: string
+          local_date?: string
+          max_hr?: number | null
+          moving_s?: number | null
+          name?: string | null
+          raw?: Json | null
+          splits?: Json | null
+          start_time?: string
+          steps?: number | null
+          type_key?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       activity_baselines: {
         Row: {
           created_at: string
@@ -319,6 +388,120 @@ export type Database = {
           },
         ]
       }
+      garmin_accounts: {
+        Row: {
+          auth_tag: string
+          ciphertext: string
+          connected_at: string
+          created_at: string
+          history_imported_at: string | null
+          iv: string
+          last_synced_at: string | null
+          last_synced_date: string | null
+          status: Database["public"]["Enums"]["garmin_status"]
+          sync_started_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auth_tag: string
+          ciphertext: string
+          connected_at?: string
+          created_at?: string
+          history_imported_at?: string | null
+          iv: string
+          last_synced_at?: string | null
+          last_synced_date?: string | null
+          status?: Database["public"]["Enums"]["garmin_status"]
+          sync_started_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auth_tag?: string
+          ciphertext?: string
+          connected_at?: string
+          created_at?: string
+          history_imported_at?: string | null
+          iv?: string
+          last_synced_at?: string | null
+          last_synced_date?: string | null
+          status?: Database["public"]["Enums"]["garmin_status"]
+          sync_started_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      garmin_days: {
+        Row: {
+          created_at: string
+          final: boolean
+          id: string
+          local_date: string
+          raw: Json | null
+          steps: number | null
+          synced_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          final?: boolean
+          id?: string
+          local_date: string
+          raw?: Json | null
+          steps?: number | null
+          synced_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          final?: boolean
+          id?: string
+          local_date?: string
+          raw?: Json | null
+          steps?: number | null
+          synced_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      garmin_login_states: {
+        Row: {
+          auth_tag: string
+          ciphertext: string
+          created_at: string
+          expires_at: string
+          id: string
+          iv: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auth_tag: string
+          ciphertext: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          iv: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auth_tag?: string
+          ciphertext?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          iv?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       goals: {
         Row: {
           created_at: string
@@ -397,6 +580,120 @@ export type Database = {
           },
         ]
       }
+      plan_proposals: {
+        Row: {
+          changes: Json
+          cost_usd: number | null
+          created_at: string
+          id: string
+          input_tokens: number | null
+          kind: Database["public"]["Enums"]["proposal_kind"]
+          model: string | null
+          output_tokens: number | null
+          plan_id: string
+          request_text: string | null
+          status: Database["public"]["Enums"]["proposal_status"]
+          summary: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          changes: Json
+          cost_usd?: number | null
+          created_at?: string
+          id?: string
+          input_tokens?: number | null
+          kind: Database["public"]["Enums"]["proposal_kind"]
+          model?: string | null
+          output_tokens?: number | null
+          plan_id: string
+          request_text?: string | null
+          status?: Database["public"]["Enums"]["proposal_status"]
+          summary: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          changes?: Json
+          cost_usd?: number | null
+          created_at?: string
+          id?: string
+          input_tokens?: number | null
+          kind?: Database["public"]["Enums"]["proposal_kind"]
+          model?: string | null
+          output_tokens?: number | null
+          plan_id?: string
+          request_text?: string | null
+          status?: Database["public"]["Enums"]["proposal_status"]
+          summary?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      planned_workouts: {
+        Row: {
+          activity_id: string | null
+          blocks: Json
+          created_at: string
+          date: string
+          garmin_push_status: Database["public"]["Enums"]["garmin_push_status"]
+          garmin_schedule_id: number | null
+          garmin_workout_id: number | null
+          id: string
+          phase: string
+          plan_id: string
+          planned_duration_s: number
+          planned_km: number
+          status: Database["public"]["Enums"]["workout_status"]
+          title: string
+          type: Database["public"]["Enums"]["workout_type"]
+          updated_at: string
+          user_id: string
+          week: number
+        }
+        Insert: {
+          activity_id?: string | null
+          blocks: Json
+          created_at?: string
+          date: string
+          garmin_push_status?: Database["public"]["Enums"]["garmin_push_status"]
+          garmin_schedule_id?: number | null
+          garmin_workout_id?: number | null
+          id?: string
+          phase: string
+          plan_id: string
+          planned_duration_s: number
+          planned_km: number
+          status?: Database["public"]["Enums"]["workout_status"]
+          title: string
+          type: Database["public"]["Enums"]["workout_type"]
+          updated_at?: string
+          user_id: string
+          week: number
+        }
+        Update: {
+          activity_id?: string | null
+          blocks?: Json
+          created_at?: string
+          date?: string
+          garmin_push_status?: Database["public"]["Enums"]["garmin_push_status"]
+          garmin_schedule_id?: number | null
+          garmin_workout_id?: number | null
+          id?: string
+          phase?: string
+          plan_id?: string
+          planned_duration_s?: number
+          planned_km?: number
+          status?: Database["public"]["Enums"]["workout_status"]
+          title?: string
+          type?: Database["public"]["Enums"]["workout_type"]
+          updated_at?: string
+          user_id?: string
+          week?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           birth_date: string
@@ -433,6 +730,63 @@ export type Database = {
           timezone?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      training_plans: {
+        Row: {
+          created_at: string
+          distance_km: number | null
+          generated_until: string
+          goal_kind: Database["public"]["Enums"]["plan_goal_kind"]
+          id: string
+          long_run_weekday: number
+          race_date: string | null
+          runs_per_week: number
+          start_date: string
+          start_km_per_week: number
+          status: Database["public"]["Enums"]["plan_status"]
+          target_time_s: number | null
+          updated_at: string
+          user_id: string
+          vdot: number
+          weekdays: number[]
+        }
+        Insert: {
+          created_at?: string
+          distance_km?: number | null
+          generated_until: string
+          goal_kind: Database["public"]["Enums"]["plan_goal_kind"]
+          id?: string
+          long_run_weekday: number
+          race_date?: string | null
+          runs_per_week: number
+          start_date: string
+          start_km_per_week: number
+          status?: Database["public"]["Enums"]["plan_status"]
+          target_time_s?: number | null
+          updated_at?: string
+          user_id: string
+          vdot: number
+          weekdays: number[]
+        }
+        Update: {
+          created_at?: string
+          distance_km?: number | null
+          generated_until?: string
+          goal_kind?: Database["public"]["Enums"]["plan_goal_kind"]
+          id?: string
+          long_run_weekday?: number
+          race_date?: string | null
+          runs_per_week?: number
+          start_date?: string
+          start_km_per_week?: number
+          status?: Database["public"]["Enums"]["plan_status"]
+          target_time_s?: number | null
+          updated_at?: string
+          user_id?: string
+          vdot?: number
+          weekdays?: number[]
         }
         Relationships: []
       }
@@ -543,11 +897,19 @@ export type Database = {
     Enums: {
       checkin_status: "pending" | "accepted" | "kept" | "insufficient_data"
       confidence: "low" | "medium" | "high"
-      energy_source: "formula" | "adaptive" | "manual"
+      energy_source: "formula" | "adaptive" | "manual" | "garmin_connect"
       food_source: "ai" | "quick"
+      garmin_push_status: "none" | "pending" | "pushed" | "failed"
+      garmin_status: "active" | "reauth_required"
       meal_type: "breakfast" | "lunch" | "dinner" | "evening" | "snack"
       photo_bucket: "food" | "body"
+      plan_goal_kind: "race" | "build"
+      plan_status: "active" | "completed" | "cancelled"
+      proposal_kind: "missed" | "paces" | "volume" | "ai"
+      proposal_status: "pending" | "accepted" | "rejected" | "stale"
       sex: "male" | "female"
+      workout_status: "planned" | "done" | "missed" | "removed"
+      workout_type: "easy" | "long" | "intervals" | "threshold" | "tempo" | "strides" | "race"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -680,11 +1042,19 @@ export const Constants = {
     Enums: {
       checkin_status: ["pending", "accepted", "kept", "insufficient_data"],
       confidence: ["low", "medium", "high"],
-      energy_source: ["formula", "adaptive", "manual"],
+      energy_source: ["formula", "adaptive", "manual", "garmin_connect"],
       food_source: ["ai", "quick"],
+      garmin_push_status: ["none", "pending", "pushed", "failed"],
+      garmin_status: ["active", "reauth_required"],
       meal_type: ["breakfast", "lunch", "dinner", "evening", "snack"],
       photo_bucket: ["food", "body"],
+      plan_goal_kind: ["race", "build"],
+      plan_status: ["active", "completed", "cancelled"],
+      proposal_kind: ["missed", "paces", "volume", "ai"],
+      proposal_status: ["pending", "accepted", "rejected", "stale"],
       sex: ["male", "female"],
+      workout_status: ["planned", "done", "missed", "removed"],
+      workout_type: ["easy", "long", "intervals", "threshold", "tempo", "strides", "race"],
     },
   },
 } as const
