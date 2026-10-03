@@ -54,19 +54,31 @@ describe("training plan: create, push, reconcile, proposals", () => {
     const hardDates = new Set(ws.filter((w) => HARD_TYPES.has(w.type)).map((w) => w.date));
     for (const d of hardDates) expect(hardDates.has(addDays(d, 1))).toBe(false);
 
-    // Full build weeks grow at most 10 %.
-    const byWeek = new Map<number, { km: number; phase: string }>();
+    // Full build weeks grow at most 10 %; hard work ≤ ~25 %; easy runs are real runs and never beat the long run.
+    const byWeek = new Map<number, { km: number; phase: string; quality: number; long: number; easy: number[] }>();
     for (const w of ws) {
-      const e = byWeek.get(w.week) ?? { km: 0, phase: w.phase };
-      e.km += Number(w.planned_km);
+      const e = byWeek.get(w.week) ?? { km: 0, phase: w.phase, quality: 0, long: 0, easy: [] };
+      const km = Number(w.planned_km);
+      e.km += km;
+      if (w.type === "intervals" || w.type === "threshold" || w.type === "tempo") e.quality += km;
+      if (w.type === "long") e.long = km;
+      if (w.type === "easy" || w.type === "strides") e.easy.push(km);
       byWeek.set(w.week, e);
+    }
+    for (const [, e] of byWeek) {
+      if (e.phase === "taper" || e.long === 0) continue;
+      expect(e.quality / e.km).toBeLessThanOrEqual(0.3);
+      for (const k of e.easy) {
+        expect(k).toBeGreaterThanOrEqual(4.5);
+        expect(k).toBeLessThanOrEqual(e.long);
+      }
     }
     const weeks = [...byWeek.entries()].sort((a, b) => a[0] - b[0]).slice(1); // first week may be partial
     for (let i = 1; i < weeks.length; i++) {
       const [, prev] = weeks[i - 1]!;
       const [, cur] = weeks[i]!;
       if (cur.phase === "taper" || prev.phase === "recovery" || cur.phase === "recovery") continue;
-      expect(cur.km).toBeLessThanOrEqual(prev.km * 1.1 + 3); // + rounding of minimum session sizes
+      expect(cur.km).toBeLessThanOrEqual(prev.km * 1.1 + 1); // + rounding
     }
     const taper = weeks.find(([, w]) => w.phase === "taper")!;
     const peak = Math.max(...weeks.map(([, w]) => w.km));
