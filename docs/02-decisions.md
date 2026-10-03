@@ -72,6 +72,9 @@ Format: dato — beslutning — begrunnelse.
 | 2026-10-03 | Treningsplan: **regelmotor (i `packages/core`) som grunnmur + AI-justering i fritekst** (brukerens nøkkel). AI endrer kun innenfor motorens rammer. Tempo fra Garmin-løp (VDOT). Begge deler i fase 2b | Brukeren valgte C |
 | 2026-10-03 | AI-justering av plan kjøres **kun når brukeren ber om det** (fritekst). Aldri proaktiv AI | Koster penger; brukeren styrer |
 | 2026-10-03 | Planmål: løp med dato (5k, 10k, halvmaraton, maraton; måltid valgfritt, ellers estimert fra form) **+ «bygge form»-plan uten dato** (løpende, gradvis økning, lett uke innimellom). Belastning dempes ved stort kaloriunderskudd | Brukeren valgte B |
+| 2026-10-03 | Brukeren setter **hvilke dager man kan trene** og **foretrukket langturdag** (evt. andre faste ønsker). Motoren planlegger innenfor dette | Brukerens ønske |
+| 2026-10-03 | Plan-justeringer fra motoren (droppet økt, nye tempo, nedtrapping) kommer som **forslag brukeren godtar**, aldri automatisk. Får det ikke plass innenfor tilgjengelige dager, sier forslaget det | Brukeren valgte C: flytting er ikke alltid mulig |
+| 2026-10-03 | AI-modell per bruk, som konfig: matlogg = Opus 5.5 (effort medium, `AI_FOOD_MODEL`), plan-justering = Opus 5.5 (`AI_PLAN_MODEL`, sjelden brukt, kvalitet viktig). Billigere modell for mat vurderes via eval | Kostnad per plan-justering ~$0.05–0.10 |
 
 ## Åpne spørsmål
 - (Teknisk fase) Garmin-tilgang. Offisielt program er kun for bedrifter og muligens pauset (se research-notes). Sannsynlig vei: uoffisielt bibliotek i personlig fase, bak adapter-lag; offisielt når/om appen blir produkt.
