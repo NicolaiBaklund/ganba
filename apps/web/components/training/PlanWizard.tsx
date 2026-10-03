@@ -17,7 +17,7 @@ const RACE_M: Record<Distance, number> = { "5k": 5000, "10k": 10000, half: 21097
 const WEEK = [1, 2, 3, 4, 5, 6, 0];
 
 interface Preview {
-  fitness: { vdot: number; kmPerWeek: number; sparse: boolean };
+  fitness: { vdot: number; kmPerWeek: number; sparse: boolean; experienced: boolean; didQuality: boolean };
   weeks: { week: number; phase: string; km: number }[];
   peakKm: number;
   predictedTimeS: number | null;
@@ -224,6 +224,12 @@ export function PlanWizard({ minDate }: { minDate: string }) {
             )}
           </div>
           {preview.fitness.sparse && <p className="text-xs text-warning">{t("sparse")}</p>}
+          {preview.fitness.experienced && (
+            <p className="text-xs text-success">
+              {t("experienced")}
+              {preview.fitness.didQuality && ` ${t("didQuality")}`}
+            </p>
+          )}
           <div>
             <div className="mb-1 flex justify-between text-xs text-muted-foreground">
               <span>{t("weeks", { n: preview.weeks.length })}</span>

@@ -100,13 +100,21 @@ export async function planWorkouts(planId: string): Promise<WorkoutRow[]> {
 export async function recentRuns(userId: string, today: ISODate): Promise<RunRecord[]> {
   const { data } = await db()
     .from("activities")
-    .select("local_date, type_key, distance_m, moving_s, duration_s")
+    .select("local_date, type_key, distance_m, moving_s, duration_s, splits")
     .eq("user_id", userId)
     .gte("local_date", addDays(today, -56))
     .lt("local_date", today);
   return (data ?? [])
     .filter((a) => isRun(a.type_key) && a.distance_m != null)
-    .map((a) => ({ date: a.local_date, distanceM: Number(a.distance_m), timeS: Number(a.moving_s ?? a.duration_s ?? 0) }));
+    .map((a) => ({
+      date: a.local_date,
+      distanceM: Number(a.distance_m),
+      timeS: Number(a.moving_s ?? a.duration_s ?? 0),
+      laps: ((a.splits as { lapDTOs?: { distance?: number | null; duration?: number | null }[] } | null)?.lapDTOs ?? []).map((l) => ({
+        distanceM: Number(l.distance ?? 0),
+        timeS: Number(l.duration ?? 0),
+      })),
+    }));
 }
 
 export interface CreatePlanInput {
@@ -157,8 +165,11 @@ export async function previewPlan(userId: string, input: CreatePlanInput) {
     longRunWeekday: input.longRunWeekday,
     runsPerWeek: input.runsPerWeek,
     vdot,
-    startKmPerWeek: fit.kmPerWeek,
+    startKmPerWeek: fit.baseKmPerWeek,
     deficitKcal: await deficitKcal(userId, today),
+    experienced: fit.experienced,
+    didQuality: fit.didQuality,
+    recentLongestKm: fit.longestKm,
   });
   return { today, fitness: { ...fit, vdot }, plan };
 }
@@ -182,7 +193,9 @@ export async function createPlan(userId: string, input: CreatePlanInput): Promis
       weekdays: input.weekdays,
       long_run_weekday: input.longRunWeekday,
       vdot: fitness.vdot,
-      start_km_per_week: fitness.kmPerWeek,
+      start_km_per_week: fitness.baseKmPerWeek,
+      experienced: fitness.experienced,
+      did_quality: fitness.didQuality,
       start_date: today,
       generated_until: goal.kind === "race" ? goal.raceDate : addDays(today, BUILD_EXTEND_WEEKS * 7 - 1) > lastDate ? addDays(today, BUILD_EXTEND_WEEKS * 7 - 1) : lastDate,
     })
@@ -258,6 +271,8 @@ export async function reconcilePlan(userId: string, today: ISODate): Promise<voi
       startKmPerWeek: Number(plan.start_km_per_week),
       deficitKcal: await deficitKcal(userId, today),
       untilDate: until,
+      experienced: plan.experienced,
+      didQuality: plan.did_quality,
     });
     const fresh = full.workouts.filter((w) => w.date > plan.generated_until && w.date >= today);
     if (fresh.length) await d.from("planned_workouts").insert(fresh.map((w) => workoutRow(userId, plan.id, w)));

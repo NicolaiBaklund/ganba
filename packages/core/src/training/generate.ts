@@ -20,7 +20,8 @@ export const DEFICIT_SLOWDOWN_KCAL = 500;
 export const RECOVERY_FACTOR = 0.75;
 export const BUILD_PLAN_WEEKS = 4;
 export const MAX_RACE_PLAN_WEEKS = 20;
-export const QUALITY_SHARE = 0.25;
+/** Share of the week for quality sessions incl. their easy warm-up/cool-down: one session, or two together. */
+export const QUALITY_SHARE = { one: 0.3, two: 0.4 };
 export const SECOND_QUALITY_MIN_KM = 40;
 export const MIN_RUN_KM = 5;
 
@@ -56,7 +57,7 @@ const r1 = (n: number) => Math.round(n * 10) / 10;
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
 /** Phase per week for a race plan of `n` weeks (last week = race week). */
-function racePhases(n: number, distance: RaceDistance): Phase[] {
+function racePhases(n: number, distance: RaceDistance, experienced: boolean): Phase[] {
   const taper = Math.min(n, TAPER[distance].length);
   const m = n - taper;
   const phases: Phase[] = [];
@@ -64,8 +65,9 @@ function racePhases(n: number, distance: RaceDistance): Phase[] {
     if (m < 3) phases.push(...Array<Phase>(m).fill("peak"));
     else {
       const peak = clamp(Math.round(m * 0.25), 1, 4);
-      const build = clamp(Math.round(m * 0.45), 1, 8);
-      const base = Math.max(1, m - peak - build);
+      // Runners who already train consistently skip the base phase.
+      const build = experienced ? clamp(m - peak, 1, 12) : clamp(Math.round(m * 0.45), 1, 8);
+      const base = Math.max(experienced ? 0 : 1, m - peak - build);
       const b2 = m - peak - base;
       phases.push(...Array<Phase>(base).fill("base"), ...Array<Phase>(b2).fill("build"), ...Array<Phase>(peak).fill("peak"));
     }
@@ -116,7 +118,7 @@ export function generatePlan(input: PlanInput): GeneratedPlan {
 
   const phases: Phase[] =
     distance != null
-      ? racePhases(nWeeks, distance)
+      ? racePhases(nWeeks, distance, !!input.experienced)
       : Array.from({ length: nWeeks }, (_, i) => (i % 4 === 3 ? "recovery" : "build"));
 
   const startKm = Math.max(input.startKmPerWeek, runs * 3);
@@ -125,7 +127,7 @@ export function generatePlan(input: PlanInput): GeneratedPlan {
   const growth = input.deficitKcal > DEFICIT_SLOWDOWN_KCAL ? GROWTH_IN_DEFICIT : GROWTH;
   const longCap = distance ? LONG_CAP[distance] : 16;
   const longShare = runs <= 2 ? 0.5 : runs === 3 ? 0.4 : 0.3;
-  const longStart = Math.max(5, startKm * longShare);
+  const longStart = Math.max(5, startKm * longShare, Math.min(input.recentLongestKm ?? 0, distance ? LONG_TARGET[distance] : 12, startKm * 0.55));
   const longTarget = distance ? Math.max(longStart, LONG_TARGET[distance]) : Math.max(longStart, 12);
   const qualityWeeks = phases.filter((p) => p === "build" || p === "peak").length;
   const growthWeeks = phases.filter((p) => p !== "taper" && p !== "recovery").length;
@@ -145,7 +147,8 @@ export function generatePlan(input: PlanInput): GeneratedPlan {
     if (phase === "taper") km = peakReached * TAPER[distance!]![taperIdx++]!;
     else if (phase === "recovery") km = level * RECOVERY_FACTOR;
     else {
-      if (w > 0) level = Math.min(peakKm, level * (1 + growth));
+      // Week 1 already steps up from the recent average.
+      level = Math.min(peakKm, level * (1 + growth));
       km = level;
       growthIdx++;
       peakReached = Math.max(peakReached, level);
@@ -155,7 +158,7 @@ export function generatePlan(input: PlanInput): GeneratedPlan {
     // Session size follows both time in the plan and the runner's volume (beginners stay small).
     const byProgress = qualityWeeks > 1 ? Math.round((qualityIdx / (qualityWeeks - 1)) * 4) : 2;
     const byVolume = km < 20 ? 0 : km < 30 ? 1 : km < 40 ? 2 : km < 55 ? 3 : 4;
-    const lvl = Math.min(byProgress, byVolume);
+    const lvl = Math.min(byProgress + (input.didQuality ? 1 : 0), byVolume);
     // A second hard session only in bigger weeks.
     const qualityCount = isQualityWeek ? (runs >= 5 && km >= SECOND_QUALITY_MIN_KM ? 2 : 1) : 0;
     const qTypes = isQualityWeek ? qualityTypes(distance, phase, qualityCount, qualityIdx) : [];
@@ -189,15 +192,15 @@ export function generatePlan(input: PlanInput): GeneratedPlan {
       const longMax = Math.min(longCap, km * 0.55);
       let longKm = Math.max(5, Math.min(longMax, Math.max(km * longShare, longGoal * longScale)));
 
-      // Hard work stays within ~25 % of the week (with two runs a week, whatever the long run leaves).
-      const qualityBudget = runs <= 2 ? Math.max(0, km - longKm) : km * QUALITY_SHARE;
+      // Quality (incl. warm-up/cool-down) stays within ~30 % of the week, 40 % for two sessions; with two runs a week, whatever the long run leaves.
+      const qualityBudget = runs <= 2 ? Math.max(0, km - longKm) : km * (hardTypes.length >= 2 ? QUALITY_SHARE.two : QUALITY_SHARE.one);
       const quality = hardTypes.map((t) =>
         phase === "taper" ? sharpener(ctx) : qualityFor(t, lvl, distance ?? "10k", ctx, qualityBudget / hardTypes.length),
       );
       const qualityKm = quality.reduce((sum, q) => sum + q.plannedKm, 0);
       // Drop easy runs rather than make them tiny; they come back as the volume grows.
       let easyCount = Math.max(0, runs - 1 - quality.length);
-      while (easyCount > 1 && (km - longKm - qualityKm) / easyCount < minRun) easyCount--;
+      while (easyCount > 1 && (km - longKm - qualityKm) / easyCount < minRun * 0.9) easyCount--;
       // If easy runs would outgrow the long run, the long run takes the extra instead.
       const biggestEasy = easyCount ? ((km - longKm - qualityKm) / easyCount) * (runs >= 4 && easyCount >= 2 ? 1.25 : 1) : 0;
       if (biggestEasy > longKm * 0.8) longKm = Math.max(longKm, Math.min(longMax, biggestEasy / 0.8));
@@ -217,12 +220,13 @@ export function generatePlan(input: PlanInput): GeneratedPlan {
       const totalW = weights.reduce((a, b) => a + b, 0) || 1;
       let stridesIdx = wantStrides ? easyDays.findIndex((_, i) => !recovery[i] && i !== mediumIdx) : -1;
       if (wantStrides && stridesIdx < 0) stridesIdx = easyDays.length ? 0 : -1;
+      const sizes = easyDays.map((_, i) => clamp((left * weights[i]!) / totalW, minRun, Math.max(minRun, long.plannedKm * 0.8)));
       easyDays.forEach((d, i) => {
-        const size = clamp((left * weights[i]!) / totalW, minRun, Math.max(minRun, long.plannedKm * 0.8));
+        const size = sizes[i]!;
+        const others = sizes.filter((_, j) => j !== i);
+        const isMedium = i === mediumIdx && size >= 8 && others.length > 0 && size > Math.min(...others) * 1.15;
         const w =
-          i === stridesIdx
-            ? stridesRun(size, ctx)
-            : easyRun(size, ctx, recovery[i] ? "Recovery run" : i === mediumIdx && easyDays.length >= 2 ? "Medium-long run" : "Easy run");
+          i === stridesIdx ? stridesRun(size, ctx) : easyRun(size, ctx, recovery[i] ? "Recovery run" : isMedium ? "Medium-long run" : "Easy run");
         built.push({ date: dateIn(monday, d), w });
       });
     }

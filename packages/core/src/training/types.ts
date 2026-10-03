@@ -64,6 +64,12 @@ export interface PlanInput {
   deficitKcal: number;
   /** Build plans only: generate through this date. */
   untilDate?: ISODate;
+  /** Consistent recent training: skip the base phase. */
+  experienced?: boolean;
+  /** Recent interval/threshold work: quality sessions start a level up. */
+  didQuality?: boolean;
+  /** Longest run in the last 4 weeks: the long run starts there, not below. */
+  recentLongestKm?: number;
 }
 
 export interface Paces {

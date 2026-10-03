@@ -41,9 +41,12 @@ describe("training plan: create, push, reconcile, proposals", () => {
     expect(plan).not.toBeNull();
     expect(Number(plan!.vdot)).toBeGreaterThan(38); // best effort: 5 km in 24 min ≈ VDOT 40
     expect(Number(plan!.start_km_per_week)).toBeGreaterThan(20);
+    // Six weeks of steady running: no base phase, and week 1 already steps up from the recent average.
+    expect(plan!.experienced).toBe(true);
 
     const ws = await planWorkouts(plan!.id);
     const race = ws.at(-1)!;
+    expect(ws.some((w) => w.phase === "base")).toBe(false);
     expect(race.type).toBe("race");
     expect(race.date).toBe(raceDate);
     for (const w of ws.filter((x) => x.type !== "race")) expect(WEEKDAYS).toContain(weekday(w.date));
@@ -54,7 +57,7 @@ describe("training plan: create, push, reconcile, proposals", () => {
     const hardDates = new Set(ws.filter((w) => HARD_TYPES.has(w.type)).map((w) => w.date));
     for (const d of hardDates) expect(hardDates.has(addDays(d, 1))).toBe(false);
 
-    // Full build weeks grow at most 10 %; hard work ≤ ~25 %; easy runs are real runs and never beat the long run.
+    // Full build weeks grow at most 10 %; quality sessions ≤ ~30 % of the week; easy runs are real runs and never beat the long run.
     const byWeek = new Map<number, { km: number; phase: string; quality: number; long: number; easy: number[] }>();
     for (const w of ws) {
       const e = byWeek.get(w.week) ?? { km: 0, phase: w.phase, quality: 0, long: 0, easy: [] };
@@ -67,7 +70,7 @@ describe("training plan: create, push, reconcile, proposals", () => {
     }
     for (const [, e] of byWeek) {
       if (e.phase === "taper" || e.long === 0) continue;
-      expect(e.quality / e.km).toBeLessThanOrEqual(0.3);
+      expect(e.quality / e.km).toBeLessThanOrEqual(0.35);
       for (const k of e.easy) {
         expect(k).toBeGreaterThanOrEqual(4.5);
         expect(k).toBeLessThanOrEqual(e.long);

@@ -444,7 +444,9 @@
       "invalid_race_date": "Pick a race date within the next year.",
       "garmin_required": "Connect Garmin first.",
       "generic": "Couldn’t create the plan. Try again."
-    }
+    },
+    "experienced": "You’ve trained consistently the last 4 weeks, so the plan starts in the build phase.",
+    "didQuality": "Recent fast laps found — sessions start a level up."
   },
   "garmin": {
     "title": "Garmin",

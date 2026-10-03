@@ -762,7 +762,9 @@ export type Database = {
       training_plans: {
         Row: {
           created_at: string
+          did_quality: boolean
           distance_km: number | null
+          experienced: boolean
           generated_until: string
           goal_kind: Database["public"]["Enums"]["plan_goal_kind"]
           id: string
@@ -780,7 +782,9 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          did_quality?: boolean
           distance_km?: number | null
+          experienced?: boolean
           generated_until: string
           goal_kind: Database["public"]["Enums"]["plan_goal_kind"]
           id?: string
@@ -798,7 +802,9 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          did_quality?: boolean
           distance_km?: number | null
+          experienced?: boolean
           generated_until?: string
           goal_kind?: Database["public"]["Enums"]["plan_goal_kind"]
           id?: string
