@@ -63,6 +63,9 @@ Format: dato — beslutning — begrunnelse.
 | 2026-10-01 | **Fase 2 startet** (Garmin + treningsplan): idémyldring | Brukeren: "start on phase 2 now" |
 | 2026-10-01 | Garmin-tilgang fase 2: **uoffisielt bibliotek** (garminconnect/garth), kun krypterte tokens lagres (aldri passord), Python-funksjon i samme Vercel-prosjekt, bak adapter-lag | Ingen svar fra Garmin på offisiell søknad |
 | 2026-10-01 | **Grunnforbruk = passivt (BMR × 1.2).** All aktivitet (skritt over grunnnivå + økter) kommer fra Garmin per dag: forventet om morgenen (14-d snitt/plan), korrigert med faktisk. Ukentlig innsjekk trekker fra faktisk Garmin-aktivitet. Ved tilkobling trekkes onboarding-gangtillegget ut av grunnforbruket | Brukerens ønske: base skal ikke inneholde ekstra aktivitet |
+| 2026-10-03 | Garmin-tall: **egne formler fra rådata** (skritt, km, varighet, puls) — ikke Garmins aktive kalorier (valg A). Samme formel med og uten Garmin | Konsistent med startestimat og innsjekk; Garmins kcal-tall varierer |
+| 2026-10-03 | **Dagsmål bygges løpende** (erstatter "forventet 14-d snitt" i raden over): planlagt løp legges til på forhånd (fra plan, fase 2b), skritt og annen aktivitet legges til etter hvert som de synkes. Løpeskritt trekkes fra dagens skritt (skritt i Garmin-økter; ellers estimert fra km) så de ikke telles dobbelt | Brukerens forslag. Ærlig tall, likt MFP+Garmin |
+| 2026-10-03 | Når fase 2a er ferdig: **wipe dev-databasen** og start på nytt | Brukerens ønske |
 
 ## Åpne spørsmål
 - (Teknisk fase) Garmin-tilgang. Offisielt program er kun for bedrifter og muligens pauset (se research-notes). Sannsynlig vei: uoffisielt bibliotek i personlig fase, bak adapter-lag; offisielt når/om appen blir produkt.
