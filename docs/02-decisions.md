@@ -76,6 +76,7 @@ Format: dato — beslutning — begrunnelse.
 | 2026-10-03 | Plan-justeringer fra motoren (droppet økt, nye tempo, nedtrapping) kommer som **forslag brukeren godtar**, aldri automatisk. Får det ikke plass innenfor tilgjengelige dager, sier forslaget det | Brukeren valgte C: flytting er ikke alltid mulig |
 | 2026-10-03 | AI-modell per bruk, som konfig: matlogg = Opus 5.5 (effort medium, `AI_FOOD_MODEL`), plan-justering = Opus 5.5 (`AI_PLAN_MODEL`, sjelden brukt, kvalitet viktig). Billigere modell for mat vurderes via eval | Kostnad per plan-justering ~$0.05–0.10 |
 | 2026-10-03 | Planlagte økter **sendes til Garmin-kalenderen som strukturerte økter** (oppvarming, drag, tempo, pause) så klokka guider. Feiler opplasting → vises kun i app med beskjed | Brukeren valgte A. Runnas kjernefunksjon |
+| 2026-10-03 | **Treningsplan og aktivitetsbasert dagsmål krever Garmin.** Uten Garmin: kun mat + vekt (fase 1-oppførsel, aktivitet fra oppstartsestimat) | Brukeren valgte A |
 
 ## Åpne spørsmål
 - (Teknisk fase) Garmin-tilgang. Offisielt program er kun for bedrifter og muligens pauset (se research-notes). Sannsynlig vei: uoffisielt bibliotek i personlig fase, bak adapter-lag; offisielt når/om appen blir produkt.
