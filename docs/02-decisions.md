@@ -70,6 +70,8 @@ Format: dato — beslutning — begrunnelse.
 | 2026-10-03 | **Fase 2a + 2b planlegges sammen nå** og bygges i ett løp | Brukerens ønske |
 | 2026-10-03 | Garmin-data: skritt per dag + økter med detaljer (runder, pulssoner, tempo per km). Rått Garmin-svar lagres per dag/økt. Restitusjon (søvn, HRV, hvilepuls) senere | Brukeren valgte C uten restitusjon |
 | 2026-10-03 | Treningsplan: **regelmotor (i `packages/core`) som grunnmur + AI-justering i fritekst** (brukerens nøkkel). AI endrer kun innenfor motorens rammer. Tempo fra Garmin-løp (VDOT). Begge deler i fase 2b | Brukeren valgte C |
+| 2026-10-03 | AI-justering av plan kjøres **kun når brukeren ber om det** (fritekst). Aldri proaktiv AI | Koster penger; brukeren styrer |
+| 2026-10-03 | Planmål: løp med dato (5k, 10k, halvmaraton, maraton; måltid valgfritt, ellers estimert fra form) **+ «bygge form»-plan uten dato** (løpende, gradvis økning, lett uke innimellom). Belastning dempes ved stort kaloriunderskudd | Brukeren valgte B |
 
 ## Åpne spørsmål
 - (Teknisk fase) Garmin-tilgang. Offisielt program er kun for bedrifter og muligens pauset (se research-notes). Sannsynlig vei: uoffisielt bibliotek i personlig fase, bak adapter-lag; offisielt når/om appen blir produkt.
