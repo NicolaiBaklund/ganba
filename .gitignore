@@ -5,3 +5,6 @@ node_modules
 evals/food/results/
 .superpowers/
 tests/smoke/out/
+__pycache__/
+*.pyc
+.venv/
