@@ -18,6 +18,7 @@ export async function updateSession(request: NextRequest) {
       },
     },
   );
-  await supabase.auth.getUser();
+  // Verifies the JWT locally and refreshes the session cookie when it is about to expire.
+  await supabase.auth.getClaims();
   return response;
 }

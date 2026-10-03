@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { decryptSecret, encryptSecret } from "@/lib/ai/crypto";
 
@@ -13,7 +14,8 @@ export interface GarminAccountStatus {
 
 const MFA_TTL_MS = 5 * 60_000;
 
-export async function getGarminStatus(userId: string): Promise<GarminAccountStatus | null> {
+/** Cached per request (layout, page and snapshot all ask). */
+export const getGarminStatus = cache(async (userId: string): Promise<GarminAccountStatus | null> => {
   const { data } = await createAdminSupabase()
     .from("garmin_accounts")
     .select("status, connected_at, last_synced_at, history_imported_at")
@@ -22,7 +24,7 @@ export async function getGarminStatus(userId: string): Promise<GarminAccountStat
   return data
     ? { status: data.status, connectedAt: data.connected_at, lastSyncedAt: data.last_synced_at, historyImportedAt: data.history_imported_at }
     : null;
-}
+});
 
 export async function loadTokens(userId: string): Promise<string | null> {
   const { data } = await createAdminSupabase()

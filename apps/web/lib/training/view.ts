@@ -2,7 +2,7 @@ import "server-only";
 import { addDays, mondayOf, pacesFor, predictTimeS, RACE_KM, trendSeries, type Block, type FuelAdvice, type ISODate, type Paces, type WorkoutType } from "@loop/core";
 import { getGarminStatus } from "@/lib/garmin/accounts";
 import { createAdminSupabase } from "@/lib/supabase/admin";
-import { activePlan, distanceOf, planWorkouts, reconcilePlan, refreshProposals, todayFor } from "./service";
+import { activePlan, distanceOf, planWorkouts, todayFor } from "./service";
 
 export interface WorkoutListItem {
   id: string;
@@ -49,12 +49,12 @@ export interface TrainingView {
   proposals: ProposalView[];
 }
 
-/** Everything the Training tab shows. Reconciles the plan and creates engine proposals first (lazy, like the check-in). */
+/**
+ * Everything the Training tab shows. Plan upkeep (done/missed, proposals, extending build plans)
+ * runs after each Garmin sync, which the app triggers on open, so viewing stays fast.
+ */
 export async function loadTrainingView(userId: string): Promise<TrainingView> {
-  const [today, garmin] = await Promise.all([todayFor(userId), getGarminStatus(userId)]);
-  await reconcilePlan(userId, today);
-  await refreshProposals(userId, today);
-  const plan = await activePlan(userId);
+  const [today, garmin, plan] = await Promise.all([todayFor(userId), getGarminStatus(userId), activePlan(userId)]);
   if (!plan) return { today, garmin: garmin?.status ?? null, plan: null, thisWeek: null, upcoming: [], proposals: [] };
 
   const db = createAdminSupabase();

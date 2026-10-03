@@ -19,10 +19,13 @@ export default async function TodayPage({ searchParams }: PageProps<"/today">) {
   const { date } = await searchParams;
   const { supabase, user } = await requireUser();
   const snap = await getDaySnapshot(supabase, user.id, typeof date === "string" ? date : undefined);
-  const checkin = snap.date === snap.today ? await ensureWeeklyCheckin(supabase, user.id) : null;
-  const checkinView = checkin ? await toCheckinView(supabase, user.id, checkin, snap) : null;
-  const session = snap.garmin ? await todaysWorkout(user.id, snap.date) : { plan: false, workout: null };
-  const t = await getTranslations("today");
+  const [checkinView, session, t] = await Promise.all([
+    snap.date === snap.today
+      ? ensureWeeklyCheckin(supabase, user.id).then((c) => (c ? toCheckinView(supabase, user.id, c, snap) : null))
+      : null,
+    snap.garmin ? todaysWorkout(user.id, snap.date) : { plan: false, workout: null },
+    getTranslations("today"),
+  ]);
 
   return (
     <main className="flex flex-col gap-3 px-4">
