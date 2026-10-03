@@ -2,11 +2,12 @@
 
 Personlig trenings- + ernæringsapp (Runna + MyFitnessPal i ett). Webapp, må fungere på mobil.
 
-**Fase nå:** fase 1 (mat + vekt) implementert på grenen `fase1` (plan: docs/plans/2026-09-30-fase1-plan.md). Gjenstår: publisering (Vercel), ekte AI-test med brukerens nøkkel, utsatte småfunn (se ledger/oppsummering). Neste store: fase 2 (Garmin + treningsplan).
+**Fase nå:** fase 1 (mat + vekt) ferdig og publisert (Vercel). **Fase 2** (Garmin + treningsplan) under arbeid på grenen `fase2`: spec docs/specs/2026-10-03-fase2-garmin-trening.md, plan docs/plans/2026-10-03-fase2-plan.md.
 
 Systemet er **generelt/flerbruker** — aldri hardkod brukerens personlige verdier.
 
 ## Les først
+- [docs/specs/2026-10-03-fase2-garmin-trening.md](docs/specs/2026-10-03-fase2-garmin-trening.md) — **spec fase 2** (Garmin + treningsplan)
 - [docs/specs/2026-09-29-fase1-konsept.md](docs/specs/2026-09-29-fase1-konsept.md) — **konsept-spec** fase 1 (hva og hvorfor)
 - [docs/specs/2026-09-30-fase1-teknisk.md](docs/specs/2026-09-30-fase1-teknisk.md) — **teknisk spec** fase 1 (hvordan)
 - [docs/00-idea.md](docs/00-idea.md) — hva appen er
