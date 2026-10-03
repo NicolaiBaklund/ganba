@@ -25,7 +25,7 @@ Systemet er **generelt/flerbruker** — aldri hardkod brukerens personlige verdi
 - `node tests/smoke/smoke.mjs [url]` (+ `checkin-smoke.mjs`, `profile-smoke.mjs`, `training-smoke.mjs`) — Playwright-flyter mot kjørende app (default `http://localhost:3100`), skjermbilder i `tests/smoke/out/`
 - Garmin-adapter lokalt: `pip install -r apps/web/requirements.txt`, så `python apps/web/scripts/garmin-dev.py` (port 3200) og `GARMIN_ADAPTER_URL=http://127.0.0.1:3200` + `GARMIN_ADAPTER_SECRET` i `.env.local`. Integrasjonstestene bruker en falsk Garmin (`tests/integration/fake-garmin.ts`)
 - `npx tsx evals/food/run.mts` — AI-eval, koster penger (se `evals/food/README.md`)
-- DB-endringer: ny fil i `supabase/migrations/`, `pnpm exec supabase db push`, så `pnpm exec supabase gen types typescript --linked > apps/web/lib/db/types.ts`
+- DB-endringer: ny fil i `supabase/migrations/`, så `pnpm db:push` (pusher og regenererer `apps/web/lib/db/types.ts`; typene overskrives bare hvis genereringen lykkes). Krever `pnpm exec supabase login` én gang, eller `SUPABASE_ACCESS_TOKEN` i `apps/web/.env.local`
 
 ## Regler
 - Oppdater `docs/02-decisions.md` hver gang noe blir bestemt.

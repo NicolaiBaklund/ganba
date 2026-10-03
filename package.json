@@ -5,7 +5,8 @@
     "dev": "pnpm --filter web dev",
     "build": "pnpm --filter web build",
     "typecheck": "pnpm -r typecheck",
-    "test:int": "vitest run"
+    "test:int": "vitest run",
+    "db:push": "node scripts/db-push.mjs"
   },
   "packageManager": "pnpm@12.8.1",
   "devDependencies": {
