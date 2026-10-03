@@ -258,11 +258,11 @@ export async function reconcilePlan(userId: string, today: ISODate): Promise<voi
   }
 }
 
-function contextOf(plan: PlanRow, today: ISODate): PlanContext {
+export function planContext(plan: PlanRow, today: ISODate): PlanContext {
   return { weekdays: plan.weekdays, vdot: Number(plan.vdot), racePaceS: racePaceOf(plan), distance: distanceOf(plan), today };
 }
 
-async function workoutsWithKm(plan: PlanRow): Promise<PlanWorkout[]> {
+export async function planWorkoutsWithKm(plan: PlanRow): Promise<PlanWorkout[]> {
   const rows = await planWorkouts(plan.id);
   const ids = rows.map((r) => r.activity_id).filter((x): x is string => !!x);
   const { data: acts } = ids.length ? await db().from("activities").select("id, distance_m").in("id", ids) : { data: [] };
@@ -286,8 +286,8 @@ export async function refreshProposals(userId: string, today: ISODate): Promise<
   const pendingKinds = new Set(all.filter((p) => p.status === "pending").map((p) => p.kind));
   const recent = (kind: ProposalRow["kind"]) => all.some((p) => p.kind === kind && p.created_at > new Date(Date.now() - 14 * 86_400_000).toISOString());
 
-  const workouts = await workoutsWithKm(plan);
-  const ctx = contextOf(plan, today);
+  const workouts = await planWorkoutsWithKm(plan);
+  const ctx = planContext(plan, today);
   const proposed = new Set(
     all.filter((p) => p.kind === "missed").flatMap((p) => (p.changes as unknown as ProposalChange[]).map((c) => ("workoutId" in c ? c.workoutId : ""))),
   );
@@ -313,8 +313,8 @@ export async function acceptProposal(userId: string, proposalId: string): Promis
     return false;
   }
   const today = await todayFor(userId);
-  const before = await workoutsWithKm(plan);
-  const result = applyChanges(before, p.changes as unknown as ProposalChange[], contextOf(plan, today));
+  const before = await planWorkoutsWithKm(plan);
+  const result = applyChanges(before, p.changes as unknown as ProposalChange[], planContext(plan, today));
   for (const w of result.workouts.filter((x) => result.changedIds.has(x.id))) {
     await d
       .from("planned_workouts")
