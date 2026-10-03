@@ -8,6 +8,12 @@ import { KcalCard } from "@/components/today/KcalCard";
 import { MealsList } from "@/components/today/MealsList";
 import { WeightCard } from "@/components/today/WeightCard";
 import { CheckinCard, type CheckinView } from "@/components/today/CheckinCard";
+import { WorkoutCard } from "@/components/today/WorkoutCard";
+import { TargetBreakdown } from "@/components/today/TargetBreakdown";
+import { todaysWorkout } from "@/lib/training/view";
+import Link from "next/link";
+import { getTranslations } from "next-intl/server";
+import { KCAL_PER_KG } from "@loop/core";
 
 export default async function TodayPage({ searchParams }: PageProps<"/today">) {
   const { date } = await searchParams;
@@ -15,12 +21,24 @@ export default async function TodayPage({ searchParams }: PageProps<"/today">) {
   const snap = await getDaySnapshot(supabase, user.id, typeof date === "string" ? date : undefined);
   const checkin = snap.date === snap.today ? await ensureWeeklyCheckin(supabase, user.id) : null;
   const checkinView = checkin ? await toCheckinView(supabase, user.id, checkin, snap) : null;
+  const session = snap.garmin ? await todaysWorkout(user.id, snap.date) : { plan: false, workout: null };
+  const t = await getTranslations("today");
 
   return (
     <main className="flex flex-col gap-3 px-4">
-      <DateNav date={snap.date} today={snap.today} basePath="/today" />
+      <DateNav date={snap.date} today={snap.today} basePath="/today" profileLink />
+      {snap.garmin?.status === "reauth_required" && (
+        <Link href="/profile#garmin" className="flex items-center justify-between gap-3 rounded-2xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
+          <span>{t("garminReauth")}</span>
+          <span className="shrink-0 font-semibold text-warning">{t("garminReauthCta")}</span>
+        </Link>
+      )}
       {checkinView && <CheckinCard view={checkinView} />}
+      {session.plan && <WorkoutCard workout={session.workout} />}
       <KcalCard intake={snap.intake} target={snap.macrosTarget} floored={snap.target.floored} />
+      {snap.activity && !snap.manualTarget && !snap.target.floored && (
+        <TargetBreakdown baseKcal={snap.baseKcal} activity={snap.activity} goalKcal={Math.round((snap.goal.rateKgPerWeek * KCAL_PER_KG) / 7)} />
+      )}
       <MealsList entries={snap.entries} date={snap.date} />
       <WeightCard
         trendKg={snap.latestTrendKg}

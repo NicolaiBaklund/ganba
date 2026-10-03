@@ -29,6 +29,7 @@ Inspirert av Runna (sporty, mørk, tydelige tall og fargekoder), men med egen id
 | success | `#34d399` | på mål / fremgang |
 | warning | `#ffb547` | advarsler (gulv, tempo) |
 | destructive | `#ff5c5c` | slett, feil |
+| w-easy / w-long / w-intervals / w-threshold / w-tempo / w-strides / w-race | `#5eead4` / `#2f8cff` / `#ff6b8a` / `#ffb547` / `#a78bfa` / `#34d399` / `#facc15` | økttyper (fase 2), `style={{ color: var(--w-…) }}` |
 
 Tailwind-klasser: `bg-primary`, `text-protein`, `bg-carbs`, `text-fat`, `text-success` osv.
 

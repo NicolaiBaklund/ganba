@@ -27,6 +27,8 @@ export interface ProfileValues {
   manualKcalOverride: number | null;
   checkinWeekday: number;
   email: string;
+  /** Garmin users get activity from the watch; manual activity settings are hidden. */
+  garmin: boolean;
 }
 
 const RATES = [-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5];
@@ -109,29 +111,31 @@ export function ProfileCards({ v }: { v: ProfileValues }) {
         </Button>
       </Card>
 
-      <Card title={t("activity.title")}>
-        <p className="-mt-2 text-xs text-muted-foreground">{t("activity.hint")}</p>
-        <NumberField label={t("activity.steps")} value={steps} onChange={setSteps} decimal={false} />
-        <div className="grid grid-cols-2 gap-3">
-          <NumberField label={t("activity.run")} unit="km" value={run_} onChange={setRun} />
-          <NumberField label={t("activity.other")} unit="h" value={other} onChange={setOther} />
-        </div>
-        <Button
-          className="h-11 rounded-xl"
-          disabled={pending || [steps, run_, other].some((x) => parseNum(x) == null)}
-          onClick={() =>
-            run(() =>
-              updateActivity({
-                stepsPerDay: Math.round(parseNum(steps)!),
-                runKmPerWeek: parseNum(run_)!,
-                otherTrainingHoursPerWeek: parseNum(other)!,
-              }),
-            )
-          }
-        >
-          {t("save")}
-        </Button>
-      </Card>
+      {!v.garmin && (
+        <Card title={t("activity.title")}>
+          <p className="-mt-2 text-xs text-muted-foreground">{t("activity.hint")}</p>
+          <NumberField label={t("activity.steps")} value={steps} onChange={setSteps} decimal={false} />
+          <div className="grid grid-cols-2 gap-3">
+            <NumberField label={t("activity.run")} unit="km" value={run_} onChange={setRun} />
+            <NumberField label={t("activity.other")} unit="h" value={other} onChange={setOther} />
+          </div>
+          <Button
+            className="h-11 rounded-xl"
+            disabled={pending || [steps, run_, other].some((x) => parseNum(x) == null)}
+            onClick={() =>
+              run(() =>
+                updateActivity({
+                  stepsPerDay: Math.round(parseNum(steps)!),
+                  runKmPerWeek: parseNum(run_)!,
+                  otherTrainingHoursPerWeek: parseNum(other)!,
+                }),
+              )
+            }
+          >
+            {t("save")}
+          </Button>
+        </Card>
+      )}
 
       <Card title={t("macros.title")}>
         <div className="grid grid-cols-2 gap-3">

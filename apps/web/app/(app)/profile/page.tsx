@@ -4,6 +4,8 @@ import { requireUser } from "@/lib/supabase/server";
 import { currentRow, getProfile } from "@/lib/db/current";
 import { getApiKeyStatus } from "@/lib/ai/keys";
 import { ApiKeyCard } from "@/components/profile/ApiKeyCard";
+import { GarminCard } from "@/components/profile/GarminCard";
+import { getGarminStatus } from "@/lib/garmin/accounts";
 import { ProfileCards } from "@/components/profile/ProfileCards";
 
 export default async function ProfilePage() {
@@ -12,8 +14,9 @@ export default async function ProfilePage() {
   const profile = await getProfile(supabase, user.id);
   const today = localDate(profile.timezone);
 
-  const [keyStatus, goal, baseline, plan, lastWeight] = await Promise.all([
+  const [keyStatus, garmin, goal, baseline, plan, lastWeight] = await Promise.all([
     getApiKeyStatus(user.id),
+    getGarminStatus(user.id),
     currentRow(supabase, "goals", user.id, today),
     currentRow(supabase, "activity_baselines", user.id, today),
     currentRow(supabase, "energy_plans", user.id, today),
@@ -31,6 +34,7 @@ export default async function ProfilePage() {
   return (
     <main className="flex flex-col gap-4 px-4 pt-4">
       <h1 className="font-heading text-2xl font-bold">{t("title")}</h1>
+      <GarminCard status={garmin ? { status: garmin.status, lastSyncedAt: garmin.lastSyncedAt } : null} />
       <ApiKeyCard status={keyStatus} />
       <ProfileCards
         v={{
@@ -45,6 +49,7 @@ export default async function ProfilePage() {
           manualKcalOverride: plan?.manual_kcal_override == null ? null : Number(plan.manual_kcal_override),
           checkinWeekday: profile.checkin_weekday,
           email: user.email ?? "",
+          garmin: !!garmin,
         }}
       />
     </main>

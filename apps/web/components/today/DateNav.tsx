@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, UserRound } from "lucide-react";
 import { addDays } from "@loop/core";
 
-export async function DateNav({ date, today, basePath }: { date: string; today: string; basePath: string }) {
+export async function DateNav({ date, today, basePath, profileLink = false }: { date: string; today: string; basePath: string; profileLink?: boolean }) {
   const t = await getTranslations("today");
   const format = await getFormatter();
   const label =
@@ -25,6 +25,11 @@ export async function DateNav({ date, today, basePath }: { date: string; today: 
         </Link>
       ) : (
         <span className="size-9" />
+      )}
+      {profileLink && (
+        <Link href="/profile" className="ml-1 flex size-9 items-center justify-center rounded-full bg-muted text-muted-foreground" aria-label={t("profile")}>
+          <UserRound className="size-5" />
+        </Link>
       )}
     </header>
   );

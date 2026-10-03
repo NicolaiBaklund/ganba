@@ -69,7 +69,8 @@
     "today": "Today",
     "food": "Food",
     "body": "Body",
-    "profile": "Profile"
+    "profile": "Profile",
+    "training": "Training"
   },
   "meals": {
     "breakfast": "Breakfast",
@@ -129,7 +130,17 @@
     "noMeals": "Nothing logged yet. Tap + to log a meal.",
     "trendWeight": "Trend weight",
     "perWeek": "/wk",
-    "goal": "Goal"
+    "goal": "Goal",
+    "profile": "Profile",
+    "breakdown": {
+      "base": "Base",
+      "activity": "Activity",
+      "planned": "Planned run",
+      "goal": "Goal",
+      "averaged": "Activity (avg, no watch data)"
+    },
+    "garminReauth": "Garmin needs you to sign in again.",
+    "garminReauthCta": "Reconnect"
   },
   "weight": {
     "title": "Log weight",
@@ -293,5 +304,179 @@
     "4": "Thu",
     "5": "Fri",
     "6": "Sat"
+  },
+  "workout": {
+    "today": "Today’s session",
+    "rest": "Rest day",
+    "restHint": "No run planned today.",
+    "done": "Done",
+    "missed": "Missed",
+    "planned": "Planned",
+    "onWatch": "On your watch",
+    "notOnWatch": "Not on watch yet",
+    "pushFailed": "Couldn’t send to watch — will retry",
+    "distance": "Distance",
+    "duration": "Time",
+    "pace": "Pace",
+    "hr": "Avg HR",
+    "laps": "Laps",
+    "lap": "Lap",
+    "steps": "Steps",
+    "plannedKm": "Planned",
+    "actualKm": "Actual",
+    "back": "Training",
+    "repeat": "{times}×",
+    "step": {
+      "warmup": "Warm up",
+      "run": "Run",
+      "recover": "Recover",
+      "cooldown": "Cool down"
+    },
+    "open": "Until lap press",
+    "types": {
+      "easy": "Easy",
+      "long": "Long run",
+      "intervals": "Intervals",
+      "threshold": "Threshold",
+      "tempo": "Marathon pace",
+      "strides": "Strides",
+      "race": "Race"
+    }
+  },
+  "training": {
+    "title": "Training",
+    "garminRequired": "Connect Garmin to get a training plan",
+    "garminRequiredHint": "Plans use your recent runs for paces and send sessions to your watch.",
+    "connect": "Connect Garmin",
+    "noPlan": "No plan yet",
+    "noPlanHint": "Pick a race or just build fitness. Loop plans around the days you can run and sends sessions to your watch.",
+    "create": "Create plan",
+    "build": "Build fitness",
+    "predicted": "Predicted",
+    "target": "Target",
+    "vdot": "VDOT",
+    "thisWeek": "This week",
+    "upcoming": "Coming weeks",
+    "week": "Week {n}",
+    "phase": {
+      "base": "Base",
+      "build": "Build",
+      "peak": "Peak",
+      "taper": "Taper",
+      "recovery": "Easy week"
+    },
+    "distance": {
+      "5k": "5K",
+      "10k": "10K",
+      "half": "Half marathon",
+      "marathon": "Marathon"
+    },
+    "adjust": "Adjust with AI",
+    "adjustTitle": "What should change?",
+    "adjustPlaceholder": "E.g. “My knee is sore, keep this week easy” or “I’m away 12–18 Oct”",
+    "adjustSend": "Suggest changes",
+    "adjustBusy": "Thinking…",
+    "adjustDone": "Suggestion ready",
+    "adjustNone": "No changes suggested",
+    "adjustCost": "Uses your Anthropic key (about $0.05–0.10).",
+    "end": "End plan",
+    "endConfirm": "End this plan? Sessions are removed from your watch.",
+    "endYes": "Yes, end it",
+    "cancel": "Cancel",
+    "ended": "Plan ended",
+    "paces": "Paces",
+    "paceZones": {
+      "easy": "Easy",
+      "marathon": "Marathon",
+      "threshold": "Threshold",
+      "interval": "Interval",
+      "rep": "Reps"
+    },
+    "errors": {
+      "no_key": "Add your Anthropic key in Profile first.",
+      "invalid_key": "Your Anthropic key was rejected.",
+      "unavailable": "AI is unavailable right now. Try again.",
+      "refused": "The AI declined this request.",
+      "invalid_output": "The AI answer didn’t work out. Try rephrasing.",
+      "generic": "Something went wrong. Try again."
+    },
+    "weeksLeftLabel": "Weeks left"
+  },
+  "proposal": {
+    "title": {
+      "missed": "Missed session",
+      "paces": "New paces",
+      "volume": "Lighter weeks",
+      "ai": "Suggested change"
+    },
+    "accept": "Apply",
+    "reject": "Dismiss",
+    "applied": "Plan updated",
+    "dismissed": "Dismissed",
+    "error": "Couldn’t update. Try again."
+  },
+  "planWizard": {
+    "title": "New plan",
+    "next": "Next",
+    "back": "Back",
+    "create": "Create plan",
+    "creating": "Creating…",
+    "goalTitle": "What are you training for?",
+    "build": "Build fitness",
+    "buildHint": "No race — steady progress with easier weeks",
+    "raceDate": "Race date",
+    "targetTime": "Target time (optional)",
+    "targetTimeHint": "h:mm:ss or mm:ss — empty uses your predicted time",
+    "daysTitle": "When can you run?",
+    "days": "Days you can run",
+    "runs": "Runs per week",
+    "longDay": "Long run day",
+    "recentTitle": "Recent race (optional)",
+    "recentHint": "Overrides the estimate from your Garmin runs",
+    "recentTime": "Time",
+    "previewTitle": "Your plan",
+    "kmPerWeek": "{km} km/week now",
+    "sparse": "Few recent runs — the plan starts gently.",
+    "peak": "Peak {km} km/week",
+    "firstWeek": "First sessions",
+    "weeks": "{n, plural, one {# week} other {# weeks}}",
+    "errors": {
+      "invalid_race_date": "Pick a race date within the next year.",
+      "garmin_required": "Connect Garmin first.",
+      "generic": "Couldn’t create the plan. Try again."
+    }
+  },
+  "garmin": {
+    "title": "Garmin",
+    "connected": "Connected",
+    "lastSync": "Synced {time}",
+    "never": "Not synced yet",
+    "syncNow": "Sync now",
+    "syncing": "Syncing…",
+    "synced": "Up to date",
+    "disconnect": "Disconnect",
+    "disconnected": "Garmin disconnected",
+    "explain": "Loop reads steps and workouts from Garmin Connect and sends planned sessions to your watch. Your password is used once to sign in and is never stored.",
+    "email": "Garmin email",
+    "password": "Garmin password",
+    "connect": "Connect",
+    "connecting": "Connecting…",
+    "mfa": "Enter the code Garmin sent you",
+    "mfaCode": "Code",
+    "verify": "Verify",
+    "reauth": "Sign-in expired. Connect again.",
+    "importing": "Connected. Importing your last 90 days…",
+    "activityHint": "Steps and workouts come from Garmin, so manual activity settings are not used.",
+    "errors": {
+      "auth": "Wrong email or password.",
+      "mfa_invalid": "That code didn’t work. Start again.",
+      "mfa_expired": "The code step timed out. Start again.",
+      "rate_limited": "Garmin is limiting sign-ins. Wait a few minutes.",
+      "unavailable": "Couldn’t reach Garmin. Try again.",
+      "unsupported_session": "Signed in, but the session could not be saved. Try again later.",
+      "generic": "Something went wrong. Try again."
+    },
+    "pull": "Pull to sync",
+    "release": "Release to sync"
   }
 }

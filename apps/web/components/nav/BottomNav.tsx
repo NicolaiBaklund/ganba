@@ -4,17 +4,17 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { CalendarDays, Scale, User, Utensils } from "lucide-react";
+import { CalendarDays, Footprints, Scale, Utensils } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PlusMenu } from "./PlusMenu";
 
 const LEFT = [
   { href: "/today", key: "today", Icon: CalendarDays },
-  { href: "/food", key: "food", Icon: Utensils },
+  { href: "/training", key: "training", Icon: Footprints },
 ] as const;
 const RIGHT = [
+  { href: "/food", key: "food", Icon: Utensils },
   { href: "/body", key: "body", Icon: Scale },
-  { href: "/profile", key: "profile", Icon: User },
 ] as const;
 
 export function BottomNav() {

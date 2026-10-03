@@ -85,6 +85,14 @@
   --fat: #a78bfa;
   --success: #34d399;
   --warning: #ffb547;
+  /* Workout types: fixed colours everywhere (docs/design.md) */
+  --w-easy: #5eead4;
+  --w-long: #2f8cff;
+  --w-intervals: #ff6b8a;
+  --w-threshold: #ffb547;
+  --w-tempo: #a78bfa;
+  --w-strides: #34d399;
+  --w-race: #facc15;
   --radius: 1rem;
   --sidebar: #141824;
   --sidebar-foreground: #f3f5fa;
