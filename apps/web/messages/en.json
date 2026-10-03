@@ -7,14 +7,14 @@
     "subtitle": "Training and nutrition, together.",
     "emailPlaceholder": "you@example.com",
     "sendLink": "Email me a sign-in link",
-    "checkEmail": "We sent a link and a 6-digit code to {email}. Tap the link, or type the code here.",
+    "checkEmail": "We sent a link and a code to {email}. Tap the link, or type the code here.",
     "error": "Couldn't send the link. Try again.",
     "or": "or",
     "google": "Continue with Google",
     "verify": "Sign in",
     "badCode": "That code didn’t work. Check it or request a new one.",
     "otherEmail": "Use another email",
-    "linkError": "That sign-in link didn’t work here. Request a new one and type the 6-digit code instead."
+    "linkError": "That sign-in link didn’t work here. Request a new one and type the code instead."
   },
   "onboarding": {
     "back": "Back",

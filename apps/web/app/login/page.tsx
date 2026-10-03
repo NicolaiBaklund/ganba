@@ -35,7 +35,7 @@ function Login() {
     setState(error ? "error" : "sent");
   }
 
-  // The email also contains a 6-digit code. Typing it here works even when the link would
+  // The email also contains a one-time code (length is set in Supabase, e.g. 6 or 8 digits). Typing it here works even when the link would
   // open in another browser (e.g. an installed home-screen app on iOS).
   async function verifyCode(e: React.FormEvent) {
     e.preventDefault();
@@ -66,9 +66,9 @@ function Login() {
           <Input
             inputMode="numeric"
             autoComplete="one-time-code"
-            placeholder="123456"
+            placeholder="12345678"
             value={code}
-            onChange={(e) => setCode(e.target.value)}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 10))}
             className="num h-12 text-center text-2xl tracking-[0.4em]"
           />
           <Button type="submit" size="lg" className="h-11" disabled={code.trim().length < 6 || state === "verifying"}>
