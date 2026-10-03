@@ -140,6 +140,19 @@ describe("training plan: create, push, reconcile, proposals", () => {
     expect(await acceptProposal(u.id, props![0]!.id)).toBe(false);
   });
 
+  it("a pushed session changed to a date beyond the 14-day window is removed from Garmin now", async () => {
+    const plan = await activePlan(u.id);
+    // Earlier tests reconcile with future "today"s, so take any pushed session and make it planned again.
+    const pushed = (await planWorkouts(plan!.id)).find((w) => w.garmin_workout_id && w.date >= today && w.type !== "race")!;
+    const oldId = pushed.garmin_workout_id!;
+    await admin().from("planned_workouts").update({ date: addDays(today, 30), status: "planned", garmin_push_status: "pending" }).eq("id", pushed.id);
+    await pushToGarmin(u.id, today, garmin);
+    expect(garmin.deleted).toContain(oldId);
+    const { data: after } = await admin().from("planned_workouts").select("garmin_workout_id, garmin_push_status").eq("id", pushed.id).single();
+    expect(after!.garmin_workout_id).toBeNull();
+    expect(after!.garmin_push_status).toBe("pending");
+  });
+
   it("a new plan cancels the old one; its sessions are deleted from Garmin", async () => {
     const before = await activePlan(u.id);
     await createPlan(u.id, { goal: { kind: "build" }, weekdays: WEEKDAYS, longRunWeekday: 0, runsPerWeek: 3 });

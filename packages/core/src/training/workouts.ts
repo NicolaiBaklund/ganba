@@ -235,6 +235,20 @@ export function buildByType(type: WorkoutType, km: number, distance: RaceDistanc
   }
 }
 
+/** Longer/shorter quality session: same reps, the difference goes on the easy cool-down (min 0.5 km). */
+export function resizeQuality(blocks: Block[], deltaKm: number, paces: Paces): Block[] {
+  const out = blocks.map((b) => ({ ...b })) as Block[];
+  const i = out.map((b) => b.kind).lastIndexOf("cooldown");
+  if (i >= 0) {
+    const cd = out[i] as Step;
+    const m = cd.duration.kind === "distance" ? cd.duration.m : 0;
+    out[i] = { ...cd, duration: { kind: "distance", m: Math.max(500, Math.round((m + deltaKm * 1000) / 100) * 100) } };
+  } else if (deltaKm > 0) {
+    out.push(step("cooldown", dist(deltaKm), targetFor("easy", paces)));
+  }
+  return out;
+}
+
 /** Re-target every pace step for new paces (keeps structure, distances and times). */
 export function repaceBlocks(blocks: Block[], paces: Paces, racePaceS?: number): Block[] {
   const fix = (s: Step): Step => (s.target.kind === "pace" ? { ...s, target: targetFor(s.target.zone, paces, racePaceS) } : s);

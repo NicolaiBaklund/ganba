@@ -399,11 +399,15 @@ export async function pushToGarmin(userId: string, today: ISODate, source: Garmi
   const plan = await activePlan(userId);
   const { data: stale } = await d
     .from("planned_workouts")
-    .select("id, garmin_workout_id, garmin_schedule_id, status, plan:training_plans!inner(status)")
+    .select("id, date, garmin_workout_id, garmin_schedule_id, garmin_push_status, status, plan:training_plans!inner(status)")
     .eq("user_id", userId)
     .not("garmin_workout_id", "is", null)
     .gte("date", today);
-  const toDelete = (stale ?? []).filter((w) => w.status === "removed" || w.plan.status !== "active");
+  const windowEnd = addDays(today, PUSH_WINDOW_DAYS - 1);
+  // Removed sessions, sessions of ended plans, and changed sessions now beyond the window (their old copy must go now).
+  const movedOut = (w: { date: string; garmin_push_status: string; status: string }) =>
+    w.status === "planned" && w.date > windowEnd && (w.garmin_push_status === "pending" || w.garmin_push_status === "failed");
+  const toDelete = (stale ?? []).filter((w) => w.status === "removed" || w.plan.status !== "active" || movedOut(w));
 
   const { data: due } = plan
     ? await d
@@ -412,7 +416,7 @@ export async function pushToGarmin(userId: string, today: ISODate, source: Garmi
         .eq("plan_id", plan.id)
         .eq("status", "planned")
         .gte("date", today)
-        .lte("date", addDays(today, PUSH_WINDOW_DAYS - 1))
+        .lte("date", windowEnd)
         .in("garmin_push_status", ["pending", "failed"])
         .order("date")
     : { data: [] as WorkoutRow[] };
@@ -421,7 +425,10 @@ export async function pushToGarmin(userId: string, today: ISODate, source: Garmi
     for (const w of toDelete) {
       const r = await source.deleteWorkout(tokens!, w.garmin_workout_id!, w.garmin_schedule_id);
       await remember(r.tokens);
-      await d.from("planned_workouts").update({ garmin_workout_id: null, garmin_schedule_id: null, garmin_push_status: "none" }).eq("id", w.id);
+      await d
+        .from("planned_workouts")
+        .update({ garmin_workout_id: null, garmin_schedule_id: null, garmin_push_status: movedOut(w) ? "pending" : "none" })
+        .eq("id", w.id);
     }
     for (const w of due ?? []) {
       if (w.garmin_workout_id) {

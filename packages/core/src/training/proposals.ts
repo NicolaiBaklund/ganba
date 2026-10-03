@@ -1,7 +1,7 @@
 import { addDays, daysBetween, weekday, type ISODate } from "../dates";
 import { mondayOf } from "./generate";
 import { pacesFor } from "./vdot";
-import { buildByType, measure, repaceBlocks, rescaleBlocks, type BuildContext } from "./workouts";
+import { buildByType, measure, repaceBlocks, rescaleBlocks, resizeQuality, type BuildContext } from "./workouts";
 import { HARD_TYPES, KEY_TYPES, type PlanWorkout, type ProposalChange, type RaceDistance, type WorkoutType } from "./types";
 
 export interface PlanContext {
@@ -161,8 +161,17 @@ export function applyChanges(all: PlanWorkout[], changes: ProposalChange[], ctx:
     } else if (c.op === "drop") {
       w.status = "removed";
     } else if (c.op === "replace") {
-      const b = buildByType(c.type, c.km, ctx.distance ?? "10k", 2, build());
-      Object.assign(w, { type: b.type, title: b.title, blocks: b.blocks, plannedKm: b.plannedKm, plannedDurationS: b.plannedDurationS });
+      const sameQuality = c.type === w.type && (c.type === "intervals" || c.type === "threshold" || c.type === "tempo");
+      if (sameQuality) {
+        // Same session, different size: keep the reps, change the easy cool-down.
+        w.blocks = resizeQuality(w.blocks, c.km - w.plannedKm, build().paces);
+        const m = measure(w.blocks, build().paces);
+        w.plannedKm = m.km;
+        w.plannedDurationS = m.s;
+      } else {
+        const b = buildByType(c.type, c.km, ctx.distance ?? "10k", 2, build());
+        Object.assign(w, { type: b.type, title: b.title, blocks: b.blocks, plannedKm: b.plannedKm, plannedDurationS: b.plannedDurationS });
+      }
     }
     changed.add(w.id);
   }

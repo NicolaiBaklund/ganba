@@ -2,7 +2,7 @@ import { z } from "zod";
 import { weekday, type ISODate } from "../dates";
 import type { Goal, PlanWorkout, ProposalChange } from "./types";
 
-export const PLAN_PROMPT_VERSION = 1;
+export const PLAN_PROMPT_VERSION = 2;
 
 const ref = z.string().describe("Session reference, e.g. s3");
 const date = z.string().describe("YYYY-MM-DD");
@@ -30,12 +30,15 @@ export const PLAN_SYSTEM_PROMPT = `You adjust an existing running training plan 
 The plan was built by a rule engine; you only edit it with these operations:
 - move: move a session to another date
 - drop: remove a session
-- replace: change a session to another type and distance (the engine rebuilds the structure and paces)
+- replace: change a session to another type and distance (the engine rebuilds the structure and paces).
+  Same type with a new km keeps the session as it is and only changes its length: for easy/long runs the distance,
+  for intervals/threshold/tempo the easy cool-down (the reps stay). Use this for "make it 1 km longer".
+- To do a session on another day (e.g. "today instead"), move it; if another session sits on that day, move or drop that one too.
 - rescale: scale easy, long and strides runs from a date by a factor (0.5–1.1)
 
 Rules:
 - Change as little as possible to satisfy the request. Never touch done or past sessions, and never the race.
-- Prefer the runner's available running days unless they name other days.
+- Prefer the runner's available running days unless they name other days ("today", "Saturday", a date count as named).
 - Never put two hard sessions (long, intervals, threshold, tempo) on consecutive days.
 - Never increase a week's volume by more than 10 %.
 - Illness or pain: reduce load (drop quality, shorter easy runs) rather than move it later. Do not give medical advice beyond suggesting rest and seeing a professional if pain persists.
