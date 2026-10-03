@@ -66,6 +66,7 @@ Format: dato — beslutning — begrunnelse.
 | 2026-10-03 | Garmin-tall: **egne formler fra rådata** (skritt, km, varighet, puls) — ikke Garmins aktive kalorier (valg A). Samme formel med og uten Garmin | Konsistent med startestimat og innsjekk; Garmins kcal-tall varierer |
 | 2026-10-03 | **Dagsmål bygges løpende** (erstatter "forventet 14-d snitt" i raden over): planlagt løp legges til på forhånd (fra plan, fase 2b), skritt og annen aktivitet legges til etter hvert som de synkes. Løpeskritt trekkes fra dagens skritt (skritt i Garmin-økter; ellers estimert fra km) så de ikke telles dobbelt | Brukerens forslag. Ærlig tall, likt MFP+Garmin |
 | 2026-10-03 | Når fase 2a er ferdig: **wipe dev-databasen** og start på nytt | Brukerens ønske |
+| 2026-10-03 | Garmin-synk: ved app-åpning + dra-ned-for-å-oppdatere (i dag + manglende dager siden sist), **pluss nattlig cron** (Vercel Hobby: 1/dag) som ferdigstiller gårsdagen for alle tilkoblede | Brukeren valgte B. Få kall = lav risiko for blokkering |
 
 ## Åpne spørsmål
 - (Teknisk fase) Garmin-tilgang. Offisielt program er kun for bedrifter og muligens pauset (se research-notes). Sannsynlig vei: uoffisielt bibliotek i personlig fase, bak adapter-lag; offisielt når/om appen blir produkt.
