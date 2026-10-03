@@ -61,16 +61,14 @@ export default async function WorkoutPage({ params }: PageProps<"/training/worko
         <div className="mt-4 grid grid-cols-2 gap-3">
           <div>
             <p className="text-xs text-muted-foreground">{t("plannedKm")}</p>
-            <p className="num text-xl font-semibold">
-              {w.plannedKm} km <span className="text-sm text-muted-foreground">· {fmtMinutes(w.plannedDurationS)}</span>
-            </p>
+            <p className="num text-xl font-semibold">{w.plannedKm} km</p>
+            <p className="text-sm text-muted-foreground">{fmtMinutes(w.plannedDurationS)}</p>
           </div>
           {a && (
             <div>
               <p className="text-xs text-muted-foreground">{t("actualKm")}</p>
-              <p className="num text-xl font-semibold text-success">
-                {a.distanceKm} km <span className="text-sm text-muted-foreground">· {fmtClock(a.movingS ?? a.durationS)}</span>
-              </p>
+              <p className="num text-xl font-semibold text-success">{a.distanceKm} km</p>
+              <p className="num text-sm text-muted-foreground">{fmtClock(a.movingS ?? a.durationS)}</p>
             </div>
           )}
         </div>

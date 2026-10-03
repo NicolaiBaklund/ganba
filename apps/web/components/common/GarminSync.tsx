@@ -24,7 +24,8 @@ export function GarminSync({ enabled }: { enabled: boolean }) {
   const syncRef = useRef(async (force: boolean) => {
     if (busy.current) return;
     busy.current = true;
-    setSyncing(true);
+    // Background sync on open stays invisible; only a pull shows progress.
+    if (force) setSyncing(true);
     const res = await fetch("/api/garmin/sync", {
       method: "POST",
       headers: { "content-type": "application/json" },

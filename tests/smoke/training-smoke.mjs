@@ -69,7 +69,7 @@ try {
 
   await page.goto(`${BASE}/today`);
   await shot("45-today");
-  const hasBreakdown = await page.getByText("Base", { exact: true }).count();
+  const hasBreakdown = await page.getByText(/^Base \d+/).count();
   await browser.close();
 
   const { data: plan } = await admin.from("training_plans").select("id, vdot").eq("user_id", uid).eq("status", "active").single();

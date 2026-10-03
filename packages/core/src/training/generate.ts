@@ -196,7 +196,8 @@ export function generatePlan(input: PlanInput): GeneratedPlan {
       const hardTypes = quality.filter((q) => q.type !== "strides");
       const days = assignDays(input.weekdays, input.longRunWeekday, true, hardTypes.length, easyCount + (quality.length - hardTypes.length));
       const used = long.plannedKm + quality.reduce((s, q) => s + q.plannedKm, 0);
-      const easyKm = easyCount > 0 ? Math.max(3, (km - used) / easyCount) : 0;
+      // An easy run never outgrows the long run; the week is a little shorter instead.
+      const easyKm = easyCount > 0 ? Math.max(3, Math.min((km - used) / easyCount, long.plannedKm * 0.8)) : 0;
 
       if (days.long != null) built.push({ date: dateIn(monday, days.long), w: long });
       hardTypes.forEach((q, i) => days.hard[i] != null && built.push({ date: dateIn(monday, days.hard[i]!), w: q }));
