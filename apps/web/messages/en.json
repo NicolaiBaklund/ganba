@@ -431,8 +431,8 @@
     "days": "Days you can run",
     "runs": "Runs per week",
     "longDay": "Long run day",
-    "recentTitle": "Recent race (optional)",
-    "recentHint": "Overrides the estimate from your Garmin runs",
+    "recentTitle": "Known time or estimate (optional)",
+    "recentHint": "A recent race or a time you trust — overrides the estimate below",
     "recentTime": "Time",
     "previewTitle": "Your plan",
     "kmPerWeek": "{km} km/week now",
@@ -446,7 +446,14 @@
       "generic": "Couldn’t create the plan. Try again."
     },
     "experienced": "You’ve trained consistently the last 4 weeks, so the plan starts in the build phase.",
-    "didQuality": "Recent fast laps found — sessions start a level up."
+    "didQuality": "Recent fast laps found — sessions start a level up.",
+    "source": {
+      "run": "Based on your {km} km run on {date}",
+      "laps": "Based on your interval laps on {date}",
+      "garmin": "Based on Garmin’s 10K estimate ({time}), read slightly cautiously",
+      "default": "No recent runs found — starting cautiously",
+      "manual": "Based on the time you entered"
+    }
   },
   "garmin": {
     "title": "Garmin",

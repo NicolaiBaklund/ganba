@@ -139,6 +139,7 @@ export async function syncGarmin(userId: string, opts: SyncOptions = {}): Promis
       .update({
         last_synced_at: new Date().toISOString(),
         last_synced_date: today,
+        ...(res.racePredictions?.time10K ? { race_predictions: res.racePredictions as unknown as Json, race_predictions_at: new Date().toISOString() } : {}),
         ...(firstSync ? { history_imported_at: new Date().toISOString() } : {}),
       })
       .eq("user_id", userId);

@@ -398,6 +398,8 @@ export type Database = {
           iv: string
           last_synced_at: string | null
           last_synced_date: string | null
+          race_predictions: Json | null
+          race_predictions_at: string | null
           status: Database["public"]["Enums"]["garmin_status"]
           sync_started_at: string | null
           updated_at: string
@@ -412,6 +414,8 @@ export type Database = {
           iv: string
           last_synced_at?: string | null
           last_synced_date?: string | null
+          race_predictions?: Json | null
+          race_predictions_at?: string | null
           status?: Database["public"]["Enums"]["garmin_status"]
           sync_started_at?: string | null
           updated_at?: string
@@ -426,6 +430,8 @@ export type Database = {
           iv?: string
           last_synced_at?: string | null
           last_synced_date?: string | null
+          race_predictions?: Json | null
+          race_predictions_at?: string | null
           status?: Database["public"]["Enums"]["garmin_status"]
           sync_started_at?: string | null
           updated_at?: string

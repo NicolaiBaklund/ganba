@@ -17,7 +17,19 @@ const RACE_M: Record<Distance, number> = { "5k": 5000, "10k": 10000, half: 21097
 const WEEK = [1, 2, 3, 4, 5, 6, 0];
 
 interface Preview {
-  fitness: { vdot: number; kmPerWeek: number; sparse: boolean; experienced: boolean; didQuality: boolean };
+  fitness: {
+    vdot: number;
+    kmPerWeek: number;
+    sparse: boolean;
+    experienced: boolean;
+    didQuality: boolean;
+    source:
+      | { kind: "run"; date: string; distanceKm: number }
+      | { kind: "laps"; date: string }
+      | { kind: "garmin"; time10kS: number }
+      | { kind: "default" }
+      | { kind: "manual" };
+  };
   weeks: { week: number; phase: string; km: number }[];
   peakKm: number;
   predictedTimeS: number | null;
@@ -94,6 +106,15 @@ export function PlanWizard({ minDate }: { minDate: string }) {
   }
 
   const maxKm = Math.max(1, ...(preview?.weeks.map((w) => w.km) ?? [1]));
+  const day = (d: string) => format.dateTime(new Date(`${d}T00:00:00Z`), { day: "numeric", month: "short" });
+  const sourceText = (s: Preview["fitness"]["source"]) =>
+    s.kind === "run"
+      ? t("source.run", { km: s.distanceKm, date: day(s.date) })
+      : s.kind === "laps"
+        ? t("source.laps", { date: day(s.date) })
+        : s.kind === "garmin"
+          ? t("source.garmin", { time: fmtClock(s.time10kS) })
+          : t(`source.${s.kind}`);
 
   return (
     <div className="flex flex-col gap-4">
@@ -223,6 +244,7 @@ export function PlanWizard({ minDate }: { minDate: string }) {
               </div>
             )}
           </div>
+          <p className="-mt-2 text-xs text-muted-foreground">{sourceText(preview.fitness.source)}</p>
           {preview.fitness.sparse && <p className="text-xs text-warning">{t("sparse")}</p>}
           {preview.fitness.experienced && (
             <p className="text-xs text-success">

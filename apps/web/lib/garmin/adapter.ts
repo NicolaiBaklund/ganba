@@ -36,6 +36,8 @@ export interface FetchResult {
   days: GarminDayRaw[];
   activities: GarminActivityRaw[];
   details: Record<string, { splits: unknown; hrZones: unknown } | null>;
+  /** Garmin's race predictor (seconds), when available. */
+  racePredictions?: { time5K?: number | null; time10K?: number | null; timeHalfMarathon?: number | null; timeMarathon?: number | null } | null;
   /** Present only when Garmin refreshed them. */
   tokens: string | null;
 }

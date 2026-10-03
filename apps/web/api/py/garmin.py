@@ -158,7 +158,17 @@ def op_fetch(b: dict[str, Any]) -> dict[str, Any]:
             }
         except (GarminConnectConnectionError, requests.exceptions.RequestException):
             details[str(aid)] = None
-    return {"days": days, "activities": activities, "details": details, "tokens": changed_tokens(g, tokens)}
+    try:
+        predictions = g.get_race_predictions()
+    except Exception:  # noqa: BLE001 - optional extra; never fail a sync on it
+        predictions = None
+    return {
+        "days": days,
+        "activities": activities,
+        "details": details,
+        "racePredictions": predictions if isinstance(predictions, dict) else None,
+        "tokens": changed_tokens(g, tokens),
+    }
 
 
 def _schedule_id(res: Any) -> Any:

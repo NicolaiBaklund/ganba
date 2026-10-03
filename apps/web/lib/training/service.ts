@@ -110,6 +110,7 @@ export async function recentRuns(userId: string, today: ISODate): Promise<RunRec
       date: a.local_date,
       distanceM: Number(a.distance_m),
       timeS: Number(a.moving_s ?? a.duration_s ?? 0),
+      indoor: /treadmill|indoor|virtual/.test(a.type_key),
       laps: ((a.splits as { lapDTOs?: { distance?: number | null; duration?: number | null }[] } | null)?.lapDTOs ?? []).map((l) => ({
         distanceM: Number(l.distance ?? 0),
         timeS: Number(l.duration ?? 0),
@@ -153,10 +154,22 @@ const workoutRow = (userId: string, planId: string, w: WorkoutSpec) => ({
   garmin_push_status: "pending" as const,
 });
 
+/** Garmin's latest 10K prediction (seconds), if synced. */
+export async function garminTenK(userId: string): Promise<number | null> {
+  const { data } = await db().from("garmin_accounts").select("race_predictions").eq("user_id", userId).maybeSingle();
+  const t = (data?.race_predictions as { time10K?: number | null } | null)?.time10K;
+  return typeof t === "number" && t > 0 ? t : null;
+}
+
+/** Fitness from synced runs plus Garmin's predictor. */
+export async function currentFitness(userId: string, today: ISODate) {
+  return fitnessFrom(await recentRuns(userId, today), today, { time10kS: await garminTenK(userId) });
+}
+
 /** Preview without saving (wizard summary). */
 export async function previewPlan(userId: string, input: CreatePlanInput) {
   const today = await todayFor(userId);
-  const fit = fitnessFrom(await recentRuns(userId, today), today);
+  const fit = await currentFitness(userId, today);
   const vdot = input.recentRace ? Math.round(vdotFrom(input.recentRace.distanceM, input.recentRace.timeS) * 10) / 10 : fit.vdot;
   const plan = generatePlan({
     goal: input.goal,
@@ -171,7 +184,7 @@ export async function previewPlan(userId: string, input: CreatePlanInput) {
     didQuality: fit.didQuality,
     recentLongestKm: fit.longestKm,
   });
-  return { today, fitness: { ...fit, vdot }, plan };
+  return { today, fitness: { ...fit, vdot, source: input.recentRace ? ({ kind: "manual" } as const) : fit.source }, plan };
 }
 
 /** Creates the plan (replacing any active one) and returns its id. */
@@ -316,7 +329,7 @@ export async function refreshProposals(userId: string, today: ISODate): Promise<
 
   const candidates = [
     !pendingKinds.has("missed") ? missedProposal(workouts, ctx, proposed) : null,
-    !pendingKinds.has("paces") && !recent("paces") ? pacesProposal(Number(plan.vdot), fitnessFrom(await recentRuns(userId, today), today).vdot) : null,
+    !pendingKinds.has("paces") && !recent("paces") ? pacesProposal(Number(plan.vdot), (await currentFitness(userId, today)).vdot) : null,
     !pendingKinds.has("volume") && !recent("volume") ? volumeProposal(workouts, ctx) : null,
   ].filter((p) => p != null);
 
