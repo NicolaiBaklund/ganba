@@ -65,6 +65,7 @@ try {
   await firstSession.click();
   await page.waitForURL(/\/training\/workout\//);
   await shot("44-workout");
+  const hasFuel = await page.getByText("Fuel", { exact: true }).count();
 
   await page.goto(`${BASE}/today`);
   await shot("45-today");
@@ -78,6 +79,7 @@ try {
     "plan has sessions": (ws ?? []).length > 10,
     "race on race day": (ws ?? []).some((w) => w.type === "race" && w.date === addDays(today, 63)),
     "target breakdown on Today": hasBreakdown > 0,
+    "fuel section on session": hasFuel > 0,
     "no console errors": errors.length === 0,
   };
   console.log(checks);

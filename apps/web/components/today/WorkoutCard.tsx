@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { Check, ChevronRight, Moon, Watch } from "lucide-react";
+import { Check, ChevronRight, Moon, UtensilsCrossed, Watch } from "lucide-react";
+import { fuelingFor } from "@loop/core";
 import { fmtMinutes, typeColor } from "@/lib/training/format";
 import type { WorkoutListItem } from "@/lib/training/view";
 
 /** Today's planned session (or rest day). Only shown when a plan is active. */
-export async function WorkoutCard({ workout }: { workout: WorkoutListItem | null }) {
+export async function WorkoutCard({ workout, kg }: { workout: WorkoutListItem | null; kg: number }) {
   const t = await getTranslations("workout");
+  const tf = await getTranslations("fuel");
   if (!workout) {
     return (
       <section className="flex items-center gap-3 rounded-3xl bg-card p-4">
@@ -21,6 +23,10 @@ export async function WorkoutCard({ workout }: { workout: WorkoutListItem | null
     );
   }
   const color = typeColor(workout.type);
+  const fuel = fuelingFor({ type: workout.type, plannedDurationS: workout.plannedDurationS }, kg);
+  const fuelLine = fuel.before.carbsG
+    ? tf("lineCarbs", { g: fuel.before.carbsG, p: fuel.after.proteinG })
+    : tf("lineMeal", { p: fuel.after.proteinG });
   return (
     <Link
       href={`/training/workout/${workout.id}`}
@@ -44,6 +50,12 @@ export async function WorkoutCard({ workout }: { workout: WorkoutListItem | null
             </>
           )}
         </p>
+        {workout.status === "planned" && (
+          <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <UtensilsCrossed className="size-3.5 shrink-0" />
+            <span className="num truncate">{fuelLine}</span>
+          </p>
+        )}
       </div>
       {workout.status === "planned" && workout.push === "pushed" && <Watch className="size-4 text-muted-foreground" aria-label={t("onWatch")} />}
       <ChevronRight className="size-5 text-muted-foreground" />

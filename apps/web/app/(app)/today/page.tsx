@@ -34,7 +34,7 @@ export default async function TodayPage({ searchParams }: PageProps<"/today">) {
         </Link>
       )}
       {checkinView && <CheckinCard view={checkinView} />}
-      {session.plan && <WorkoutCard workout={session.workout} />}
+      {session.plan && <WorkoutCard workout={session.workout} kg={snap.latestTrendKg ?? 70} />}
       <KcalCard intake={snap.intake} target={snap.macrosTarget} floored={snap.target.floored} />
       {snap.activity && !snap.manualTarget && !snap.target.floored && (
         <TargetBreakdown baseKcal={snap.baseKcal} activity={snap.activity} goalKcal={Math.round((snap.goal.rateKgPerWeek * KCAL_PER_KG) / 7)} />

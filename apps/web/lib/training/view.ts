@@ -1,5 +1,5 @@
 import "server-only";
-import { addDays, mondayOf, pacesFor, predictTimeS, RACE_KM, type Block, type ISODate, type Paces, type WorkoutType } from "@loop/core";
+import { addDays, mondayOf, pacesFor, predictTimeS, RACE_KM, trendSeries, type Block, type FuelAdvice, type ISODate, type Paces, type WorkoutType } from "@loop/core";
 import { getGarminStatus } from "@/lib/garmin/accounts";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { activePlan, distanceOf, planWorkouts, reconcilePlan, refreshProposals, todayFor } from "./service";
@@ -114,6 +114,9 @@ export async function loadTrainingView(userId: string): Promise<TrainingView> {
 
 export interface WorkoutDetail extends WorkoutListItem {
   blocks: Block[];
+  kg: number;
+  fuelAdvice: FuelAdvice | null;
+  upcoming: boolean;
   activity: null | {
     distanceKm: number;
     durationS: number;
@@ -158,8 +161,19 @@ export async function loadWorkout(userId: string, id: string): Promise<WorkoutDe
     push: r.garmin_push_status,
     actualKm: activity?.distanceKm ?? null,
     blocks: r.blocks as unknown as Block[],
+    kg: await latestKg(userId),
+    fuelAdvice: (r.fuel_advice as { advice?: FuelAdvice } | null)?.advice ?? null,
+    upcoming: r.status === "planned" && r.date >= (await todayFor(userId)),
     activity,
   };
+}
+
+/** Trend weight today (fueling amounts scale with it). */
+export async function latestKg(userId: string): Promise<number> {
+  const { data } = await createAdminSupabase().from("weight_entries").select("local_date, measured_at, weight_kg").eq("user_id", userId).order("local_date");
+  const points = (data ?? []).map((w) => ({ localDate: w.local_date, measuredAt: w.measured_at, weightKg: Number(w.weight_kg) }));
+  const series = trendSeries(points);
+  return series.at(-1)?.trendKg ?? points.at(-1)?.weightKg ?? 70;
 }
 
 /** Today's session for the Today screen (null = no active plan). */

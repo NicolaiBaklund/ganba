@@ -81,6 +81,7 @@ Format: dato — beslutning — begrunnelse.
 | 2026-10-03 | Seksjon 1 (Garmin-tilkobling og synk) godkjent. Brukeren: «gjør så mye du kan» → resten av designet skrevet direkte i spec (Claude-valg merket): specs/2026-10-03-fase2-garmin-trening.md | Brukeren vil ha fart |
 | 2026-10-03 | Implementering fase 2 (gren `fase2`), Claude-valg underveis: tempo-forslag kun oppover (lette uker gir ikke falsk nedgang); maraton toppvolum 50–90 km og langtur bygges mot 30 km; Garmin-økt-JSON bruker Garmins egne ID-er (distance=3, pace.zone=6); detaljer (runder/puls) hentes for maks 15 nye løp per synk; bunnmeny I dag · Trening · + · Mat · Kropp, profil via ikon på I dag; manuelle aktivitetsinnstillinger skjules for Garmin-brukere | Se ledger/oppsummering; kan endres |
 | 2026-10-03 | Mat rundt økt: faste regler (gratis, alltid) + liten, diskré «Foreslå mat»-lenke som spør AI ved behov (valg C). Ikke stor knapp | Brukeren: «må ikke ha den knappen så stor» |
+| 2026-10-03 | Mat rundt økt bygget: regler (før: måltid eller 1–1,5 g karbo/kg 2–3 t før; under >75 min: 30–60 g/t (>150 min 60–90), 4–8 dl væske/t; etter: 0,3 g protein/kg + 1 g karbo/kg etter harde/lange). Én linje på økt-kortet, seksjon på økt-siden, «Foreslå mat»-lenke (Sonnet 5, `AI_FUEL_MODEL`), svar lagres på økta. Ingen emojis — ikoner | Brukeren godkjente (uten emojis) |
 
 ## Åpne spørsmål
 - (Teknisk fase) Garmin-tilgang. Offisielt program er kun for bedrifter og muligens pauset (se research-notes). Sannsynlig vei: uoffisielt bibliotek i personlig fase, bak adapter-lag; offisielt når/om appen blir produkt.

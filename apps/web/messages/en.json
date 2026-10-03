@@ -478,5 +478,21 @@
     },
     "pull": "Pull to sync",
     "release": "Release to sync"
+  },
+  "fuel": {
+    "title": "Fuel",
+    "before": "Before",
+    "during": "During",
+    "after": "After",
+    "meal": "Normal meal {from}–{to} h before",
+    "carbs": "{g} g carbs {from}–{to} h before",
+    "duringPlan": "{lo}–{hi} g carbs and {flo}–{fhi} dl fluid per hour",
+    "afterProtein": "{p} g protein within 2 h",
+    "afterBoth": "{p} g protein + {c} g carbs within 2 h",
+    "lineCarbs": "{g} g carbs before · {p} g protein after",
+    "lineMeal": "Meal 2–3 h before · {p} g protein after",
+    "suggest": "Suggest food",
+    "suggesting": "Thinking…",
+    "ideas": "Ideas"
   }
 }

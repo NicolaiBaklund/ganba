@@ -645,6 +645,7 @@ export type Database = {
           blocks: Json
           created_at: string
           date: string
+          fuel_advice: Json | null
           garmin_push_status: Database["public"]["Enums"]["garmin_push_status"]
           garmin_schedule_id: number | null
           garmin_workout_id: number | null
@@ -665,6 +666,7 @@ export type Database = {
           blocks: Json
           created_at?: string
           date: string
+          fuel_advice?: Json | null
           garmin_push_status?: Database["public"]["Enums"]["garmin_push_status"]
           garmin_schedule_id?: number | null
           garmin_workout_id?: number | null
@@ -685,6 +687,7 @@ export type Database = {
           blocks?: Json
           created_at?: string
           date?: string
+          fuel_advice?: Json | null
           garmin_push_status?: Database["public"]["Enums"]["garmin_push_status"]
           garmin_schedule_id?: number | null
           garmin_workout_id?: number | null

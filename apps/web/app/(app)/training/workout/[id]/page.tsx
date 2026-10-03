@@ -2,10 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { ChevronLeft, Watch } from "lucide-react";
-import { formatPace, type Step } from "@loop/core";
+import { formatPace, fuelingFor, type Step } from "@loop/core";
 import { requireUser } from "@/lib/supabase/server";
 import { loadWorkout } from "@/lib/training/view";
 import { fmtClock, fmtMinutes, fmtPaceRange, paceFromSpeed, typeColor } from "@/lib/training/format";
+import { FuelSection } from "@/components/training/FuelSection";
 
 function StepLine({ s, t }: { s: Step; t: (k: string, v?: Record<string, string | number>) => string }) {
   const amount =
@@ -95,6 +96,15 @@ export default async function WorkoutPage({ params }: PageProps<"/training/worko
           ),
         )}
       </section>
+
+      {w.status !== "removed" && (
+        <FuelSection
+          workoutId={w.id}
+          fueling={fuelingFor({ type: w.type, plannedDurationS: w.plannedDurationS }, w.kg)}
+          initialAdvice={w.fuelAdvice}
+          canSuggest={w.upcoming}
+        />
+      )}
 
       {a && (
         <section className="rounded-3xl bg-card p-5">
