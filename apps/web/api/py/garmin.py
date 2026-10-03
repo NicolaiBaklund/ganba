@@ -141,8 +141,15 @@ def op_fetch(b: dict[str, Any]) -> dict[str, Any]:
     _profile(g)
     days = g.get_daily_steps(b["from"], b["to"]) or []
     activities = g.get_activities_by_date(b["from"], b["to"], sortorder="asc") or []
+    # Laps and HR zones for runs we have not stored details for yet (newest first, capped).
+    known = {str(x) for x in (b.get("knownIds") or [])}
+    runs = [
+        str(a.get("activityId"))
+        for a in activities
+        if "run" in str((a.get("activityType") or {}).get("typeKey", "")) and str(a.get("activityId")) not in known
+    ]
     details: dict[str, Any] = {}
-    for aid in (b.get("detailsFor") or [])[:40]:
+    for aid in list(reversed(runs))[:40]:
         try:
             details[str(aid)] = {
                 "splits": g.get_activity_splits(str(aid)),

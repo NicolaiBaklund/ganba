@@ -9,6 +9,8 @@ import {
   weekStartOn,
 } from "@loop/core";
 import { currentRow, getProfile, toActivityBaseline, type DB } from "./current";
+import { averageActivityKcal } from "./activity";
+import { getGarminStatus } from "@/lib/garmin/accounts";
 import type { Database } from "./types";
 
 export type CheckinRow = Database["public"]["Tables"]["weekly_checkins"]["Row"];
@@ -57,13 +59,17 @@ export async function ensureWeeklyCheckin(supabase: DB, userId: string): Promise
     weightKg: Number(w.weight_kg),
   }));
   const kg = trendAt(trendSeries(weights), windowEnd) ?? weights.at(-1)?.weightKg ?? 70;
+  // Garmin users: actual activity over the window (days without watch data count as the window average).
+  const garminAvg = (await getGarminStatus(userId))
+    ? await averageActivityKcal(supabase, userId, addDays(weekStart, -21), windowEnd, kg)
+    : null;
 
   const result = computeCheckin({
     weekStart,
     firstLogDate: firstRes.data?.local_date ?? null,
     dailyIntake: (intakeRes.data ?? []).map((d) => ({ date: d.local_date!, kcal: Number(d.kcal ?? 0) })),
     weights,
-    avgTrainingKcal: trainingKcalPerDay(toActivityBaseline(baseline), kg),
+    avgTrainingKcal: garminAvg ?? trainingKcalPerDay(toActivityBaseline(baseline), kg),
     currentBaseKcal: Number(plan.base_expenditure_kcal),
   });
 

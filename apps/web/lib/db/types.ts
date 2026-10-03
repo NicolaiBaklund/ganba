@@ -629,7 +629,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "plan_proposals_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "training_plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       planned_workouts: {
         Row: {
@@ -692,7 +700,22 @@ export type Database = {
           user_id?: string
           week?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "planned_workouts_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "training_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planned_workouts_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {

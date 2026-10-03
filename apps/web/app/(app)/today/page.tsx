@@ -1,8 +1,8 @@
-import { dailyTarget, trainingKcalPerDay } from "@loop/core";
+import { dailyTarget } from "@loop/core";
 import { requireUser } from "@/lib/supabase/server";
 import { getDaySnapshot } from "@/lib/db/today";
 import { ensureWeeklyCheckin, type CheckinRow } from "@/lib/db/checkin";
-import { currentRow, getProfile, toActivityBaseline, toEnergyPlan, type DB } from "@/lib/db/current";
+import { currentRow, getProfile, toEnergyPlan, type DB } from "@/lib/db/current";
 import { DateNav } from "@/components/today/DateNav";
 import { KcalCard } from "@/components/today/KcalCard";
 import { MealsList } from "@/components/today/MealsList";
@@ -41,14 +41,12 @@ async function toCheckinView(
   if (c.status === "insufficient_data") return { id: c.id, status: "insufficient_data", reason: c.reason ?? "too_early" };
   if (c.status !== "pending" || c.proposed_base_kcal == null) return null;
 
-  const [profile, plan, baseline] = await Promise.all([
+  const [profile, plan] = await Promise.all([
     getProfile(supabase, userId),
     currentRow(supabase, "energy_plans", userId, snap.today),
-    currentRow(supabase, "activity_baselines", userId, snap.today),
   ]);
-  if (!plan || !baseline) return null;
-  const kg = snap.latestTrendKg ?? 70;
-  const training = trainingKcalPerDay(toActivityBaseline(baseline), kg);
+  if (!plan) return null;
+  const training = snap.trainingKcal;
   const newTarget = dailyTarget({
     plan: { ...toEnergyPlan(plan), baseExpenditureKcal: Number(c.proposed_base_kcal), manualKcalOverride: null },
     trainingKcal: training,

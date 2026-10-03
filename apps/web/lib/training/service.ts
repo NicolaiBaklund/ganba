@@ -1,0 +1,418 @@
+import "server-only";
+import {
+  addDays,
+  fitnessFrom,
+  generatePlan,
+  isRun,
+  KCAL_PER_KG,
+  localDate,
+  missedProposal,
+  pacesProposal,
+  volumeProposal,
+  applyChanges,
+  vdotFrom,
+  type Block,
+  type Goal,
+  type ISODate,
+  type PlanContext,
+  type PlanWorkout,
+  type ProposalChange,
+  type RaceDistance,
+  type RunRecord,
+  type WorkoutSpec,
+} from "@loop/core";
+import { createAdminSupabase } from "@/lib/supabase/admin";
+import type { Database, Json } from "@/lib/db/types";
+import { httpGarmin, type GarminSource } from "@/lib/garmin/adapter";
+import { loadTokens, updateTokens } from "@/lib/garmin/accounts";
+import { toGarminWorkout } from "@/lib/garmin/workout-json";
+
+type Tables = Database["public"]["Tables"];
+export type PlanRow = Tables["training_plans"]["Row"];
+export type WorkoutRow = Tables["planned_workouts"]["Row"];
+export type ProposalRow = Tables["plan_proposals"]["Row"];
+
+export const PUSH_WINDOW_DAYS = 14;
+const BUILD_EXTEND_AHEAD_DAYS = 21;
+const BUILD_EXTEND_WEEKS = 4;
+const RACE_DISTANCES: Record<string, RaceDistance> = { "5": "5k", "10": "10k", "21.0975": "half", "42.195": "marathon" };
+
+const db = () => createAdminSupabase();
+
+export const distanceOf = (p: Pick<PlanRow, "distance_km">): RaceDistance | null =>
+  p.distance_km == null ? null : (RACE_DISTANCES[String(Number(p.distance_km))] ?? null);
+
+export const goalOf = (p: PlanRow): Goal =>
+  p.goal_kind === "race" && p.race_date && distanceOf(p)
+    ? { kind: "race", distance: distanceOf(p)!, raceDate: p.race_date, targetTimeS: p.target_time_s }
+    : { kind: "build" };
+
+export function toPlanWorkout(r: WorkoutRow, activityKm?: number | null): PlanWorkout {
+  return {
+    id: r.id,
+    date: r.date,
+    type: r.type,
+    title: r.title,
+    blocks: r.blocks as unknown as Block[],
+    plannedKm: Number(r.planned_km),
+    plannedDurationS: r.planned_duration_s,
+    week: r.week,
+    phase: r.phase as PlanWorkout["phase"],
+    status: r.status,
+    activityKm: activityKm ?? null,
+  };
+}
+
+function racePaceOf(p: PlanRow): number | null {
+  const d = distanceOf(p);
+  if (!d || !p.target_time_s) return null;
+  return Math.round(p.target_time_s / Number(p.distance_km));
+}
+
+async function timezoneOf(userId: string): Promise<string> {
+  const { data } = await db().from("profiles").select("timezone").eq("user_id", userId).single();
+  return data?.timezone ?? "UTC";
+}
+
+export async function todayFor(userId: string): Promise<ISODate> {
+  return localDate(await timezoneOf(userId));
+}
+
+export async function activePlan(userId: string): Promise<PlanRow | null> {
+  const { data } = await db().from("training_plans").select("*").eq("user_id", userId).eq("status", "active").maybeSingle();
+  return data;
+}
+
+export async function planWorkouts(planId: string): Promise<WorkoutRow[]> {
+  const { data, error } = await db().from("planned_workouts").select("*").eq("plan_id", planId).order("date");
+  if (error) throw error;
+  return data;
+}
+
+/** Runs from synced activities, for fitness estimates. */
+export async function recentRuns(userId: string, today: ISODate): Promise<RunRecord[]> {
+  const { data } = await db()
+    .from("activities")
+    .select("local_date, type_key, distance_m, moving_s, duration_s")
+    .eq("user_id", userId)
+    .gte("local_date", addDays(today, -56))
+    .lt("local_date", today);
+  return (data ?? [])
+    .filter((a) => isRun(a.type_key) && a.distance_m != null)
+    .map((a) => ({ date: a.local_date, distanceM: Number(a.distance_m), timeS: Number(a.moving_s ?? a.duration_s ?? 0) }));
+}
+
+export interface CreatePlanInput {
+  goal: Goal;
+  weekdays: number[];
+  longRunWeekday: number;
+  runsPerWeek: number;
+  /** Optional recent race result that overrides the Garmin estimate. */
+  recentRace?: { distanceM: number; timeS: number } | null;
+}
+
+async function deficitKcal(userId: string, today: ISODate): Promise<number> {
+  const { data } = await db()
+    .from("goals")
+    .select("rate_kg_per_week")
+    .eq("user_id", userId)
+    .lte("valid_from", today)
+    .order("valid_from", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const rate = Number(data?.rate_kg_per_week ?? 0);
+  return rate < 0 ? (-rate * KCAL_PER_KG) / 7 : 0;
+}
+
+const workoutRow = (userId: string, planId: string, w: WorkoutSpec) => ({
+  plan_id: planId,
+  user_id: userId,
+  date: w.date,
+  week: w.week,
+  phase: w.phase,
+  type: w.type,
+  title: w.title,
+  blocks: w.blocks as unknown as Json,
+  planned_km: w.plannedKm,
+  planned_duration_s: w.plannedDurationS,
+  garmin_push_status: "pending" as const,
+});
+
+/** Preview without saving (wizard summary). */
+export async function previewPlan(userId: string, input: CreatePlanInput) {
+  const today = await todayFor(userId);
+  const fit = fitnessFrom(await recentRuns(userId, today), today);
+  const vdot = input.recentRace ? Math.round(vdotFrom(input.recentRace.distanceM, input.recentRace.timeS) * 10) / 10 : fit.vdot;
+  const plan = generatePlan({
+    goal: input.goal,
+    startDate: today,
+    weekdays: input.weekdays,
+    longRunWeekday: input.longRunWeekday,
+    runsPerWeek: input.runsPerWeek,
+    vdot,
+    startKmPerWeek: fit.kmPerWeek,
+    deficitKcal: await deficitKcal(userId, today),
+  });
+  return { today, fitness: { ...fit, vdot }, plan };
+}
+
+/** Creates the plan (replacing any active one) and returns its id. */
+export async function createPlan(userId: string, input: CreatePlanInput): Promise<string> {
+  const { today, fitness, plan } = await previewPlan(userId, input);
+  const d = db();
+  await d.from("training_plans").update({ status: "cancelled" }).eq("user_id", userId).eq("status", "active");
+  const goal = input.goal;
+  const lastDate = plan.workouts.at(-1)?.date ?? today;
+  const { data: row, error } = await d
+    .from("training_plans")
+    .insert({
+      user_id: userId,
+      goal_kind: goal.kind,
+      distance_km: goal.kind === "race" ? { "5k": 5, "10k": 10, half: 21.0975, marathon: 42.195 }[goal.distance] : null,
+      race_date: goal.kind === "race" ? goal.raceDate : null,
+      target_time_s: goal.kind === "race" ? (goal.targetTimeS ?? null) : null,
+      runs_per_week: input.runsPerWeek,
+      weekdays: input.weekdays,
+      long_run_weekday: input.longRunWeekday,
+      vdot: fitness.vdot,
+      start_km_per_week: fitness.kmPerWeek,
+      start_date: today,
+      generated_until: goal.kind === "race" ? goal.raceDate : addDays(today, BUILD_EXTEND_WEEKS * 7 - 1) > lastDate ? addDays(today, BUILD_EXTEND_WEEKS * 7 - 1) : lastDate,
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+  if (plan.workouts.length) {
+    const { error: wErr } = await d.from("planned_workouts").insert(plan.workouts.map((w) => workoutRow(userId, row.id, w)));
+    if (wErr) throw wErr;
+  }
+  return row.id;
+}
+
+/** Cancels the active plan; its sessions are removed from Garmin on the next push. */
+export async function cancelPlan(userId: string): Promise<void> {
+  const d = db();
+  const plan = await activePlan(userId);
+  if (!plan) return;
+  await d.from("training_plans").update({ status: "cancelled" }).eq("id", plan.id);
+  await d.from("plan_proposals").update({ status: "stale" }).eq("plan_id", plan.id).eq("status", "pending");
+}
+
+/**
+ * Matches runs to planned sessions (done / missed), completes finished race plans and
+ * extends rolling build plans. Idempotent; called after every sync and on page load.
+ */
+export async function reconcilePlan(userId: string, today: ISODate): Promise<void> {
+  const plan = await activePlan(userId);
+  if (!plan) return;
+  const d = db();
+  const workouts = await planWorkouts(plan.id);
+  const open = workouts.filter((w) => (w.status === "planned" || w.status === "missed") && w.date <= today);
+  if (open.length) {
+    const { data: acts } = await d
+      .from("activities")
+      .select("id, local_date, type_key, distance_m")
+      .eq("user_id", userId)
+      .gte("local_date", open[0]!.date)
+      .lte("local_date", today);
+    const runsByDate = new Map<ISODate, { id: string; km: number }>();
+    for (const a of acts ?? []) {
+      if (!isRun(a.type_key)) continue;
+      const km = Number(a.distance_m ?? 0) / 1000;
+      const prev = runsByDate.get(a.local_date);
+      if (!prev || km > prev.km) runsByDate.set(a.local_date, { id: a.id, km });
+    }
+    const usedActivities = new Set(workouts.filter((w) => w.activity_id).map((w) => w.activity_id));
+    for (const w of open) {
+      const run = runsByDate.get(w.date);
+      if (run && !usedActivities.has(run.id)) {
+        usedActivities.add(run.id);
+        await d.from("planned_workouts").update({ status: "done", activity_id: run.id }).eq("id", w.id);
+      } else if (w.date < today && w.status === "planned") {
+        await d.from("planned_workouts").update({ status: "missed" }).eq("id", w.id);
+      }
+    }
+  }
+
+  if (plan.goal_kind === "race" && plan.race_date && plan.race_date < today) {
+    await d.from("training_plans").update({ status: "completed" }).eq("id", plan.id);
+    return;
+  }
+
+  if (plan.goal_kind === "build" && plan.generated_until < addDays(today, BUILD_EXTEND_AHEAD_DAYS)) {
+    const until = addDays(plan.generated_until, BUILD_EXTEND_WEEKS * 7);
+    const full = generatePlan({
+      goal: { kind: "build" },
+      startDate: plan.start_date,
+      weekdays: plan.weekdays,
+      longRunWeekday: plan.long_run_weekday,
+      runsPerWeek: plan.runs_per_week,
+      vdot: Number(plan.vdot),
+      startKmPerWeek: Number(plan.start_km_per_week),
+      deficitKcal: await deficitKcal(userId, today),
+      untilDate: until,
+    });
+    const fresh = full.workouts.filter((w) => w.date > plan.generated_until && w.date >= today);
+    if (fresh.length) await d.from("planned_workouts").insert(fresh.map((w) => workoutRow(userId, plan.id, w)));
+    await d.from("training_plans").update({ generated_until: until }).eq("id", plan.id);
+  }
+}
+
+function contextOf(plan: PlanRow, today: ISODate): PlanContext {
+  return { weekdays: plan.weekdays, vdot: Number(plan.vdot), racePaceS: racePaceOf(plan), distance: distanceOf(plan), today };
+}
+
+async function workoutsWithKm(plan: PlanRow): Promise<PlanWorkout[]> {
+  const rows = await planWorkouts(plan.id);
+  const ids = rows.map((r) => r.activity_id).filter((x): x is string => !!x);
+  const { data: acts } = ids.length ? await db().from("activities").select("id, distance_m").in("id", ids) : { data: [] };
+  const km = new Map((acts ?? []).map((a) => [a.id, Number(a.distance_m ?? 0) / 1000]));
+  return rows.map((r) => toPlanWorkout(r, r.activity_id ? km.get(r.activity_id) : null));
+}
+
+/** Engine proposals, created lazily (on page load / after sync). At most one pending per kind. */
+export async function refreshProposals(userId: string, today: ISODate): Promise<void> {
+  const plan = await activePlan(userId);
+  if (!plan) return;
+  const d = db();
+  const { data: existing } = await d.from("plan_proposals").select("*").eq("plan_id", plan.id);
+  const all = existing ?? [];
+
+  // Pending moves into the past are no longer useful.
+  for (const p of all.filter((x) => x.status === "pending" && x.kind !== "ai")) {
+    const ch = p.changes as unknown as ProposalChange[];
+    if (ch.some((c) => c.op === "move" && c.toDate < today)) await d.from("plan_proposals").update({ status: "stale" }).eq("id", p.id);
+  }
+  const pendingKinds = new Set(all.filter((p) => p.status === "pending").map((p) => p.kind));
+  const recent = (kind: ProposalRow["kind"]) => all.some((p) => p.kind === kind && p.created_at > new Date(Date.now() - 14 * 86_400_000).toISOString());
+
+  const workouts = await workoutsWithKm(plan);
+  const ctx = contextOf(plan, today);
+  const proposed = new Set(
+    all.filter((p) => p.kind === "missed").flatMap((p) => (p.changes as unknown as ProposalChange[]).map((c) => ("workoutId" in c ? c.workoutId : ""))),
+  );
+
+  const candidates = [
+    !pendingKinds.has("missed") ? missedProposal(workouts, ctx, proposed) : null,
+    !pendingKinds.has("paces") && !recent("paces") ? pacesProposal(Number(plan.vdot), fitnessFrom(await recentRuns(userId, today), today).vdot) : null,
+    !pendingKinds.has("volume") && !recent("volume") ? volumeProposal(workouts, ctx) : null,
+  ].filter((p) => p != null);
+
+  for (const p of candidates)
+    await d.from("plan_proposals").insert({ user_id: userId, plan_id: plan.id, kind: p.kind, summary: p.summary, changes: p.changes as unknown as Json });
+}
+
+/** Applies a proposal's changes to the plan. Returns false if it is no longer pending. */
+export async function acceptProposal(userId: string, proposalId: string): Promise<boolean> {
+  const d = db();
+  const { data: p } = await d.from("plan_proposals").select("*").eq("id", proposalId).eq("user_id", userId).maybeSingle();
+  if (!p || p.status !== "pending") return false;
+  const plan = await activePlan(userId);
+  if (!plan || plan.id !== p.plan_id) {
+    await d.from("plan_proposals").update({ status: "stale" }).eq("id", p.id);
+    return false;
+  }
+  const today = await todayFor(userId);
+  const before = await workoutsWithKm(plan);
+  const result = applyChanges(before, p.changes as unknown as ProposalChange[], contextOf(plan, today));
+  for (const w of result.workouts.filter((x) => result.changedIds.has(x.id))) {
+    await d
+      .from("planned_workouts")
+      .update({
+        date: w.date,
+        status: w.status,
+        type: w.type,
+        title: w.title,
+        blocks: w.blocks as unknown as Json,
+        planned_km: w.plannedKm,
+        planned_duration_s: w.plannedDurationS,
+        garmin_push_status: "pending",
+      })
+      .eq("id", w.id);
+  }
+  if (result.vdot !== Number(plan.vdot)) await d.from("training_plans").update({ vdot: result.vdot }).eq("id", plan.id);
+  await d.from("plan_proposals").update({ status: "accepted" }).eq("id", p.id);
+  return true;
+}
+
+export async function rejectProposal(userId: string, proposalId: string): Promise<boolean> {
+  const { data } = await db()
+    .from("plan_proposals")
+    .update({ status: "rejected" })
+    .eq("id", proposalId)
+    .eq("user_id", userId)
+    .eq("status", "pending")
+    .select("id");
+  return !!data?.length;
+}
+
+/**
+ * Keeps Garmin's calendar in step with the plan: the next 14 days of planned sessions are
+ * uploaded; changed sessions are replaced; removed/cancelled ones are deleted. Best effort.
+ */
+export async function pushToGarmin(userId: string, today: ISODate, source: GarminSource = httpGarmin()): Promise<void> {
+  let tokens = await loadTokens(userId);
+  if (!tokens) return;
+  const d = db();
+  const remember = async (t: string | null) => {
+    if (t) {
+      tokens = t;
+      await updateTokens(userId, t);
+    }
+  };
+
+  const plan = await activePlan(userId);
+  const { data: stale } = await d
+    .from("planned_workouts")
+    .select("id, garmin_workout_id, garmin_schedule_id, status, plan:training_plans!inner(status)")
+    .eq("user_id", userId)
+    .not("garmin_workout_id", "is", null)
+    .gte("date", today);
+  const toDelete = (stale ?? []).filter((w) => w.status === "removed" || w.plan.status !== "active");
+
+  const { data: due } = plan
+    ? await d
+        .from("planned_workouts")
+        .select("*")
+        .eq("plan_id", plan.id)
+        .eq("status", "planned")
+        .gte("date", today)
+        .lte("date", addDays(today, PUSH_WINDOW_DAYS - 1))
+        .in("garmin_push_status", ["pending", "failed"])
+        .order("date")
+    : { data: [] as WorkoutRow[] };
+
+  try {
+    for (const w of toDelete) {
+      const r = await source.deleteWorkout(tokens!, w.garmin_workout_id!, w.garmin_schedule_id);
+      await remember(r.tokens);
+      await d.from("planned_workouts").update({ garmin_workout_id: null, garmin_schedule_id: null, garmin_push_status: "none" }).eq("id", w.id);
+    }
+    for (const w of due ?? []) {
+      if (w.garmin_workout_id) {
+        const r = await source.deleteWorkout(tokens!, w.garmin_workout_id, w.garmin_schedule_id);
+        await remember(r.tokens);
+      }
+      try {
+        const r = await source.pushWorkout(tokens!, toGarminWorkout(toPlanWorkout(w)), w.date);
+        await remember(r.tokens);
+        await d
+          .from("planned_workouts")
+          .update({ garmin_workout_id: r.workoutId, garmin_schedule_id: r.scheduleId, garmin_push_status: "pushed" })
+          .eq("id", w.id);
+      } catch (e) {
+        await d.from("planned_workouts").update({ garmin_workout_id: null, garmin_schedule_id: null, garmin_push_status: "failed" }).eq("id", w.id);
+        if ((e as { kind?: string }).kind === "auth") throw e;
+      }
+    }
+  } catch (e) {
+    console.error("garmin push stopped", userId, e instanceof Error ? e.message : e);
+  }
+}
+
+/** Everything that should happen after new Garmin data arrives. */
+export async function afterGarminSync(userId: string, today: ISODate, source?: GarminSource): Promise<void> {
+  await reconcilePlan(userId, today);
+  await refreshProposals(userId, today);
+  await pushToGarmin(userId, today, source);
+}

@@ -13,6 +13,8 @@ import {
   type TrendPoint,
 } from "@loop/core";
 import { getProfile, rowForDate, toActivityBaseline, toEnergyPlan, type DB } from "./current";
+import { dayActivity, type DayActivityBreakdown } from "./activity";
+import { getGarminStatus } from "@/lib/garmin/accounts";
 
 export type MealType = "breakfast" | "lunch" | "dinner" | "evening" | "snack";
 
@@ -41,6 +43,11 @@ export interface DaySnapshot {
   today: ISODate;
   timezone: string;
   target: { kcal: number; floored: boolean };
+  baseKcal: number;
+  trainingKcal: number;
+  /** Garmin users: where today's activity energy comes from. Null without Garmin. */
+  activity: DayActivityBreakdown | null;
+  garmin: { status: "active" | "reauth_required" } | null;
   macrosTarget: Macros;
   intake: Macros;
   entries: FoodEntryWithItems[];
@@ -67,7 +74,7 @@ export async function getDaySnapshot(supabase: DB, userId: string, dateArg?: ISO
   const today = localDate(profile.timezone);
   const date = dateArg && /^\d{4}-\d{2}-\d{2}$/.test(dateArg) ? dateArg : today;
 
-  const [goalRow, planRow, baselineRow, entriesRes, weightsRes] = await Promise.all([
+  const [goalRow, planRow, baselineRow, entriesRes, weightsRes, garmin] = await Promise.all([
     rowForDate(supabase, "goals", userId, date),
     rowForDate(supabase, "energy_plans", userId, date),
     rowForDate(supabase, "activity_baselines", userId, date),
@@ -78,6 +85,7 @@ export async function getDaySnapshot(supabase: DB, userId: string, dateArg?: ISO
       .eq("local_date", date)
       .order("logged_at"),
     supabase.from("weight_entries").select("local_date, measured_at, weight_kg").eq("user_id", userId).order("local_date"),
+    getGarminStatus(userId),
   ]);
   if (entriesRes.error) throw entriesRes.error;
   if (weightsRes.error) throw weightsRes.error;
@@ -94,7 +102,8 @@ export async function getDaySnapshot(supabase: DB, userId: string, dateArg?: ISO
 
   const plan = toEnergyPlan(planRow);
   const goal = { targetWeightKg: Number(goalRow.target_weight_kg), rateKgPerWeek: Number(goalRow.rate_kg_per_week) };
-  const training = trainingKcalPerDay(toActivityBaseline(baselineRow), weightKg);
+  const activity = garmin ? await dayActivity(supabase, userId, date, today, weightKg) : null;
+  const training = activity ? activity.total : trainingKcalPerDay(toActivityBaseline(baselineRow), weightKg);
   const target = dailyTarget({ plan, trainingKcal: training, rateKgPerWeek: goal.rateKgPerWeek, sex: profile.sex });
 
   const entries = entriesRes.data as unknown as FoodEntryWithItems[];
@@ -104,6 +113,10 @@ export async function getDaySnapshot(supabase: DB, userId: string, dateArg?: ISO
     today,
     timezone: profile.timezone,
     target,
+    baseKcal: plan.baseExpenditureKcal,
+    trainingKcal: Math.round(training),
+    activity,
+    garmin: garmin ? { status: garmin.status } : null,
     macrosTarget: macrosFor(target.kcal, weightKg, plan),
     intake: sumItems(entries.flatMap((e) => e.items)),
     entries,
