@@ -705,17 +705,17 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "planned_workouts_plan_id_fkey"
-            columns: ["plan_id"]
-            isOneToOne: false
-            referencedRelation: "training_plans"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "planned_workouts_activity_id_fkey"
             columns: ["activity_id"]
             isOneToOne: false
             referencedRelation: "activities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planned_workouts_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "training_plans"
             referencedColumns: ["id"]
           },
         ]
@@ -935,7 +935,14 @@ export type Database = {
       proposal_status: "pending" | "accepted" | "rejected" | "stale"
       sex: "male" | "female"
       workout_status: "planned" | "done" | "missed" | "removed"
-      workout_type: "easy" | "long" | "intervals" | "threshold" | "tempo" | "strides" | "race"
+      workout_type:
+        | "easy"
+        | "long"
+        | "intervals"
+        | "threshold"
+        | "tempo"
+        | "strides"
+        | "race"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1080,7 +1087,15 @@ export const Constants = {
       proposal_status: ["pending", "accepted", "rejected", "stale"],
       sex: ["male", "female"],
       workout_status: ["planned", "done", "missed", "removed"],
-      workout_type: ["easy", "long", "intervals", "threshold", "tempo", "strides", "race"],
+      workout_type: [
+        "easy",
+        "long",
+        "intervals",
+        "threshold",
+        "tempo",
+        "strides",
+        "race",
+      ],
     },
   },
 } as const
