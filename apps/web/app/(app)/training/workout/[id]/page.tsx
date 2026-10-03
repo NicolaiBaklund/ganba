@@ -55,7 +55,7 @@ export default async function WorkoutPage({ params }: PageProps<"/training/worko
         <h1 className="mt-1 font-heading text-2xl font-bold">{w.title}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {format.dateTime(new Date(`${w.date}T00:00:00Z`), { weekday: "long", day: "numeric", month: "long" })} ·{" "}
-          {t(w.status)}
+          {w.status === "removed" ? "–" : t(w.status)}
         </p>
         <div className="mt-4 grid grid-cols-2 gap-3">
           <div>

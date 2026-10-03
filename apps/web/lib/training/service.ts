@@ -11,6 +11,8 @@ import {
   volumeProposal,
   applyChanges,
   vdotFrom,
+  predictTimeS,
+  RACE_KM,
   type Block,
   type Goal,
   type ISODate,
@@ -35,12 +37,15 @@ export type ProposalRow = Tables["plan_proposals"]["Row"];
 export const PUSH_WINDOW_DAYS = 14;
 const BUILD_EXTEND_AHEAD_DAYS = 21;
 const BUILD_EXTEND_WEEKS = 4;
-const RACE_DISTANCES: Record<string, RaceDistance> = { "5": "5k", "10": "10k", "21.0975": "half", "42.195": "marathon" };
 
 const db = () => createAdminSupabase();
 
-export const distanceOf = (p: Pick<PlanRow, "distance_km">): RaceDistance | null =>
-  p.distance_km == null ? null : (RACE_DISTANCES[String(Number(p.distance_km))] ?? null);
+/** Stored km (numeric(6,3) rounds 21.0975 → 21.098) back to the race distance. */
+export const distanceOf = (p: Pick<PlanRow, "distance_km">): RaceDistance | null => {
+  if (p.distance_km == null) return null;
+  const km = Number(p.distance_km);
+  return (Object.keys(RACE_KM) as RaceDistance[]).find((d) => Math.abs(RACE_KM[d] - km) < 0.01) ?? null;
+};
 
 export const goalOf = (p: PlanRow): Goal =>
   p.goal_kind === "race" && p.race_date && distanceOf(p)
@@ -63,10 +68,12 @@ export function toPlanWorkout(r: WorkoutRow, activityKm?: number | null): PlanWo
   };
 }
 
+/** Race-day pace: the target time if set, else the time predicted from the plan's fitness. */
 function racePaceOf(p: PlanRow): number | null {
   const d = distanceOf(p);
-  if (!d || !p.target_time_s) return null;
-  return Math.round(p.target_time_s / Number(p.distance_km));
+  if (!d) return null;
+  const timeS = p.target_time_s ?? predictTimeS(RACE_KM[d] * 1000, Number(p.vdot));
+  return Math.round(timeS / RACE_KM[d]);
 }
 
 async function timezoneOf(userId: string): Promise<string> {
@@ -168,7 +175,7 @@ export async function createPlan(userId: string, input: CreatePlanInput): Promis
     .insert({
       user_id: userId,
       goal_kind: goal.kind,
-      distance_km: goal.kind === "race" ? { "5k": 5, "10k": 10, half: 21.0975, marathon: 42.195 }[goal.distance] : null,
+      distance_km: goal.kind === "race" ? RACE_KM[goal.distance] : null,
       race_date: goal.kind === "race" ? goal.raceDate : null,
       target_time_s: goal.kind === "race" ? (goal.targetTimeS ?? null) : null,
       runs_per_week: input.runsPerWeek,

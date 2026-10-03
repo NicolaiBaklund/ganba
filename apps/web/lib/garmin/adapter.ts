@@ -51,10 +51,14 @@ export interface GarminSource {
   deleteWorkout(tokens: string, workoutId: number, scheduleId: number | null): Promise<{ tokens: string | null }>;
 }
 
+/** Same deployment's Python function. Production uses the public domain (deployment URLs sit behind Vercel auth). */
 function adapterUrl(): string {
   if (process.env.GARMIN_ADAPTER_URL) return process.env.GARMIN_ADAPTER_URL;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}/api/py/garmin`;
-  return "http://127.0.0.1:3200";
+  const host =
+    process.env.VERCEL_ENV === "production" && process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? process.env.VERCEL_PROJECT_PRODUCTION_URL
+      : process.env.VERCEL_URL;
+  return host ? `https://${host}/api/py/garmin` : "http://127.0.0.1:3200";
 }
 
 async function call<T>(body: Record<string, unknown>): Promise<T> {

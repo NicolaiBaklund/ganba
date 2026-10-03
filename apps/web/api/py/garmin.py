@@ -149,7 +149,8 @@ def op_fetch(b: dict[str, Any]) -> dict[str, Any]:
         if "run" in str((a.get("activityType") or {}).get("typeKey", "")) and str(a.get("activityId")) not in known
     ]
     details: dict[str, Any] = {}
-    for aid in list(reversed(runs))[:40]:
+    # Capped so one call stays well inside the function time limit; older runs keep summary data only.
+    for aid in list(reversed(runs))[:15]:
         try:
             details[str(aid)] = {
                 "splits": g.get_activity_splits(str(aid)),
