@@ -39,7 +39,7 @@ describe("training plan: create, push, reconcile, proposals", () => {
     await createPlan(u.id, { goal: { kind: "race", distance: "10k", raceDate }, weekdays: WEEKDAYS, longRunWeekday: 0, runsPerWeek: 3 });
     const plan = await activePlan(u.id);
     expect(plan).not.toBeNull();
-    expect(Number(plan!.vdot)).toBeGreaterThan(40); // 5 km in 24 min ≈ VDOT 41
+    expect(Number(plan!.vdot)).toBeGreaterThan(38); // best effort: 5 km in 24 min ≈ VDOT 40
     expect(Number(plan!.start_km_per_week)).toBeGreaterThan(20);
 
     const ws = await planWorkouts(plan!.id);

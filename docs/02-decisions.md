@@ -79,6 +79,7 @@ Format: dato — beslutning — begrunnelse.
 | 2026-10-03 | **Treningsplan og aktivitetsbasert dagsmål krever Garmin.** Uten Garmin: kun mat + vekt (fase 1-oppførsel, aktivitet fra oppstartsestimat) | Brukeren valgte A |
 | 2026-10-03 | Garmin-arkitektur: **Python som tynt, tilstandsløst adapter** (Vercel-funksjon, garth/garminconnect). Next eier kryptering, DB og logikk; sender tokens + kommando, får data + evt. fornyede tokens. Delt hemmelighet mellom dem. Spike først: Python-funksjon i samme Vercel-prosjekt + MFA-innlogging | Brukeren valgte A |
 | 2026-10-03 | Seksjon 1 (Garmin-tilkobling og synk) godkjent. Brukeren: «gjør så mye du kan» → resten av designet skrevet direkte i spec (Claude-valg merket): specs/2026-10-03-fase2-garmin-trening.md | Brukeren vil ha fart |
+| 2026-10-03 | Implementering fase 2 (gren `fase2`), Claude-valg underveis: tempo-forslag kun oppover (lette uker gir ikke falsk nedgang); maraton toppvolum 50–90 km og langtur bygges mot 30 km; Garmin-økt-JSON bruker Garmins egne ID-er (distance=3, pace.zone=6); detaljer (runder/puls) hentes for maks 15 nye løp per synk; bunnmeny I dag · Trening · + · Mat · Kropp, profil via ikon på I dag; manuelle aktivitetsinnstillinger skjules for Garmin-brukere | Se ledger/oppsummering; kan endres |
 
 ## Åpne spørsmål
 - (Teknisk fase) Garmin-tilgang. Offisielt program er kun for bedrifter og muligens pauset (se research-notes). Sannsynlig vei: uoffisielt bibliotek i personlig fase, bak adapter-lag; offisielt når/om appen blir produkt.
