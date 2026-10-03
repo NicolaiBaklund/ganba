@@ -77,6 +77,7 @@ Format: dato — beslutning — begrunnelse.
 | 2026-10-03 | AI-modell per bruk, som konfig: matlogg = Opus 5.5 (effort medium, `AI_FOOD_MODEL`), plan-justering = Opus 5.5 (`AI_PLAN_MODEL`, sjelden brukt, kvalitet viktig). Billigere modell for mat vurderes via eval | Kostnad per plan-justering ~$0.05–0.10 |
 | 2026-10-03 | Planlagte økter **sendes til Garmin-kalenderen som strukturerte økter** (oppvarming, drag, tempo, pause) så klokka guider. Feiler opplasting → vises kun i app med beskjed | Brukeren valgte A. Runnas kjernefunksjon |
 | 2026-10-03 | **Treningsplan og aktivitetsbasert dagsmål krever Garmin.** Uten Garmin: kun mat + vekt (fase 1-oppførsel, aktivitet fra oppstartsestimat) | Brukeren valgte A |
+| 2026-10-03 | Garmin-arkitektur: **Python som tynt, tilstandsløst adapter** (Vercel-funksjon, garth/garminconnect). Next eier kryptering, DB og logikk; sender tokens + kommando, får data + evt. fornyede tokens. Delt hemmelighet mellom dem. Spike først: Python-funksjon i samme Vercel-prosjekt + MFA-innlogging | Brukeren valgte A |
 
 ## Åpne spørsmål
 - (Teknisk fase) Garmin-tilgang. Offisielt program er kun for bedrifter og muligens pauset (se research-notes). Sannsynlig vei: uoffisielt bibliotek i personlig fase, bak adapter-lag; offisielt når/om appen blir produkt.
