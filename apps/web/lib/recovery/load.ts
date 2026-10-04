@@ -44,6 +44,28 @@ function must<T>(r: { data: T | null; error: unknown }): T {
   return r.data as T;
 }
 
+const PAGE_ROWS = 1000; // PostgREST max_rows: larger results are cut silently
+
+/** All food entries in [from, today), page by page (heavy snack loggers pass 1000 rows in 120 days). */
+async function foodEntries(userId: string, from: ISODate, today: ISODate) {
+  const db = createAdminSupabase();
+  const out = [];
+  for (let start = 0; ; start += PAGE_ROWS) {
+    const page = await db
+      .from("food_entries")
+      .select("id, local_date, logged_at, items:food_items(kcal, protein_g, carbs_g, alcohol_g)")
+      .eq("user_id", userId)
+      .gte("local_date", from)
+      .lt("local_date", today)
+      .order("local_date")
+      .order("id")
+      .range(start, start + PAGE_ROWS - 1)
+      .then(must);
+    out.push(...page);
+    if (page.length < PAGE_ROWS) return out;
+  }
+}
+
 /** Everything the engine needs per day, from what the app already stores (spec §4.4–§4.5). */
 export async function loadRecoveryDays(userId: string, today: ISODate): Promise<RecoveryDayInput[]> {
   const db = createAdminSupabase();
@@ -52,13 +74,7 @@ export async function loadRecoveryDays(userId: string, today: ISODate): Promise<
   const [profile, nights, entries, weights, plans, goals, gdays, acts, planned, quality] = await Promise.all([
     db.from("profiles").select("sex, timezone").eq("user_id", userId).single().then(must),
     db.from("recovery_days").select("local_date, sleep_score, hrv_avg, resting_hr").eq("user_id", userId).gte("local_date", from).then(must),
-    db
-      .from("food_entries")
-      .select("local_date, logged_at, items:food_items(kcal, protein_g, carbs_g, alcohol_g)")
-      .eq("user_id", userId)
-      .gte("local_date", from)
-      .lt("local_date", today)
-      .then(must),
+    foodEntries(userId, from, today),
     db.from("weight_entries").select("local_date, measured_at, weight_kg").eq("user_id", userId).order("local_date").then(must),
     db.from("energy_plans").select("*").eq("user_id", userId).order("valid_from").order("created_at").then(must),
     db.from("goals").select("*").eq("user_id", userId).order("valid_from").order("created_at").then(must),

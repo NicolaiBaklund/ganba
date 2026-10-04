@@ -129,3 +129,31 @@ describe("recovery: load days, compute after sync, store results", () => {
     expect(acct!.recovery_computed_at).not.toBeNull();
   });
 });
+
+describe("recovery: many small entries", () => {
+  let u: TestUser;
+  let today: string;
+
+  beforeAll(async () => {
+    u = await createTestUser("recovery-many");
+    ({ today } = await seedUser(admin(), u.id, { days: 2 }));
+    // 95 days × 11 entries of 200 kcal = 1045 entries: more than one PostgREST page (1000 rows).
+    const entries = [];
+    for (let i = 3; i < 98; i++) {
+      const d = addDays(today, -i);
+      for (let k = 0; k < 11; k++) entries.push({ user_id: u.id, logged_at: zonedTime(d, `${String(8 + k).padStart(2, "0")}:00`, TZ).toISOString(), local_date: d, meal_type: "snack" as const, source: "quick" as const });
+    }
+    const { data: saved, error } = await admin().from("food_entries").insert(entries).select("id");
+    if (error) throw error;
+    const { error: itemsErr } = await admin().from("food_items").insert(saved!.map((e) => ({ user_id: u.id, food_entry_id: e.id, name: "Snack", kcal: 200, carbs_g: 30, protein_g: 10 })));
+    if (itemsErr) throw itemsErr;
+  });
+  afterAll(cleanup);
+
+  it("every entry counts, also past the first 1000 rows", async () => {
+    const days = await loadRecoveryDays(u.id, today);
+    const logged = days.filter((d) => d.food);
+    expect(logged).toHaveLength(95);
+    expect(new Set(logged.map((d) => Math.round(d.food!.carbsPerKg * 1000))).size).toBe(1); // 11 × 30 g every day
+  });
+});
