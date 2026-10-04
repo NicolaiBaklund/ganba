@@ -2,122 +2,127 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (@media (prefers-color-scheme: dark));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sora);
-  --font-display: var(--font-sora);
+  --font-sans: var(--font-archivo);
+  --font-heading: var(--font-archivo);
+  --font-display: var(--font-archivo);
+  --color-card: var(--card);
+  --color-card-foreground: var(--foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--muted);
+  --color-secondary-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--muted);
+  --color-accent-foreground: var(--foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-paper: var(--paper);
+  --color-paper-ink: var(--paper-ink);
   --color-protein: var(--protein);
   --color-carbs: var(--carbs);
   --color-fat: var(--fat);
   --color-success: var(--success);
   --color-warning: var(--warning);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 14px;
+  --radius-3xl: 18px;
 }
 
 :root {
-  /* Ganba design tokens — dark-first, electric blue accent. See docs/design.md */
-  color-scheme: dark;
-  --background: #0a0c12;
-  --foreground: #f3f5fa;
-  --card: #141824;
-  --card-foreground: #f3f5fa;
-  --popover: #181d2a;
-  --popover-foreground: #f3f5fa;
-  --primary: #2f8cff;
+  /* Ganba «Tasuki»: lys grunnpalett. Se docs/design.md og docs/specs/2026-10-04-redesign-tasuki.md */
+  color-scheme: light;
+  --background: #eef0f2;
+  --foreground: #000000;
+  --card-foreground: var(--foreground);
+  --popover-foreground: var(--foreground);
+  --secondary: var(--muted);
+  --card: #ffffff;
+  --popover: #ffffff;
+  --muted: #e2e5e9;
+  --muted-foreground: #5f646d;
+  --border: #d6d9de;
+  --input: #c9cdd3;
+  --ring: #c8102e;
+  --primary: #c8102e;
   --primary-foreground: #ffffff;
-  --secondary: #1e2433;
-  --secondary-foreground: #f3f5fa;
-  --muted: #1e2433;
-  --muted-foreground: #8c95a8;
-  --accent: #1e2433;
-  --accent-foreground: #f3f5fa;
-  --destructive: #ff5c5c;
-  --border: rgb(255 255 255 / 8%);
-  --input: rgb(255 255 255 / 12%);
-  --ring: #2f8cff;
-  --chart-1: #2f8cff;
-  --chart-2: #5eead4;
-  --chart-3: #ffb547;
-  --chart-4: #ff6b8a;
-  --chart-5: #a78bfa;
-  --protein: #ff6b8a;
-  --carbs: #ffb547;
-  --fat: #a78bfa;
-  --success: #34d399;
-  --warning: #ffb547;
-  /* Workout types: fixed colours everywhere (docs/design.md) */
-  --w-easy: #5eead4;
-  --w-long: #2f8cff;
-  --w-intervals: #ff6b8a;
-  --w-threshold: #ffb547;
-  --w-tempo: #a78bfa;
-  --w-strides: #34d399;
-  --w-race: #facc15;
-  --radius: 1rem;
-  --sidebar: #141824;
-  --sidebar-foreground: #f3f5fa;
-  --sidebar-primary: #2f8cff;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1e2433;
-  --sidebar-accent-foreground: #f3f5fa;
-  --sidebar-border: rgb(255 255 255 / 8%);
-  --sidebar-ring: #2f8cff;
+  --destructive: #c62828;
+  --paper: #ffffff;
+  --paper-ink: #000000;
+  --protein: #e8336b;
+  --carbs: #e89a1a;
+  --fat: #7a5cf0;
+  --success: #138a5e;
+  --warning: #b86e00;
+  --w-easy: #1fa98a;
+  --w-long: #2f6fd6;
+  --w-intervals: #e8336b;
+  --w-threshold: #e89a1a;
+  --w-tempo: #7a5cf0;
+  --w-strides: #34b37a;
+  --w-race: #d4a20f;
+  --w-rest: #b9bec6;
+  --plus-bg: #000000;
+  --plus-fg: #ffffff;
+  --radius: 6px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --background: #000000;
+    --foreground: #ffffff;
+    --card: #16171a;
+    --popover: #1c1d21;
+    --muted: #222428;
+    --muted-foreground: #9aa0aa;
+    --border: #2b2d32;
+    --input: #3a3d44;
+    --ring: #ff3b55;
+    --primary: #ff3b55;
+    --destructive: #ff5c5c;
+    --success: #34d399;
+    --warning: #ffb547;
+    --w-rest: #6b7079;
+    --plus-bg: #ffffff;
+    --plus-fg: #000000;
+  }
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    @apply font-sans;
+  }
   body {
     @apply bg-background text-foreground;
     -webkit-tap-highlight-color: transparent;
   }
-  .num {
-    font-family: var(--font-sora);
-    font-variant-numeric: tabular-nums;
-    letter-spacing: -0.02em;
+  .cond {
+    font-stretch: 70%;
+    font-weight: 900;
+    letter-spacing: -0.01em;
   }
-  html {
-    @apply font-sans;
+  .num {
+    font-stretch: 75%;
+    font-variant-numeric: tabular-nums;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
 }
