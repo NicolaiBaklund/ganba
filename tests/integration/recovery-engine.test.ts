@@ -26,24 +26,34 @@ interface Synth {
   drinkShare?: number;
   /** Carbs and HRV both drift up over the period, unrelated. */
   trend?: boolean;
+  /** Autocorrelation of the outcome series (sleep, HRV, resting HR, runs); default = rho. */
+  rhoOut?: number;
+  /** Deficit in diet phases of 2–4 weeks (cut / maintenance), unrelated to anything. */
+  phases?: boolean;
 }
 
 /** 120 days of fake data: AR(1) noise per series, every day food-logged, runs on ~half the days. */
 function synth(o: Synth): RecoveryDayInput[] {
   const r = prng(o.seed);
   const gauss = () => Math.sqrt(-2 * Math.log(1 - r())) * Math.cos(2 * Math.PI * r());
-  const rho = o.rho ?? 0;
-  const ar = () => {
+  const ar = (rho: number) => {
     let x = gauss();
     return () => (x = rho * x + Math.sqrt(1 - rho * rho) * gauss());
   };
-  const [def, carb, prot, steps, sleepN, hrvN, rhrN, runN] = Array.from({ length: 8 }, () => ar());
+  const [def, carb, prot, steps] = Array.from({ length: 4 }, () => ar(o.rho ?? 0));
+  const [sleepN, hrvN, rhrN, runN] = Array.from({ length: 4 }, () => ar(o.rhoOut ?? o.rho ?? 0));
+  let phaseLeft = 0;
+  let phase = 0;
   const days: RecoveryDayInput[] = [];
   let prev: { deficit: number; hard: boolean } | null = null;
   for (let t = 0; t < DAYS; t++) {
     const date = addDays(END, t - (DAYS - 1));
     const hard = r() < 0.25;
-    const deficit = 500 + 300 * def!() + (o.confound && hard ? 700 : 0);
+    if (o.phases && phaseLeft-- <= 0) {
+      phase = phase > 0 ? -1 : 1;
+      phaseLeft = 14 + Math.floor(r() * 15);
+    }
+    const deficit = o.phases ? 500 + 350 * phase + 150 * def!() : 500 + 300 * def!() + (o.confound && hard ? 700 : 0);
     const carbs = 4 + carb!() + (o.trend ? (2 * t) / DAYS : 0);
     let hrv = 60 + 6 * hrvN!() + (o.trend ? (15 * t) / DAYS : 0);
     if (prev && o.plant) hrv -= (4 * (prev.deficit - 500)) / 300;
@@ -79,8 +89,9 @@ describe("recovery engine on constructed data", () => {
     expect(f.rank).toBeGreaterThanOrEqual(1);
   });
 
-  // q ≤ 0.10 allows about 10 % of pure-noise datasets one false finding. Measured: 11/100 (independent days),
-  // 10/100 (AR(1)); a day-by-day shuffle instead of week blocks gives 36/100 on AR(1) noise.
+  // q ≤ 0.10 allows about 10 % of pure-noise datasets one false finding. A day-by-day shuffle gave 36/100 on
+  // AR(1) noise; week blocks alone 32/100 at ρ = 0.9 and 18/100 for diet phases. 14-day blocks plus the
+  // effective-days rule: 4/100 (ρ = 0.9), 14/100 (phases).
   const datasetsWithFinding = (o: Omit<Synth, "seed">, base: number) =>
     Array.from({ length: 100 }, (_, i) => base + i).filter((s) => run({ ...o, seed: s }).some((x) => x.kind === "finding")).length;
 
@@ -90,6 +101,14 @@ describe("recovery engine on constructed data", () => {
 
   it("noise where neighbouring days depend on each other (AR(1), ρ = 0.6): at most 15 of 100", () => {
     expect(datasetsWithFinding({ rho: 0.6 }, 2000)).toBeLessThanOrEqual(15);
+  });
+
+  it("strongly autocorrelated noise (ρ = 0.9): at most 15 of 100", () => {
+    expect(datasetsWithFinding({ rho: 0.9 }, 3000)).toBeLessThanOrEqual(15);
+  });
+
+  it("diet phases of 2–4 weeks against streaky outcomes (ρ = 0.6): at most 15 of 100", () => {
+    expect(datasetsWithFinding({ phases: true, rho: 0.5, rhoOut: 0.6 }, 4000)).toBeLessThanOrEqual(15);
   });
 
   it("a link that only comes from hard days is stopped by the training control", () => {

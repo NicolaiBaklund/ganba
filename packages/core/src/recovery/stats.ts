@@ -82,6 +82,45 @@ export function blockPermutationP(
   return (hits + 1) / (permutations + 1);
 }
 
+/**
+ * Autocorrelation of a daily series at `lag` days (pairs of calendar days that far apart only),
+ * clamped to [0, 0.95]; 0 with fewer than 10 such pairs.
+ */
+export function autocorr(byDay: ReadonlyMap<number, number>, lag: number): number {
+  const xs: number[] = [];
+  const ys: number[] = [];
+  for (const [d, v] of byDay) {
+    const later = byDay.get(d + lag);
+    if (later != null) {
+      xs.push(v);
+      ys.push(later);
+    }
+  }
+  if (xs.length < 10) return 0;
+  const mx = mean(xs);
+  const my = mean(ys);
+  let sxy = 0;
+  let sxx = 0;
+  let syy = 0;
+  for (let i = 0; i < xs.length; i++) {
+    sxy += (xs[i]! - mx) * (ys[i]! - my);
+    sxx += (xs[i]! - mx) ** 2;
+    syy += (ys[i]! - my) ** 2;
+  }
+  const r = sxx > 0 && syy > 0 ? sxy / Math.sqrt(sxx * syy) : 0;
+  return Math.min(0.95, Math.max(0, r));
+}
+
+/**
+ * How many times less information a day carries when both series are streaky (Bartlett):
+ * 1 + 2·Σ ρx(l)·ρy(l) over lags 1..maxLag. 1 = independent days.
+ */
+export function dependenceFactor(x: ReadonlyMap<number, number>, y: ReadonlyMap<number, number>, maxLag: number): number {
+  let k = 1;
+  for (let l = 1; l <= maxLag; l++) k += 2 * autocorr(x, l) * autocorr(y, l);
+  return k;
+}
+
 /** Benjamini–Hochberg adjusted p-values (q), in input order. */
 export function benjaminiHochberg(ps: readonly number[]): number[] {
   const m = ps.length;

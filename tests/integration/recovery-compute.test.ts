@@ -12,6 +12,11 @@ import { FakeGarmin, run } from "./fake-garmin";
 
 const TZ = "Europe/Oslo";
 const KCAL = [1500, 2100, 2700];
+/** Deterministic pseudo-random 0..1 per index (no calendar pattern in the test data). */
+const noise = (i: number, salt: number) => {
+  const x = Math.sin(i * 12.9898 + salt * 78.233) * 43758.5453;
+  return x - Math.floor(x);
+};
 
 describe("recovery: load days, compute after sync, store results", () => {
   let u: TestUser;
@@ -27,7 +32,7 @@ describe("recovery: load days, compute after sync, store results", () => {
     const kcalOf = new Map<string, number>();
     for (let i = 3; i <= 102; i++) {
       const d = addDays(today, -i);
-      const kcal = KCAL[(i * 7) % 3]!;
+      const kcal = KCAL[Math.floor(noise(i, 1) * 3)]!;
       kcalOf.set(d, kcal);
       entries.push({ user_id: u.id, logged_at: zonedTime(d, "12:00", TZ).toISOString(), local_date: d, meal_type: "lunch", source: "quick" });
       entries.push({ user_id: u.id, logged_at: zonedTime(d, i % 4 === 0 ? "21:00" : "18:00", TZ).toISOString(), local_date: d, meal_type: "dinner", source: "quick" });
@@ -42,7 +47,7 @@ describe("recovery: load days, compute after sync, store results", () => {
     for (let i = 0; i <= 102; i++) {
       const d = addDays(today, -i);
       const prevKcal = kcalOf.get(addDays(d, -1)) ?? 2100;
-      nights.push({ user_id: u.id, local_date: d, sleep_s: 27000, sleep_score: 75 + (i % 5), hrv_avg: Math.round(60 + (prevKcal - 2100) / 100 + (i % 3)), resting_hr: 50 });
+      nights.push({ user_id: u.id, local_date: d, sleep_s: 27000, sleep_score: 75 + Math.floor(noise(i, 2) * 5), hrv_avg: Math.round(60 + (prevKcal - 2100) / 100 + noise(i, 3) * 3), resting_hr: 50 });
     }
     const { error: nightsErr } = await a.from("recovery_days").insert(nights);
     if (nightsErr) throw nightsErr;

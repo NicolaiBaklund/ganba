@@ -116,13 +116,13 @@ Fra dagsdata bygges én rad per dato med faktorer (mat, trening, søvn natta fø
 | rest→run | dager siden forrige harde dag | løpsform | → D |
 
 ### 5.4 Grupper
-- Tallfaktorer: **øverste tredjedel mot nederste tredjedel** av brukerens egne verdier (midten droppes). Teksten bruker de faktiske grensene («more than 820 kcal deficit»).
+- Tallfaktorer: **øverste tredjedel mot nederste tredjedel** av brukerens egne verdier (midten droppes). Faller begge grensene på samme verdi (få ulike verdier, f.eks. dager siden hard økt), flyttes én grense til naboverdien som gir jevnest grupper. Teksten bruker de faktiske grensene («more than 820 kcal deficit»).
 - Ja/nei-faktorer: ja mot nei.
 
 ### 5.5 Krav før et funn vises
-1. **Minst 8 dager i hver gruppe.**
+1. **Minst 8 effektive dager i hver gruppe:** n / k ≥ 8, der k = 1 + 2·Σ ρfaktor(l)·ρutfall(l) for l = 1..14 (Bartlett). Uavhengige dager gir k ≈ 1; serier som går i perioder (dietter i faser, HRV-strekk) krever flere dager. «Trenger mer data» viser det faktiske kravet.
 2. **Effekt:** forskjell i snitt ≥ **0,4 standardavvik** av det avtrendede utfallet (SD over alle dager i vinduet).
-3. **Test:** **blokkpermutasjon** — faktorverdiene stokkes i hele kalenderuker (blokker på 7 dager), ikke dag for dag, fordi dagene henger sammen (HRV går i perioder, underskudd kommer i uker). 2000 omstokkinger, fast frø = samme svar hver gang, tosidig.
+3. **Test:** **blokkpermutasjon** — faktorverdiene stokkes i hele blokker på 14 kalenderdager, ikke dag for dag, fordi dagene henger sammen (HRV går i perioder, underskudd kommer i uker). 2000 omstokkinger, fast frø = samme svar hver gang, tosidig.
 4. **Korreksjon:** **Benjamini–Hochberg** over alle tester i denne beregningen som har nok data (krav 1), q ≤ 0,10.
 5. **Kontroll:** for søvn/HRV/hvilepuls-spørsmål der faktoren ikke selv er trening: samme analyse **uten harde dager og langturdager** må gi samme retning og effekt ≥ 0,25 SD. Ellers stoppes funnet («likely training») — også når det er for få dager igjen uten trening til å sjekke (faktoren følger treningen).
 6. **Vindu:** siste 90 dager.
@@ -202,8 +202,8 @@ Rekkefølge:
 - Falsk Garmin med søvndata: riktig morgen-dato, historikk 10 dager per synk, fremdrift lagres.
 - Motor mot konstruerte data:
   - innlagt sammenheng → funn med riktig retning og størrelse
-  - ren støy, 100 datasett → **høyst 15** med funn (q ≤ 0,10 tillater ca. 10 % datasett med ett falskt funn; målt 11/100)
-  - støy der dagene henger sammen (AR(1), ρ = 0,6), 100 datasett → høyst 15 med funn (målt 10/100; omstokking dag for dag ga 36/100, så ukeblokkene trengs)
+  - ren støy, 100 datasett → **høyst 15** med funn (q ≤ 0,10 tillater ca. 10 % datasett med ett falskt funn)
+  - støy der dagene henger sammen, 100 datasett hver → høyst 15 med funn: AR(1) ρ = 0,6; ρ = 0,9 (målt 4); dietter i faser på 2–4 uker mot HRV-strekk (målt 14). Omstokking dag for dag ga 36/100, ukeblokker alene 32/100 ved ρ = 0,9.
   - sammenheng som bare skyldes harde dager → «Likely training», ikke funn
   - alkohol uten logget drikke → spørsmålet vises ikke
   - avtrending: jevn HRV-økning uten årsak → ingen funn

@@ -1,5 +1,5 @@
 import { addDays, daysBetween } from "../dates";
-import { benjaminiHochberg, blockPermutationP, groupMeanDiff, hashString, mean, mulberry32, sd } from "./stats";
+import { benjaminiHochberg, blockPermutationP, groupMeanDiff, dependenceFactor, hashString, mean, mulberry32, sd } from "./stats";
 import { needsTrainingControl, RECOVERY_QUESTIONS, type RecoveryQuestion } from "./questions";
 import { RECOVERY_OUTCOMES, type RecoveryFactor, type RecoveryOutcome, type RecoveryRow } from "./variables";
 
@@ -12,7 +12,7 @@ export const RECOVERY_RULES = {
   noEffectMinPerGroup: 20,
   noEffectMaxSd: 0.2,
   permutations: 2000,
-  blockDays: 7,
+  blockDays: 14,
   minDrinkDays: 4,
   seed: 20261004,
 } as const;
@@ -31,6 +31,7 @@ export interface RecoveryResult {
   lag: number;
   kind: "finding" | "no_effect" | "needs_data";
   reason: "few_days" | "unclear" | "training" | null;
+  /** needed = days per group required, raised when neighbouring days depend on each other. */
   groups: { high: RecoveryGroup; low: RecoveryGroup; needed: number };
   /** (high − low) / SD of the detrended outcome; signed. */
   effectSd: number | null;
@@ -52,9 +53,20 @@ function split(values: number[], transform: RecoveryQuestion["transform"]): Spli
   const s = [...values].sort((a, b) => a - b);
   const k = Math.floor(s.length / 3);
   if (k < 1) return null;
-  const low = s[k - 1]!;
-  const high = s[s.length - k]!;
-  if (!(low < high)) return null;
+  let low = s[k - 1]!;
+  let high = s[s.length - k]!;
+  if (!(low < high)) {
+    // Few distinct values (e.g. days since a hard day): both cuts on the same value. Move one cut to
+    // the neighbouring value, whichever leaves the smaller group bigger.
+    const below = s.filter((v) => v < low).at(-1);
+    const above = s.find((v) => v > high);
+    const minGroup = (lo: number, hi: number) => Math.min(s.filter((v) => v <= lo).length, s.filter((v) => v >= hi).length);
+    const a = below != null ? minGroup(below, high) : -1;
+    const b = above != null ? minGroup(low, above) : -1;
+    if (a < 1 && b < 1) return null;
+    if (a >= b) low = below!;
+    else high = above!;
+  }
   return { labels: values.map((v) => (v <= low ? -1 : v >= high ? 1 : 0)), low, high };
 }
 
@@ -85,7 +97,17 @@ export function analyzeRecovery(rows: readonly RecoveryRow[], questions: readonl
     const low: RecoveryGroup = s ? groupOf(s.labels, ys, -1, s.low) : { n: 0, mean: null, bound: null };
     const spread = spreadOf.get(q.outcome)!;
     const effect = s && high.n && low.n && spread > 0 ? groupMeanDiff(s.labels, ys) / spread : null;
-    const enough = !!s && high.n >= R.minPerGroup && low.n >= R.minPerGroup && effect != null;
+    // Streaky factor and outcome carry less information per day: require 8 *effective* days per group,
+    // n_eff = n / k (Bartlett). Long streaks are beyond what shuffling blocks can absorb on their own.
+    const dayOf = (d: string) => daysBetween(first!, d);
+    // Measured on the outcome as is (conservative: an outcome that follows a patterned factor also counts).
+    const k = dependenceFactor(
+      new Map(pairs.map((pp) => [dayOf(pp.row.date), pp.x])),
+      new Map(pairs.map((pp) => [dayOf(pp.row.date), pp.y])),
+      R.blockDays,
+    );
+    const needed = Math.ceil(R.minPerGroup * k);
+    const enough = !!s && high.n >= needed && low.n >= needed && effect != null;
     const p = enough
       ? blockPermutationP(
           s!.labels,
@@ -95,7 +117,7 @@ export function analyzeRecovery(rows: readonly RecoveryRow[], questions: readonl
           mulberry32(R.seed ^ hashString(q.id)),
         )
       : null;
-    return { q, pairs, s, ys, high, low, spread, effect, enough, p };
+    return { q, pairs, s, ys, high, low, spread, effect, enough, needed, p };
   });
 
   const withP = tested.filter((t) => t.p != null);
@@ -132,7 +154,7 @@ export function analyzeRecovery(rows: readonly RecoveryRow[], questions: readonl
       lag: t.q.lag,
       kind,
       reason,
-      groups: { high: t.high, low: t.low, needed: R.minPerGroup },
+      groups: { high: t.high, low: t.low, needed: t.needed },
       effectSd: t.effect,
       pValue: t.p,
       qValue: qv,
