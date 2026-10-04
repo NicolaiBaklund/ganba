@@ -1,4 +1,4 @@
-# Loop — kontekst for Claude
+# Ganba (tidligere Loop) — kontekst for Claude
 
 Personlig trenings- + ernæringsapp (Runna + MyFitnessPal i ett). Webapp, må fungere på mobil.
 

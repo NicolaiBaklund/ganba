@@ -1,9 +1,9 @@
 {
   "app": {
-    "name": "Loop"
+    "name": "Ganba"
   },
   "login": {
-    "title": "Loop",
+    "title": "Ganba",
     "subtitle": "Training and nutrition, together.",
     "emailPlaceholder": "you@example.com",
     "sendLink": "Email me a sign-in link",
@@ -62,7 +62,7 @@
       "protein": "Protein",
       "carbs": "Carbs",
       "fat": "Fat",
-      "adaptiveNote": "After 14 days with enough logs, Loop calculates what you actually burn and suggests a new target each week."
+      "adaptiveNote": "After 14 days with enough logs, Ganba calculates what you actually burn and suggests a new target each week."
     }
   },
   "nav": {
@@ -196,7 +196,7 @@
       "protein": "Protein",
       "fat": "Fat",
       "override": "Fixed calorie target (optional)",
-      "overrideHint": "Leave empty to let Loop calculate and adapt it."
+      "overrideHint": "Leave empty to let Ganba calculate and adapt it."
     },
     "checkinDay": "Weekly check-in day",
     "account": {
@@ -349,7 +349,7 @@
     "garminRequiredHint": "Plans use your recent runs for paces and send sessions to your watch.",
     "connect": "Connect Garmin",
     "noPlan": "No plan yet",
-    "noPlanHint": "Pick a race or just build fitness. Loop plans around the days you can run and sends sessions to your watch.",
+    "noPlanHint": "Pick a race or just build fitness. Ganba plans around the days you can run and sends sessions to your watch.",
     "create": "Create plan",
     "build": "Build fitness",
     "predicted": "Predicted",
@@ -465,7 +465,7 @@
     "synced": "Up to date",
     "disconnect": "Disconnect",
     "disconnected": "Garmin disconnected",
-    "explain": "Loop reads steps and workouts from Garmin Connect and sends planned sessions to your watch. Your password is used once to sign in and is never stored.",
+    "explain": "Ganba reads steps and workouts from Garmin Connect and sends planned sessions to your watch. Your password is used once to sign in and is never stored.",
     "email": "Garmin email",
     "password": "Garmin password",
     "connect": "Connect",

@@ -1,6 +1,6 @@
 <div align="center">
 
-# Loop
+# Ganba
 
 **One daily target that follows your training.**
 A mobile-first web app that combines a Runna-style training plan with MyFitnessPal-style nutrition and weight tracking, driven by your Garmin.
@@ -15,16 +15,16 @@ A mobile-first web app that combines a Runna-style training plan with MyFitnessP
 ![Vercel](https://img.shields.io/badge/deploy-Vercel-000?logo=vercel)
 ![Tests](https://img.shields.io/badge/integration%20tests-24%20passing-34d399)
 
-![Loop: Today, Training, session and AI food logging](docs/screenshots/hero.png)
+![Ganba: Today, Training, session and AI food logging](docs/screenshots/hero.png)
 
 </div>
 
-> Working title. The app is a personal project in active development; the name will change.
+> *Ganba* (頑張って) is what Japanese runners shout to cheer each other on: “keep going, give it your all”. Built in Tokyo.
 
 ## Why
 
 Most apps do one half. Training apps plan your runs but don't know what you eat; nutrition apps count calories but treat a 20 km long run and a rest day the same.
-Loop puts both in one place and keeps the effort for the user as low as possible: data comes from the watch and from a photo of your plate, not from forms.
+Ganba puts both in one place and keeps the effort for the user as low as possible: data comes from the watch and from a photo of your plate, not from forms.
 
 ## Features
 
@@ -95,7 +95,7 @@ More detail: [concept spec](docs/specs/2026-09-29-fase1-konsept.md) · [phase 2 
 | 2a | Garmin sync, activity-based daily target | Done, testing with a real account |
 | 2b | Training plan, workouts on the watch, proposals, AI adjustments, fueling | Done, testing with a real account |
 | Next | Weekly volume adapted to what you actually ran | Planned |
-| Next | Own email sender and domain, new name | Planned |
+| Next | Own email sender and domain (ganba.no) | Planned |
 | Later | Strength and cycling in the plan, recovery (sleep, HRV), native app | Ideas |
 
 ## Getting started

@@ -20,9 +20,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Loop",
+  title: "Ganba",
   description: "Training and nutrition in one place",
-  appleWebApp: { capable: true, title: "Loop", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Ganba", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {

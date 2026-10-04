@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Loop",
-    short_name: "Loop",
+    name: "Ganba",
+    short_name: "Ganba",
     start_url: "/today",
     display: "standalone",
     background_color: "#0a0c12",

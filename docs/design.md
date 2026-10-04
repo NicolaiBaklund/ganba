@@ -1,4 +1,4 @@
-# Loop — designretning
+# Ganba — designretning
 
 Inspirert av Runna (sporty, mørk, tydelige tall og fargekoder), men med egen identitet. Vi kopierer ikke Runnas merkevare (indigo + lime).
 

@@ -59,8 +59,8 @@ function blockJson(b: Block, order: { n: number }): Record<string, unknown> {
 export function toGarminWorkout(w: Pick<WorkoutSpec, "title" | "blocks" | "plannedDurationS">) {
   const order = { n: 1 };
   return {
-    workoutName: `Loop: ${w.title}`.slice(0, 80),
-    description: "Planned by Loop",
+    workoutName: `Ganba: ${w.title}`.slice(0, 80),
+    description: "Planned by Ganba",
     sportType: RUNNING,
     estimatedDurationInSecs: w.plannedDurationS,
     workoutSegments: [{ segmentOrder: 1, sportType: RUNNING, workoutSteps: w.blocks.map((b) => blockJson(b, order)) }],

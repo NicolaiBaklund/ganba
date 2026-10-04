@@ -55,7 +55,7 @@
 }
 
 :root {
-  /* Loop design tokens — dark-first, electric blue accent. See docs/design.md */
+  /* Ganba design tokens — dark-first, electric blue accent. See docs/design.md */
   color-scheme: dark;
   --background: #0a0c12;
   --foreground: #f3f5fa;
