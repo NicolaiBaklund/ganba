@@ -78,7 +78,7 @@ function adapterUrl(): string {
   return host ? `https://${host}/api/py/garmin` : "http://127.0.0.1:3200";
 }
 
-async function call<T>(body: Record<string, unknown>): Promise<T> {
+async function call<T>(body: Record<string, unknown>, timeoutMs = 110_000): Promise<T> {
   const secret = process.env.GARMIN_ADAPTER_SECRET;
   if (!secret) throw new GarminError("unavailable");
   const headers: Record<string, string> = { "content-type": "application/json", "x-adapter-secret": secret };
@@ -86,7 +86,7 @@ async function call<T>(body: Record<string, unknown>): Promise<T> {
   if (process.env.VERCEL_AUTOMATION_BYPASS_SECRET) headers["x-vercel-protection-bypass"] = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
   let res: Response;
   try {
-    res = await fetch(adapterUrl(), { method: "POST", headers, body: JSON.stringify(body), cache: "no-store", signal: AbortSignal.timeout(110_000) });
+    res = await fetch(adapterUrl(), { method: "POST", headers, body: JSON.stringify(body), cache: "no-store", signal: AbortSignal.timeout(timeoutMs) });
   } catch {
     throw new GarminError("unavailable");
   }
@@ -100,7 +100,8 @@ export const httpGarmin = (): GarminSource => ({
   login: (email, password) => call({ op: "login", email, password }),
   loginMfa: (mfaState, code) => call({ op: "login_mfa", mfaState, code }),
   fetch: (tokens, from, to, knownIds) => call({ op: "fetch", tokens, from, to, knownIds }),
-  fetchRecovery: (tokens, dates) => call({ op: "fetch_recovery", tokens, dates }),
+  // Extra to the sync, so it must leave room within the 120 s function limit for the rest.
+  fetchRecovery: (tokens, dates) => call({ op: "fetch_recovery", tokens, dates }, 40_000),
   pushWorkout: (tokens, workout, date) => call({ op: "push_workout", tokens, workout, date }),
   deleteWorkout: (tokens, workoutId, scheduleId) => call({ op: "delete_workout", tokens, workoutId, scheduleId }),
 });

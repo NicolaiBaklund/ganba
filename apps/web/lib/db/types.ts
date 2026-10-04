@@ -411,6 +411,7 @@ export type Database = {
           race_predictions_at: string | null
           recovery_backfilled_until: string | null
           recovery_computed_at: string | null
+          recovery_synced_until: string | null
           status: Database["public"]["Enums"]["garmin_status"]
           sync_started_at: string | null
           updated_at: string
@@ -429,6 +430,7 @@ export type Database = {
           race_predictions_at?: string | null
           recovery_backfilled_until?: string | null
           recovery_computed_at?: string | null
+          recovery_synced_until?: string | null
           status?: Database["public"]["Enums"]["garmin_status"]
           sync_started_at?: string | null
           updated_at?: string
@@ -447,6 +449,7 @@ export type Database = {
           race_predictions_at?: string | null
           recovery_backfilled_until?: string | null
           recovery_computed_at?: string | null
+          recovery_synced_until?: string | null
           status?: Database["public"]["Enums"]["garmin_status"]
           sync_started_at?: string | null
           updated_at?: string
