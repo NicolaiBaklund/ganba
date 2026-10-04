@@ -40,10 +40,10 @@ export function ApiKeyCard({ status }: { status: { last4: string; validatedAt: s
   }
 
   return (
-    <section className="rounded-3xl bg-card p-5">
+    <section className="rounded-md bg-card p-4">
       <div className="mb-3 flex items-center gap-2">
         <KeyRound className="size-4 text-primary" />
-        <h2 className="font-heading font-semibold">{t("title")}</h2>
+        <h2 className="cond text-lg leading-none">{t("title")}</h2>
       </div>
       {status && !editing ? (
         <div className="flex items-center justify-between gap-3 text-sm">
@@ -73,9 +73,9 @@ export function ApiKeyCard({ status }: { status: { last4: string; validatedAt: s
             value={key}
             onChange={(e) => setKey(e.target.value)}
             placeholder="sk-ant-…"
-            className="h-12 rounded-xl border border-border bg-muted px-4 outline-none focus:border-primary"
+            className="h-12 rounded-md border border-border bg-card px-4 outline-none focus:border-primary"
           />
-          <Button className="h-11 rounded-xl" disabled={key.trim().length < 20 || busy} onClick={save}>
+          <Button className="h-11" disabled={key.trim().length < 20 || busy} onClick={save}>
             {busy ? t("checking") : t("save")}
           </Button>
         </div>

@@ -35,10 +35,8 @@
       "title": "How active are you?",
       "subtitle": "Rough averages are fine. We correct this from your real data.",
       "steps": "Steps per day",
-      "stepsHint": "Check your watch or phone health app.",
       "runKm": "Running per week",
-      "otherHours": "Other training per week",
-      "otherHint": "Gym, cycling, sports – hours per week."
+      "otherHours": "Other training per week"
     },
     "goal": {
       "title": "Your goal",
@@ -135,9 +133,7 @@
     "breakdown": {
       "base": "Base",
       "activity": "Activity",
-      "planned": "Planned run",
-      "goal": "Goal",
-      "averaged": "Activity (avg, no watch data)"
+      "goal": "Goal"
     },
     "garminReauth": "Garmin needs you to sign in again.",
     "garminReauthCta": "Reconnect",
@@ -202,7 +198,7 @@
     },
     "activity": {
       "title": "Activity",
-      "hint": "Injured or pausing training? Set running to 0 — your target drops automatically.",
+      "hint": "Injured or taking a break? Set running to 0 and your target drops.",
       "steps": "Steps per day",
       "run": "Running / week",
       "other": "Other training / week"
@@ -211,8 +207,7 @@
       "title": "Nutrition targets",
       "protein": "Protein",
       "fat": "Fat",
-      "override": "Fixed calorie target (optional)",
-      "overrideHint": "Leave empty to let Ganba calculate and adapt it."
+      "override": "Fixed calorie target (optional)"
     },
     "checkinDay": "Weekly check-in day",
     "account": {
@@ -282,7 +277,6 @@
     "protein": "Protein",
     "carbs": "Carbs",
     "fat": "Fat",
-    "ofTarget": "{pct}% of today’s target",
     "empty": "Nothing logged this day.",
     "edit": "Edit entry",
     "addItem": "Add item",
@@ -306,7 +300,7 @@
     "error": "Couldn’t update. Try again.",
     "dismiss": "OK",
     "insufficient": {
-      "too_early": "Keep logging — your first adaptive update comes after about two weeks.",
+      "too_early": "Keep logging. Your first adaptive update comes after about two weeks.",
       "few_food_days": "Not enough food logged in the last 3 weeks to update your target.",
       "few_food_days_last_week": "Log food at least 5 days a week to get an update.",
       "few_weigh_ins": "Weigh in a few more times to get an update."
@@ -324,13 +318,12 @@
   "workout": {
     "today": "Today’s session",
     "rest": "Rest day",
-    "restHint": "No run planned today.",
     "done": "Done",
     "missed": "Missed",
     "planned": "Planned",
     "onWatch": "On your watch",
     "notOnWatch": "Not on watch yet",
-    "pushFailed": "Couldn’t send to watch — will retry",
+    "pushFailed": "Couldn’t send to watch. Will retry.",
     "distance": "Distance",
     "duration": "Time",
     "pace": "Pace",
@@ -366,10 +359,8 @@
   "training": {
     "title": "Training",
     "garminRequired": "Connect Garmin to get a training plan",
-    "garminRequiredHint": "Plans use your recent runs for paces and send sessions to your watch.",
     "connect": "Connect Garmin",
     "noPlan": "No plan yet",
-    "noPlanHint": "Pick a race or just build fitness. Ganba plans around the days you can run and sends sessions to your watch.",
     "create": "Create plan",
     "build": "Build fitness",
     "predicted": "Predicted",
@@ -445,20 +436,18 @@
     "creating": "Creating…",
     "goalTitle": "What are you training for?",
     "build": "Build fitness",
-    "buildHint": "No race — steady progress with easier weeks",
     "raceDate": "Race date",
     "targetTime": "Target time (optional)",
-    "targetTimeHint": "h:mm:ss or mm:ss — empty uses your predicted time",
+    "targetTimeHint": "h:mm:ss or mm:ss. Leave empty to use your predicted time.",
     "daysTitle": "When can you run?",
     "days": "Days you can run",
     "runs": "Runs per week",
     "longDay": "Long run day",
     "recentTitle": "Known time or estimate (optional)",
-    "recentHint": "A recent race or a time you trust — overrides the estimate below",
     "recentTime": "Time",
     "previewTitle": "Your plan",
     "kmPerWeek": "{km} km/week now",
-    "sparse": "Few recent runs — the plan starts gently.",
+    "sparse": "Few recent runs, so the plan starts gently.",
     "peak": "Peak {km} km/week",
     "firstWeek": "First sessions",
     "weeks": "{n, plural, one {# week} other {# weeks}}",
@@ -468,12 +457,12 @@
       "generic": "Couldn’t create the plan. Try again."
     },
     "experienced": "You’ve trained consistently the last 4 weeks, so the plan starts in the build phase.",
-    "didQuality": "Recent fast laps found — sessions start a level up.",
+    "didQuality": "Recent fast laps found, so sessions start a level up.",
     "source": {
       "run": "Based on your {km} km run on {date}",
       "laps": "Based on your interval laps on {date}",
       "garmin": "Based on Garmin’s 10K estimate ({time}), read slightly cautiously",
-      "default": "No recent runs found — starting cautiously",
+      "default": "No recent runs found. Starting cautiously.",
       "manual": "Based on the time you entered"
     }
   },
@@ -497,7 +486,6 @@
     "verify": "Verify",
     "reauth": "Sign-in expired. Connect again.",
     "importing": "Connected. Importing your last 90 days…",
-    "activityHint": "Steps and workouts come from Garmin, so manual activity settings are not used.",
     "errors": {
       "auth": "Wrong email or password.",
       "mfa_invalid": "That code didn’t work. Start again.",

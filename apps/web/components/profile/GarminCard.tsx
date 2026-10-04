@@ -13,7 +13,7 @@ export interface GarminCardStatus {
   lastSyncedAt: string | null;
 }
 
-const field = "h-12 rounded-xl border border-border bg-muted px-4 outline-none focus:border-primary";
+const field = "h-12 rounded-md border border-border bg-card px-4 outline-none focus:border-primary";
 const KNOWN_ERRORS = ["auth", "mfa_invalid", "mfa_expired", "rate_limited", "unavailable", "unsupported_session"];
 
 export function GarminCard({ status }: { status: GarminCardStatus | null }) {
@@ -77,10 +77,10 @@ export function GarminCard({ status }: { status: GarminCardStatus | null }) {
   const connected = status?.status === "active";
 
   return (
-    <section id="garmin" className="scroll-mt-4 rounded-3xl bg-card p-5">
+    <section id="garmin" className="scroll-mt-4 rounded-md bg-card p-4">
       <div className="mb-3 flex items-center gap-2">
         <Watch className="size-4 text-primary" />
-        <h2 className="font-heading font-semibold">{t("title")}</h2>
+        <h2 className="cond text-lg leading-none">{t("title")}</h2>
         {connected && <span className="ml-auto text-xs font-semibold text-success">{t("connected")}</span>}
       </div>
 
@@ -110,7 +110,7 @@ export function GarminCard({ status }: { status: GarminCardStatus | null }) {
             placeholder={t("mfaCode")}
             className={cn("num tracking-widest", field)}
           />
-          <Button className="h-11 rounded-xl" disabled={code.length < 4 || busy} onClick={verify}>
+          <Button className="h-11" disabled={code.length < 4 || busy} onClick={verify}>
             {t("verify")}
           </Button>
         </div>
@@ -127,7 +127,7 @@ export function GarminCard({ status }: { status: GarminCardStatus | null }) {
             placeholder={t("password")}
             className={field}
           />
-          <Button className="h-11 rounded-xl" disabled={!email.includes("@") || !password || busy} onClick={connect}>
+          <Button className="h-11" disabled={!email.includes("@") || !password || busy} onClick={connect}>
             {busy ? t("connecting") : t("connect")}
           </Button>
         </div>

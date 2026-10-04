@@ -54,11 +54,13 @@ function Login() {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-sm flex-col justify-center gap-8 px-6">
       <div>
-        <h1 className="font-heading text-4xl font-bold tracking-tight">{t("title")}</h1>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/icon-192.png" alt="" className="mb-5 size-[72px] rounded-[16px]" />
+        <h1 className="cond text-5xl leading-none">{t("title")}</h1>
         <p className="mt-2 text-muted-foreground">{t("subtitle")}</p>
       </div>
 
-      {linkError && !codeStep && <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{t("linkError")}</p>}
+      {linkError && !codeStep && <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{t("linkError")}</p>}
 
       {codeStep ? (
         <form onSubmit={verifyCode} className="flex flex-col gap-3">

@@ -36,8 +36,8 @@ const WEEKDAYS = [1, 2, 3, 4, 5, 6, 0];
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="flex flex-col gap-4 rounded-3xl bg-card p-5">
-      <h2 className="font-heading font-semibold">{title}</h2>
+    <section className="flex flex-col gap-4">
+      <h2 className="cond mt-4 border-b-2 border-foreground pb-1.5 text-[22px] leading-none">{title}</h2>
       {children}
     </section>
   );
@@ -103,7 +103,7 @@ export function ProfileCards({ v }: { v: ProfileValues }) {
           ))}
         </div>
         <Button
-          className="h-11 rounded-xl"
+          className="h-11"
           disabled={pending || parseNum(target) == null}
           onClick={() => run(() => updateGoal({ targetWeightKg: parseNum(target)!, rateKgPerWeek: rate }))}
         >
@@ -120,7 +120,7 @@ export function ProfileCards({ v }: { v: ProfileValues }) {
             <NumberField label={t("activity.other")} unit="h" value={other} onChange={setOther} />
           </div>
           <Button
-            className="h-11 rounded-xl"
+            className="h-11"
             disabled={pending || [steps, run_, other].some((x) => parseNum(x) == null)}
             onClick={() =>
               run(() =>
@@ -142,9 +142,9 @@ export function ProfileCards({ v }: { v: ProfileValues }) {
           <NumberField label={t("macros.protein")} unit="g/kg" value={protein} onChange={setProtein} />
           <NumberField label={t("macros.fat")} unit="%" value={fat} onChange={setFat} />
         </div>
-        <NumberField label={t("macros.override")} unit="kcal" value={override} onChange={setOverride} decimal={false} hint={t("macros.overrideHint")} />
+        <NumberField label={t("macros.override")} unit="kcal" value={override} onChange={setOverride} decimal={false} />
         <Button
-          className="h-11 rounded-xl"
+          className="h-11"
           disabled={pending || parseNum(protein) == null || parseNum(fat) == null}
           onClick={() =>
             run(() =>
@@ -172,21 +172,21 @@ export function ProfileCards({ v }: { v: ProfileValues }) {
 
       <Card title={t("account.title")}>
         <p className="-mt-2 text-sm text-muted-foreground">{v.email}</p>
-        <Button variant="secondary" className="h-11 rounded-xl" onClick={signOut}>
+        <Button variant="secondary" className="h-11" onClick={signOut}>
           {t("account.signOut")}
         </Button>
-        <div className="rounded-2xl border border-destructive/30 p-4">
+        <div className="rounded-md border-l-4 border-destructive bg-card p-4">
           <p className="text-sm font-medium text-destructive">{t("account.deleteTitle")}</p>
           <p className="mt-1 text-xs text-muted-foreground">{t("account.deleteExplain")}</p>
           <input
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
             placeholder="DELETE"
-            className="mt-3 h-11 w-full rounded-xl border border-border bg-muted px-4 outline-none focus:border-destructive"
+            className="mt-3 h-11 w-full rounded-md border border-border bg-card px-4 outline-none focus:border-destructive"
           />
           <Button
             variant="destructive"
-            className="mt-3 h-11 w-full rounded-xl"
+            className="mt-3 h-11 w-full"
             disabled={confirmText !== "DELETE" || deleting}
             onClick={deleteAccount}
           >

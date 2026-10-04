@@ -32,8 +32,8 @@ export default async function ProfilePage() {
   const kg = Number(lastWeight.data?.weight_kg ?? 70);
 
   return (
-    <main className="flex flex-col gap-4 px-4 pt-4">
-      <h1 className="font-heading text-2xl font-bold">{t("title")}</h1>
+    <main className="flex flex-col gap-4 px-[18px] pb-4 pt-5">
+      <h1 className="cond text-[34px] leading-none">{t("title")}</h1>
       <GarminCard status={garmin ? { status: garmin.status, lastSyncedAt: garmin.lastSyncedAt } : null} />
       <ApiKeyCard status={keyStatus} />
       <ProfileCards
