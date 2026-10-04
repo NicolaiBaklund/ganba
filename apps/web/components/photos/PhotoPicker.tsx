@@ -40,7 +40,7 @@ export function PhotoPicker({
   return (
     <div className="flex gap-2 overflow-x-auto">
       {urls.map((u, i) => (
-        <div key={u} className="relative size-20 shrink-0 overflow-hidden rounded-xl">
+        <div key={u} className="relative size-20 shrink-0 overflow-hidden rounded-sm">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={u} alt="" className="size-full object-cover" />
           <button
@@ -57,7 +57,7 @@ export function PhotoPicker({
         <button
           type="button"
           onClick={() => input.current?.click()}
-          className="flex size-20 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border text-xs text-muted-foreground"
+          className="flex size-20 shrink-0 flex-col items-center justify-center gap-1 rounded-sm border border-dashed border-border text-xs text-muted-foreground"
         >
           <Camera className="size-5" />
           {label}

@@ -165,23 +165,22 @@ export function FoodLogger({ hasKey, mode, date }: { hasKey: boolean; mode: "pho
   const canEstimate = hasKey && (text.trim().length > 0 || photos.length > 0) && !busy;
 
   return (
-    <main className="flex min-h-[calc(100dvh-8rem)] flex-col gap-4 px-4 pt-4">
+    <main className="flex min-h-[calc(100dvh-8rem)] flex-col gap-4 px-[18px] pt-4">
       <header className="flex items-center gap-3">
         <Link href="/today" aria-label={t("back")} className="-ml-1 p-1">
           <ArrowLeft className="size-5" />
         </Link>
-        <h1 className="font-heading text-2xl font-bold">{t("title")}</h1>
+        <h1 className="cond text-[34px] leading-none">{t("title")}</h1>
       </header>
       {date && <p className="-mt-2 text-sm text-primary">{t("forDate", { date })}</p>}
 
       {!hasKey && (
-        <div className="rounded-2xl border border-primary/30 bg-primary/10 p-4 text-sm">
+        <div className="rounded-md border-l-4 border-primary bg-card p-4 text-sm">
           <p>{t("noKey")}</p>
-          <div className="mt-3 flex gap-2">
+          <div className="mt-3 flex gap-4">
             <Link href="/profile" className="font-semibold text-primary">
               {t("addKey")}
             </Link>
-            <span className="text-muted-foreground">·</span>
             <button onClick={() => setQuickOpen(true)} className="font-semibold text-primary">
               {t("quickInstead")}
             </button>
@@ -197,10 +196,10 @@ export function FoodLogger({ hasKey, mode, date }: { hasKey: boolean; mode: "pho
             onChange={(e) => setText(e.target.value)}
             rows={3}
             placeholder={t("placeholder")}
-            className="rounded-2xl border border-border bg-muted p-4 outline-none focus:border-primary"
+            className="rounded-md border border-border bg-card p-4 outline-none focus:border-primary"
           />
           {error && <ErrorBox kind={error} onRetry={estimate} onQuick={() => setQuickOpen(true)} />}
-          <Button size="lg" className="h-14 rounded-2xl text-base" disabled={!canEstimate} onClick={estimate}>
+          <Button size="lg" className="h-14 text-base" disabled={!canEstimate} onClick={estimate}>
             {phase === "estimating" ? <Loader2 className="size-5 animate-spin" /> : <Sparkles className="size-5" />}
             {phase === "estimating" ? t("estimating") : t("estimate")}
           </Button>
@@ -210,7 +209,7 @@ export function FoodLogger({ hasKey, mode, date }: { hasKey: boolean; mode: "pho
       {(phase === "review" || phase === "saving" || (phase === "estimating" && items.length > 0)) && (
         <section className="flex flex-col gap-3">
           {items.length === 0 ? (
-            <div className="rounded-2xl bg-card p-5 text-sm">
+            <div className="rounded-md bg-card p-4 text-sm">
               <p className="font-medium">{t("noFood")}</p>
               {notes && <p className="mt-1 text-muted-foreground">{notes}</p>}
               <button onClick={() => setQuickOpen(true)} className="mt-3 font-semibold text-primary">
@@ -219,16 +218,14 @@ export function FoodLogger({ hasKey, mode, date }: { hasKey: boolean; mode: "pho
             </div>
           ) : (
             <>
-              <div className="rounded-3xl bg-card p-5">
+              <div>
                 <p className="text-sm text-muted-foreground">{t("total")}</p>
-                <p className="num text-4xl font-bold">
-                  {Math.round(totals.kcal)} <span className="text-base font-medium text-muted-foreground">kcal</span>
+                <p className="num text-[72px] font-black leading-[.9] [font-stretch:62%]">
+                  {Math.round(totals.kcal)} <span className="text-xl font-bold text-muted-foreground [font-stretch:75%]">kcal</span>
                 </p>
-                <p className="num mt-1 text-sm">
+                <p className="num mt-1 flex gap-4 text-[15px] font-bold">
                   <span className="text-protein">{Math.round(totals.proteinG)}g P</span>
-                  <span className="mx-2 text-muted-foreground">·</span>
                   <span className="text-carbs">{Math.round(totals.carbsG)}g C</span>
-                  <span className="mx-2 text-muted-foreground">·</span>
                   <span className="text-fat">{Math.round(totals.fatG)}g F</span>
                 </p>
                 {notes && <p className="mt-2 text-xs text-muted-foreground">{notes}</p>}
@@ -258,9 +255,9 @@ export function FoodLogger({ hasKey, mode, date }: { hasKey: boolean; mode: "pho
               onChange={(e) => setCorrection(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && correct()}
               placeholder={t("correctionPlaceholder")}
-              className="h-12 min-w-0 flex-1 rounded-xl border border-border bg-muted px-4 text-sm outline-none focus:border-primary"
+              className="h-12 min-w-0 flex-1 rounded-md border border-border bg-card px-4 text-sm outline-none focus:border-primary"
             />
-            <Button variant="secondary" className="h-12 rounded-xl" disabled={!correction.trim() || busy} onClick={correct}>
+            <Button variant="secondary" className="h-12" disabled={!correction.trim() || busy} onClick={correct}>
               {phase === "estimating" ? <Loader2 className="size-4 animate-spin" /> : t("update")}
             </Button>
           </div>
@@ -273,7 +270,7 @@ export function FoodLogger({ hasKey, mode, date }: { hasKey: boolean; mode: "pho
               </Chip>
             ))}
           </div>
-          <Button size="lg" className="h-14 rounded-2xl text-base" disabled={!items.length || busy} onClick={save}>
+          <Button size="lg" className="h-14 text-base" disabled={!items.length || busy} onClick={save}>
             {t("save")}
           </Button>
         </section>
@@ -288,7 +285,7 @@ function ErrorBox({ kind, onRetry, onQuick }: { kind: ErrorKind; onRetry: () => 
   const t = useTranslations("foodLog");
   const retryable = kind === "unavailable" || kind === "network" || kind === "photo_upload";
   return (
-    <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm">
+    <div className="rounded-md border-l-4 border-destructive bg-card p-4 text-sm">
       <p>{t(`errors.${kind}`)}</p>
       <div className="mt-2 flex gap-3 font-semibold">
         {kind === "invalid_key" || kind === "no_key" ? (

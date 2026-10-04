@@ -93,7 +93,7 @@ export function QuickAddSheet({
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder={t("namePlaceholder")}
-          className="h-12 rounded-xl border border-border bg-muted px-4 outline-none focus:border-primary"
+          className="h-12 rounded-md border border-border bg-card px-4 outline-none focus:border-primary"
         />
         <div className="flex flex-wrap gap-2">
           {MEAL_ORDER.map((m) => (
@@ -102,7 +102,7 @@ export function QuickAddSheet({
             </Chip>
           ))}
         </div>
-        <Button size="lg" className="h-14 rounded-2xl text-base" disabled={kcalNum == null || saving} onClick={save}>
+        <Button size="lg" className="h-14 text-base" disabled={kcalNum == null || saving} onClick={save}>
           {t("save")}
         </Button>
       </div>

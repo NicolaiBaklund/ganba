@@ -32,13 +32,13 @@ export function NumberField({
       <label htmlFor={id} className="text-sm text-muted-foreground">
         {label}
       </label>
-      <div className="flex h-14 items-center rounded-xl border border-border bg-muted px-4 focus-within:border-primary">
+      <div className="flex h-14 items-center rounded-md border border-border bg-card px-4 focus-within:border-primary">
         <input
           id={id}
           inputMode={decimal ? "decimal" : "numeric"}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="num w-full bg-transparent text-2xl font-semibold outline-none"
+          className="num w-full bg-transparent text-2xl font-extrabold outline-none"
         />
         {unit && <span className="text-muted-foreground">{unit}</span>}
       </div>

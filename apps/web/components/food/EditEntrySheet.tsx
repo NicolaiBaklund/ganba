@@ -80,7 +80,7 @@ export function EditEntrySheet({ entry, onClose }: { entry: FoodEntryWithItems |
   return (
     <BottomSheet open={!!entry} onOpenChange={(o) => !o && onClose()} title={t("edit")}>
       <div className="flex flex-col gap-3 pt-2">
-        <p className="num text-2xl font-bold">
+        <p className="num text-[44px] font-black leading-none [font-stretch:62%]">
           {Math.round(totals.kcal)} <span className="text-sm font-medium text-muted-foreground">kcal</span>
         </p>
         {items.map((it, i) => (
@@ -106,11 +106,11 @@ export function EditEntrySheet({ entry, onClose }: { entry: FoodEntryWithItems |
             </Chip>
           ))}
         </div>
-        <Button size="lg" className="h-12 rounded-2xl" disabled={!items.length || busy} onClick={save}>
+        <Button size="lg" className="h-12" disabled={!items.length || busy} onClick={save}>
           {t("save")}
         </Button>
         {confirmDelete ? (
-          <Button variant="destructive" size="lg" className="h-12 rounded-2xl" disabled={busy} onClick={remove}>
+          <Button variant="destructive" size="lg" className="h-12" disabled={busy} onClick={remove}>
             {t("confirmDelete")}
           </Button>
         ) : (

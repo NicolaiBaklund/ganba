@@ -33,7 +33,7 @@ export function scaleItem(item: EditableItem, grams: number): EditableItem {
   };
 }
 
-const DOT = { low: "bg-warning", medium: "bg-primary", high: "bg-success" } as const;
+const DOT = { low: "bg-warning", medium: "bg-muted-foreground", high: "bg-success" } as const;
 
 export function ItemRow({
   item,
@@ -45,22 +45,22 @@ export function ItemRow({
   onRemove: () => void;
 }) {
   const t = useTranslations("foodLog");
-  const numInput = "num w-full bg-transparent text-right outline-none";
+  const numInput = "num w-full bg-transparent text-right text-sm font-bold outline-none";
   return (
-    <div className="rounded-2xl bg-muted/60 p-3">
+    <div className="border-b border-border py-3">
       <div className="flex items-center gap-2">
         {item.confidence && <span className={cn("size-2 shrink-0 rounded-full", DOT[item.confidence])} title={t(`confidence.${item.confidence}`)} />}
         <input
           value={item.name}
           onChange={(e) => onChange({ ...item, name: e.target.value })}
-          className="min-w-0 flex-1 bg-transparent font-medium outline-none"
+          className="min-w-0 flex-1 bg-transparent font-bold outline-none"
         />
         <button onClick={onRemove} aria-label={t("removeItem")} className="text-muted-foreground">
           <Trash2 className="size-4" />
         </button>
       </div>
-      <div className="mt-2 grid grid-cols-5 gap-2 text-xs">
-        <label className="flex flex-col rounded-lg bg-background/60 px-2 py-1">
+      <div className="mt-2 grid grid-cols-5 gap-1.5 text-xs">
+        <label className="flex flex-col rounded-md bg-card px-2 py-1.5">
           <span className="text-muted-foreground">g</span>
           <input
             inputMode="decimal"
@@ -73,7 +73,7 @@ export function ItemRow({
           />
         </label>
         {(["kcal", "protein_g", "carbs_g", "fat_g"] as const).map((k) => (
-          <label key={k} className="flex flex-col rounded-lg bg-background/60 px-2 py-1">
+          <label key={k} className="flex flex-col rounded-md bg-card px-2 py-1.5">
             <span className={cn("text-muted-foreground", k === "protein_g" && "text-protein", k === "carbs_g" && "text-carbs", k === "fat_g" && "text-fat")}>
               {t(`short.${k}`)}
             </span>
@@ -90,7 +90,7 @@ export function ItemRow({
           </label>
         ))}
       </div>
-      {item.assumptions && <p className="mt-2 text-xs text-muted-foreground">{item.assumptions}</p>}
+      {item.assumptions && <p className="mt-2 text-[13px] text-muted-foreground">{item.assumptions}</p>}
     </div>
   );
 }
