@@ -140,7 +140,11 @@
       "averaged": "Activity (avg, no watch data)"
     },
     "garminReauth": "Garmin needs you to sign in again.",
-    "garminReauthCta": "Reconnect"
+    "garminReauthCta": "Reconnect",
+    "prevWeek": "Previous week",
+    "nextWeek": "Next week",
+    "backToToday": "Today",
+    "weekStrip": "This week"
   },
   "weight": {
     "title": "Log weight",
