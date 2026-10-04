@@ -51,7 +51,7 @@ export function WeightSheet({ open, onOpenChange }: { open: boolean; onOpenChang
       <div className="flex flex-col gap-4 pt-2">
         <NumberField label={t("weight")} unit="kg" value={value} onChange={setValue} hint={t("hint")} />
         <PhotoPicker photos={photos} onChange={setPhotos} label={t("addPhoto")} />
-        <Button size="lg" className="h-14 rounded-2xl text-base" disabled={kg == null || kg < 20 || saving} onClick={save}>
+        <Button size="lg" className="h-14 text-base" disabled={kg == null || kg < 20 || saving} onClick={save}>
           {t("save")}
         </Button>
       </div>

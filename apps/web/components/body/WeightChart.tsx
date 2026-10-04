@@ -93,8 +93,8 @@ export function WeightChart({
               formatter={(v) => `${Number(v).toFixed(1)} kg`}
             />
             <ReferenceLine y={goalKg} stroke="var(--success)" strokeDasharray="4 4" />
-            <Scatter data={points} dataKey="weight" fill="var(--muted-foreground)" fillOpacity={0.5} name={t("weight")} />
-            <Line data={points} dataKey="trend" stroke="var(--primary)" strokeWidth={2.5} dot={false} type="monotone" name={t("trend")} />
+            <Scatter data={points} dataKey="weight" fill="var(--muted-foreground)" fillOpacity={0.4} name={t("weight")} />
+            <Line data={points} dataKey="trend" stroke="var(--foreground)" strokeWidth={2.5} dot={false} type="monotone" name={t("trend")} />
             {forecast.length > 0 && (
               <Line data={forecast} dataKey="forecast" stroke="var(--primary)" strokeDasharray="5 5" dot={false} name={t("forecast")} />
             )}

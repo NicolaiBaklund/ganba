@@ -5,6 +5,7 @@ import { currentRow, getProfile } from "@/lib/db/current";
 import { WeightChart } from "@/components/body/WeightChart";
 import { WeightList } from "@/components/body/WeightList";
 import { PhotoGallery } from "@/components/body/PhotoGallery";
+import { SectionHead } from "@/components/tasuki/SectionHead";
 
 export default async function BodyPage() {
   const t = await getTranslations("body");
@@ -47,29 +48,43 @@ export default async function BodyPage() {
     return url && date ? [{ id: p.id, url, date }] : [];
   });
 
+  const kgWeek = change == null ? null : `${change > 0 ? "+" : change < 0 ? "−" : ""}${Math.abs(change).toFixed(1)}`;
+  const goalLine = goalKg
+    ? fc.etaDate
+      ? t("goalEta", { kg: goalKg, date: format.dateTime(new Date(`${fc.etaDate}T00:00:00Z`), { day: "numeric", month: "short", timeZone: "UTC" }) })
+      : t("goalOnly", { kg: goalKg })
+    : null;
+
   return (
-    <main className="flex flex-col gap-4 px-4 pt-4">
-      <h1 className="font-heading text-2xl font-bold">{t("title")}</h1>
+    <main className="flex flex-col px-[18px] pb-4 pt-5">
+      <h1 className="cond text-[34px] leading-none">{t("title")}</h1>
 
-      <section className="grid grid-cols-3 gap-2">
-        <Stat label={t("trend")} value={current?.toFixed(1) ?? "–"} unit="kg" />
-        <Stat label={t("perWeek")} value={change == null ? "–" : `${change > 0 ? "+" : ""}${change.toFixed(1)}`} unit="kg" />
-        <Stat label={t("goal")} value={goalKg ? String(goalKg) : "–"} unit="kg" />
-      </section>
-      {fc.etaDate && (
-        <p className="-mt-2 text-sm text-muted-foreground">
-          {t("eta", { date: format.dateTime(new Date(`${fc.etaDate}T00:00:00Z`), { day: "numeric", month: "long", year: "numeric" }) })}
+      <div className="mt-4 flex items-end justify-between gap-3">
+        <p className="num text-[72px] font-black leading-[.9] [font-stretch:62%]">
+          {current?.toFixed(1) ?? "–"}
+          <span className="ml-1 text-xl font-bold text-muted-foreground [font-stretch:75%]">kg</span>
         </p>
-      )}
+        <p className="pb-1 text-right text-[13px] leading-normal text-muted-foreground">
+          {kgWeek != null && (
+            <>
+              <b className="num text-base font-extrabold text-foreground">{kgWeek} kg</b> {t("perWeek").toLowerCase()}
+              <br />
+            </>
+          )}
+          {goalLine}
+        </p>
+      </div>
 
-      <section className="rounded-3xl bg-card p-4">
+      <div className="mt-5">
         <WeightChart trend={trend} goalKg={goalKg} today={today} etaDate={fc.etaDate} />
-      </section>
+      </div>
 
-      <h2 className="mt-2 font-heading text-lg font-semibold">{t("photos")}</h2>
-      <PhotoGallery photos={photos} />
+      <SectionHead title={t("photos")} />
+      <div className="mt-3">
+        <PhotoGallery photos={photos} />
+      </div>
 
-      <h2 className="mt-2 font-heading text-lg font-semibold">{t("history")}</h2>
+      <SectionHead title={t("history")} />
       <WeightList
         rows={weights.slice(0, 60).map((w) => ({
           id: w.id,
@@ -79,17 +94,5 @@ export default async function BodyPage() {
         }))}
       />
     </main>
-  );
-}
-
-function Stat({ label, value, unit }: { label: string; value: string; unit: string }) {
-  return (
-    <div className="rounded-2xl bg-card p-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="num mt-1 text-xl font-bold">
-        {value}
-        <span className="ml-0.5 text-xs font-medium text-muted-foreground">{unit}</span>
-      </p>
-    </div>
   );
 }

@@ -161,7 +161,7 @@
   "weight": {
     "title": "Log weight",
     "weight": "Weight",
-    "hint": "Best: morning, after the toilet, before food.",
+    "hint": "Best in the morning, before food.",
     "addPhoto": "Photo",
     "save": "Save",
     "saved": "Weight saved",
@@ -176,11 +176,9 @@
     "goal": "Goal",
     "weight": "Weight",
     "forecast": "Forecast",
-    "eta": "At this pace you reach your goal around {date}.",
     "noData": "No weigh-ins yet.",
     "photos": "Progress photos",
     "noPhotos": "No photos yet. Add one when you log your weight.",
-    "compareHint": "Tap two photos to compare them side by side.",
     "history": "History",
     "delete": "Delete",
     "confirmDelete": "Delete?",
@@ -189,7 +187,9 @@
       "1m": "1 month",
       "3m": "3 months",
       "all": "All"
-    }
+    },
+    "goalEta": "Goal {kg} kg around {date}.",
+    "goalOnly": "Goal {kg} kg."
   },
   "profile": {
     "title": "Profile",

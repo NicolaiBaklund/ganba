@@ -17,7 +17,7 @@ export function PhotoGallery({ photos }: { photos: BodyPhoto[] }) {
   const format = useFormatter();
   const fmt = (d: string) => format.dateTime(new Date(`${d}T00:00:00Z`), { day: "numeric", month: "short", year: "numeric" });
 
-  if (!photos.length) return <p className="py-6 text-center text-sm text-muted-foreground">{t("noPhotos")}</p>;
+  if (!photos.length) return <p className="text-[13px] text-muted-foreground">{t("noPhotos")}</p>;
 
   const toggle = (id: string) =>
     setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id].slice(-2)));
@@ -28,7 +28,7 @@ export function PhotoGallery({ photos }: { photos: BodyPhoto[] }) {
       {compare.length === 2 && (
         <div className="grid grid-cols-2 gap-2">
           {compare.map((p) => (
-            <figure key={p.id} className="overflow-hidden rounded-2xl bg-card">
+            <figure key={p.id} className="overflow-hidden rounded-md bg-card">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={p.url} alt="" className="aspect-[3/4] w-full object-cover" />
               <figcaption className="p-2 text-center text-xs text-muted-foreground">{fmt(p.date)}</figcaption>
@@ -36,13 +36,12 @@ export function PhotoGallery({ photos }: { photos: BodyPhoto[] }) {
           ))}
         </div>
       )}
-      <p className="text-xs text-muted-foreground">{t("compareHint")}</p>
       <div className="grid grid-cols-3 gap-2">
         {photos.map((p) => (
           <button
             key={p.id}
             onClick={() => toggle(p.id)}
-            className={cn("relative overflow-hidden rounded-xl ring-2 ring-transparent", picked.includes(p.id) && "ring-primary")}
+            className={cn("relative overflow-hidden rounded-sm ring-2 ring-transparent", picked.includes(p.id) && "ring-primary")}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={p.url} alt="" className="aspect-square w-full object-cover" />

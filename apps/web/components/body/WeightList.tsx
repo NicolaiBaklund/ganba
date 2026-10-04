@@ -27,15 +27,15 @@ export function WeightList({ rows }: { rows: WeightRow[] }) {
   }
 
   return (
-    <ul className="divide-y divide-border rounded-3xl bg-card px-4">
+    <ul>
       {rows.map((r) => (
-        <li key={r.id} className="flex items-center justify-between py-3 text-sm">
-          <span className="text-muted-foreground">
+        <li key={r.id} className="flex items-center justify-between border-b border-border py-3">
+          <span className="font-bold">
             {format.dateTime(new Date(`${r.local_date}T00:00:00Z`), { weekday: "short", day: "numeric", month: "short" })}
           </span>
           <span className="flex items-center gap-3">
             {r.photoCount > 0 && <Camera className="size-4 text-muted-foreground" />}
-            <span className="num font-semibold">{Number(r.weight_kg).toFixed(1)} kg</span>
+            <span className="num text-[17px] font-extrabold">{Number(r.weight_kg).toFixed(1)} kg</span>
             {confirm === r.id ? (
               <button onClick={() => remove(r.id)} className="text-xs font-semibold text-destructive">
                 {t("confirmDelete")}
