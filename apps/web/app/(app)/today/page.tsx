@@ -1,54 +1,63 @@
-import { dailyTarget } from "@loop/core";
-import { requireUser } from "@/lib/supabase/server";
-import { getDaySnapshot } from "@/lib/db/today";
-import { ensureWeeklyCheckin, type CheckinRow } from "@/lib/db/checkin";
-import { currentRow, getProfile, toEnergyPlan, type DB } from "@/lib/db/current";
-import { DateNav } from "@/components/today/DateNav";
-import { KcalCard } from "@/components/today/KcalCard";
-import { MealsList } from "@/components/today/MealsList";
-import { WeightCard } from "@/components/today/WeightCard";
-import { CheckinCard, type CheckinView } from "@/components/today/CheckinCard";
-import { WorkoutCard } from "@/components/today/WorkoutCard";
-import { TargetBreakdown } from "@/components/today/TargetBreakdown";
-import { todaysWorkout } from "@/lib/training/view";
+import { dailyTarget, KCAL_PER_KG } from "@loop/core";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { KCAL_PER_KG } from "@loop/core";
+import { requireUser } from "@/lib/supabase/server";
+import { getDaySnapshot } from "@/lib/db/today";
+import { loadWeekStrip } from "@/lib/db/week";
+import { ensureWeeklyCheckin, type CheckinRow } from "@/lib/db/checkin";
+import { currentRow, getProfile, toEnergyPlan, type DB } from "@/lib/db/current";
+import { nextWorkout, todaysWorkout } from "@/lib/training/view";
+import { WeekStrip } from "@/components/today/WeekStrip";
+import { TodayBib } from "@/components/today/TodayBib";
+import { KcalBlock } from "@/components/today/KcalBlock";
+import { MealsList } from "@/components/today/MealsList";
+import { WeightRow } from "@/components/today/WeightRow";
+import { CheckinCard, type CheckinView } from "@/components/today/CheckinCard";
 
 export default async function TodayPage({ searchParams }: PageProps<"/today">) {
   const { date } = await searchParams;
   const { supabase, user } = await requireUser();
   const snap = await getDaySnapshot(supabase, user.id, typeof date === "string" ? date : undefined);
-  const [checkinView, session, t] = await Promise.all([
+  const [checkinView, session, week, t] = await Promise.all([
     snap.date === snap.today
       ? ensureWeeklyCheckin(supabase, user.id).then((c) => (c ? toCheckinView(supabase, user.id, c, snap) : null))
       : null,
     snap.garmin ? todaysWorkout(user.id, snap.date) : { plan: false, workout: null },
+    loadWeekStrip(supabase, user.id, snap.date),
     getTranslations("today"),
   ]);
+  const next = session.plan && !session.workout ? await nextWorkout(user.id, snap.date) : null;
+  const activity = snap.activity && !snap.manualTarget && !snap.target.floored ? snap.activity.total : null;
+  const goalKcal = Math.round((snap.goal.rateKgPerWeek * KCAL_PER_KG) / 7);
 
   return (
-    <main className="flex flex-col gap-3 px-4">
-      <DateNav date={snap.date} today={snap.today} basePath="/today" profileLink />
+    <main className="flex flex-col px-[18px] pb-4">
+      <WeekStrip days={week} date={snap.date} today={snap.today} basePath="/today" profileLink />
       {snap.garmin?.status === "reauth_required" && (
-        <Link href="/profile#garmin" className="flex items-center justify-between gap-3 rounded-2xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
+        <Link href="/profile#garmin" className="mt-4 flex items-center justify-between gap-3 rounded-md border border-warning/50 bg-warning/10 px-4 py-3 text-sm">
           <span>{t("garminReauth")}</span>
           <span className="shrink-0 font-semibold text-warning">{t("garminReauthCta")}</span>
         </Link>
       )}
-      {checkinView && <CheckinCard view={checkinView} />}
-      {session.plan && <WorkoutCard workout={session.workout} kg={snap.latestTrendKg ?? 70} />}
-      <KcalCard intake={snap.intake} target={snap.macrosTarget} floored={snap.target.floored} />
-      {snap.activity && !snap.manualTarget && !snap.target.floored && (
-        <TargetBreakdown baseKcal={snap.baseKcal} activity={snap.activity} goalKcal={Math.round((snap.goal.rateKgPerWeek * KCAL_PER_KG) / 7)} />
+      {session.plan && (
+        <div className="mt-4">
+          <TodayBib workout={session.workout} kg={snap.latestTrendKg ?? 70} next={next} />
+        </div>
       )}
-      <MealsList entries={snap.entries} date={snap.date} />
-      <WeightCard
-        trendKg={snap.latestTrendKg}
-        weeklyChangeKg={snap.weeklyChangeKg}
-        goalKg={snap.goal.targetWeightKg}
-        trend={snap.trend}
+      <KcalBlock
+        intake={snap.intake}
+        target={snap.macrosTarget}
+        floored={snap.target.floored}
+        activityKcal={activity}
+        breakdown={activity != null ? { base: snap.baseKcal, activity, goal: goalKcal } : null}
       />
+      <MealsList entries={snap.entries} date={snap.date} />
+      {checkinView && (
+        <div className="mt-6">
+          <CheckinCard view={checkinView} />
+        </div>
+      )}
+      <WeightRow trendKg={snap.latestTrendKg} weeklyChangeKg={snap.weeklyChangeKg} goalKg={snap.goal.targetWeightKg} etaDate={snap.forecast.etaDate} />
     </main>
   );
 }

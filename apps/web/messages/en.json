@@ -127,7 +127,7 @@
     "carbs": "Carbs",
     "fat": "Fat",
     "floored": "Target is at the safe minimum. Consider a slower rate.",
-    "noMeals": "Nothing logged yet. Tap + to log a meal.",
+    "noMeals": "Nothing logged yet.",
     "trendWeight": "Trend weight",
     "perWeek": "/wk",
     "goal": "Goal",
@@ -148,7 +148,15 @@
     "activityTag": "+{kcal} activity",
     "leftToday": "kcal left today",
     "overToday": "kcal over today",
-    "targetHow": "How today's target is set"
+    "targetHow": "How today's target is set",
+    "meals": "Meals",
+    "add": "Add",
+    "weight": "Weight",
+    "weightDown": "Down {kg} kg a week.",
+    "weightUp": "Up {kg} kg a week.",
+    "weightSteady": "Steady.",
+    "goalEta": "Goal {kg} kg around {date}.",
+    "goalOnly": "Goal {kg} kg."
   },
   "weight": {
     "title": "Log weight",
@@ -349,7 +357,11 @@
       "tempo": "Marathon pace",
       "strides": "Strides",
       "race": "Race"
-    }
+    },
+    "next": "Next:",
+    "nextText": "{day}, {type} {km} km",
+    "bibMeta": "{km} km in about {time}",
+    "doneKm": "Done: {km} km"
   },
   "training": {
     "title": "Training",
@@ -506,8 +518,8 @@
     "duringPlan": "{lo}–{hi} g carbs and {flo}–{fhi} dl fluid per hour",
     "afterProtein": "{p} g protein within 2 h",
     "afterBoth": "{p} g protein + {c} g carbs within 2 h",
-    "lineCarbs": "{g} g carbs before · {p} g protein after",
-    "lineMeal": "Meal 2–3 h before · {p} g protein after",
+    "lineCarbs": "{g} g carbs before, {p} g protein after",
+    "lineMeal": "Meal 2–3 h before, {p} g protein after",
     "suggest": "Suggest food",
     "suggesting": "Thinking…",
     "ideas": "Ideas"

@@ -1,50 +1,36 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { Sparkles } from "lucide-react";
 import { MEAL_ORDER } from "@/lib/dates";
 import { sumItems, type FoodEntryWithItems } from "@/lib/db/today";
+import { ListRow } from "@/components/tasuki/ListRow";
+import { SectionHead } from "@/components/tasuki/SectionHead";
 
+/** The day's meals as one list: meal, what was in it, kcal. Tap opens the day on the Food tab. */
 export async function MealsList({ entries, date }: { entries: FoodEntryWithItems[]; date: string }) {
   const t = await getTranslations("today");
   const tm = await getTranslations("meals");
-
-  if (!entries.length) {
-    return (
-      <section className="rounded-3xl border border-dashed border-border p-5 text-center text-sm text-muted-foreground">
-        {t("noMeals")}
-      </section>
-    );
-  }
+  const add = (
+    <Link href={`/food/log?mode=text&date=${date}`} className="text-[13px] font-semibold text-primary">
+      {t("add")}
+    </Link>
+  );
 
   return (
-    <section className="flex flex-col gap-2">
+    <section>
+      <SectionHead title={t("meals")} action={add} />
+      {!entries.length && <p className="border-b border-border py-3 text-[13px] text-muted-foreground">{t("noMeals")}</p>}
       {MEAL_ORDER.map((meal) => {
         const list = entries.filter((e) => e.meal_type === meal);
         if (!list.length) return null;
-        const total = sumItems(list.flatMap((e) => e.items)).kcal;
+        const items = list.flatMap((e) => e.items);
         return (
-          <div key={meal} className="rounded-3xl bg-card p-4">
-            <div className="mb-2 flex items-baseline justify-between">
-              <h3 className="font-heading font-semibold">{tm(meal)}</h3>
-              <span className="num text-sm text-muted-foreground">{Math.round(total)} kcal</span>
-            </div>
-            <ul className="flex flex-col">
-              {list.map((e) => (
-                <li key={e.id}>
-                  <Link
-                    href={`/food?date=${date}#${e.id}`}
-                    className="flex items-center justify-between gap-3 py-1.5 text-sm"
-                  >
-                    <span className="flex min-w-0 items-center gap-1.5 truncate">
-                      {e.source === "ai" && <Sparkles className="size-3.5 shrink-0 text-primary" />}
-                      <span className="truncate">{e.items.map((i) => i.name).join(", ")}</span>
-                    </span>
-                    <span className="num shrink-0 text-muted-foreground">{Math.round(sumItems(e.items).kcal)}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <ListRow
+            key={meal}
+            href={`/food?date=${date}#${list[0]!.id}`}
+            title={tm(meal)}
+            sub={items.map((i) => i.name).join(", ")}
+            value={Math.round(sumItems(items).kcal)}
+          />
         );
       })}
     </section>

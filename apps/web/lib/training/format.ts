@@ -33,3 +33,9 @@ export function parseClock(s: string): number | null {
 
 /** Garmin speed (m/s) → s/km. */
 export const paceFromSpeed = (mps: number | null | undefined): number | null => (mps && mps > 0 ? 1000 / mps : null);
+
+/** Big bib number for a session: "5×1" + "km" from "Intervals 5 × 1 km", else the planned km. */
+export function bibNumber(title: string, km: number): { big: string; unit: string } {
+  const m = title.match(/(\d+)\s*[×x]\s*(\d+(?:\.\d+)?)\s*(km|m|min)\b/);
+  return m ? { big: `${m[1]}×${m[2]}`, unit: m[3]! } : { big: String(km), unit: "km" };
+}
