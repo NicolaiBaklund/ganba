@@ -174,6 +174,13 @@ def op_fetch(b: dict[str, Any]) -> dict[str, Any]:
 MAX_RECOVERY_DATES = 24
 
 
+def _without_series(payload: Any) -> Any:
+    """Top-level fields only: the per-minute lists (~100 KB a night) are unused and would bloat the response."""
+    if not isinstance(payload, dict):
+        return payload
+    return {k: v for k, v in payload.items() if not isinstance(v, list)}
+
+
 def op_fetch_recovery(b: dict[str, Any]) -> dict[str, Any]:
     """Sleep (with score, resting HR, overnight HRV, Body Battery) and the HRV summary (baseline) per date."""
     tokens = b["tokens"]
@@ -183,11 +190,11 @@ def op_fetch_recovery(b: dict[str, Any]) -> dict[str, Any]:
     for d in list(b["dates"])[:MAX_RECOVERY_DATES]:
         night: dict[str, Any] = {"date": d, "sleep": None, "hrv": None}
         try:
-            night["sleep"] = g.get_sleep_data(d)
+            night["sleep"] = _without_series(g.get_sleep_data(d))
         except (GarminConnectConnectionError, requests.exceptions.RequestException):
             pass
         try:
-            night["hrv"] = g.get_hrv_data(d)
+            night["hrv"] = _without_series(g.get_hrv_data(d))
         except (GarminConnectConnectionError, requests.exceptions.RequestException):
             pass
         nights.append(night)

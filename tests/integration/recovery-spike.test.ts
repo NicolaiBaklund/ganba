@@ -21,6 +21,7 @@ describe.skipIf(!process.env.SPIKE_EMAIL)("spike: real Garmin recovery payloads"
     expect(tokens).toBeTruthy();
     const today = localDate(profile?.timezone ?? "UTC");
     const res = await httpGarmin().fetchRecovery(tokens!, [addDays(today, -1), addDays(today, -40)]);
+    console.log(`response size for ${res.nights.length} nights: ${JSON.stringify(res).length} bytes`);
     for (const n of res.nights) {
       console.log(`=== ${n.date} SLEEP\n${paths(n.sleep).join("\n")}\n=== ${n.date} HRV\n${paths(n.hrv).join("\n")}`);
     }
