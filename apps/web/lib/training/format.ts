@@ -22,13 +22,26 @@ export const fmtPaceRange = (t: Target): string | null =>
 
 /** "1:45:00", "45:30" or "45" (minutes) → seconds; null when invalid. */
 export function parseClock(s: string): number | null {
-  const parts = s.trim().split(":").map((p) => p.trim());
+  // ":" "." "," and spaces all separate (phone number pads have no colon).
+  const parts = s.trim().split(/[:.,\s]+/).filter(Boolean);
   if (!parts.length || parts.some((p) => !/^\d+$/.test(p))) return null;
   const n = parts.map(Number);
   if (n.length === 1) return n[0]! * 60;
   if (n.length === 2) return n[0]! * 60 + n[1]!;
   if (n.length === 3) return n[0]! * 3600 + n[1]! * 60 + n[2]!;
   return null;
+}
+
+/**
+ * Formats typed digits as a clock while typing, so a number pad is enough:
+ * "4700" → "47:00", "14500" → "1:45:00". Input that already has separators is kept as typed.
+ */
+export function clockInput(raw: string): string {
+  if (/[:.,\s]/.test(raw)) return raw.replace(/[^\d:.,\s]/g, "").slice(0, 8);
+  const d = raw.replace(/\D/g, "").slice(0, 6);
+  if (d.length <= 2) return d;
+  if (d.length <= 4) return `${d.slice(0, -2)}:${d.slice(-2)}`;
+  return `${d.slice(0, -4)}:${d.slice(-4, -2)}:${d.slice(-2)}`;
 }
 
 /** Garmin speed (m/s) → s/km. */

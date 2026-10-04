@@ -6,7 +6,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/common/Chip";
-import { fmtClock, parseClock, typeColor } from "@/lib/training/format";
+import { clockInput, fmtClock, parseClock, typeColor } from "@/lib/training/format";
 import type { WorkoutType } from "@loop/core";
 
 type Distance = "5k" | "10k" | "half" | "marathon";
@@ -149,7 +149,7 @@ export function PlanWizard({ minDate }: { minDate: string }) {
                   inputMode="numeric"
                   placeholder="0:50:00"
                   value={targetTime}
-                  onChange={(e) => setTargetTime(e.target.value)}
+                  onChange={(e) => setTargetTime(clockInput(e.target.value.replace(/:/g, "")))}
                   className="num h-14 rounded-md border border-border bg-card px-4 text-base text-foreground outline-none focus:border-primary"
                 />
                 <span className="text-xs">{t("targetTimeHint")}</span>
@@ -209,7 +209,7 @@ export function PlanWizard({ minDate }: { minDate: string }) {
                 inputMode="numeric"
                 placeholder={t("recentTime")}
                 value={recentTime}
-                onChange={(e) => setRecentTime(e.target.value)}
+                onChange={(e) => setRecentTime(clockInput(e.target.value.replace(/:/g, "")))}
                 className="num mt-2 h-12 w-full rounded-md border border-border bg-card px-4 outline-none focus:border-primary"
               />
             )}

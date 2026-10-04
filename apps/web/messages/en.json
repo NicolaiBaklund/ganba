@@ -438,7 +438,7 @@
     "build": "Build fitness",
     "raceDate": "Race date",
     "targetTime": "Target time (optional)",
-    "targetTimeHint": "h:mm:ss or mm:ss. Leave empty to use your predicted time.",
+    "targetTimeHint": "Just type the digits, e.g. 4700 = 47:00 — leave empty to use your predicted time",
     "daysTitle": "When can you run?",
     "days": "Days you can run",
     "runs": "Runs per week",
