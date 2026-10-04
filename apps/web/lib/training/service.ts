@@ -9,8 +9,6 @@ import {
   missedProposal,
   pacesProposal,
   slowerPacesProposal,
-  pacesFor,
-  type QualityResult,
   volumeProposal,
   applyChanges,
   vdotFrom,
@@ -31,6 +29,8 @@ import type { Database, Json } from "@/lib/db/types";
 import { httpGarmin, type GarminSource } from "@/lib/garmin/adapter";
 import { loadTokens, updateTokens } from "@/lib/garmin/accounts";
 import { toGarminWorkout } from "@/lib/garmin/workout-json";
+import { computeRecovery } from "@/lib/recovery/compute";
+import { qualityResultsBetween } from "./quality";
 
 type Tables = Database["public"]["Tables"];
 export type PlanRow = Tables["training_plans"]["Row"];
@@ -308,42 +308,6 @@ export async function planWorkoutsWithKm(plan: PlanRow): Promise<PlanWorkout[]> 
   return rows.map((r) => toPlanWorkout(r, r.activity_id ? km.get(r.activity_id) : null));
 }
 
-/**
- * How the hard parts of recent quality sessions went: planned pace of the non-easy run steps vs. the
- * pace of laps clearly faster than easy (the reps), weighted by distance. Needs Garmin laps.
- */
-async function qualityResults(plan: PlanRow, today: ISODate): Promise<QualityResult[]> {
-  const { data: done } = await db()
-    .from("planned_workouts")
-    .select("date, blocks, activity_id")
-    .eq("plan_id", plan.id)
-    .eq("status", "done")
-    .in("type", ["intervals", "threshold", "tempo"])
-    .gte("date", addDays(today, -21))
-    .not("activity_id", "is", null);
-  if (!done?.length) return [];
-  const { data: acts } = await db().from("activities").select("id, splits").in("id", done.map((w) => w.activity_id!));
-  const lapsOf = new Map((acts ?? []).map((a) => [a.id, ((a.splits as { lapDTOs?: { distance?: number | null; duration?: number | null }[] } | null)?.lapDTOs ?? [])]));
-  const easyFastest = pacesFor(Number(plan.vdot)).easy.min;
-
-  const out: QualityResult[] = [];
-  for (const w of done) {
-    const steps = (w.blocks as unknown as Block[]).flatMap((b) => (b.kind === "repeat" ? b.steps : [b]));
-    const hard = steps.filter((s) => s.kind === "run" && s.target.kind === "pace" && s.target.zone !== "easy");
-    if (!hard.length || hard[0]!.target.kind !== "pace") continue;
-    const zone = hard[0]!.target.zone as QualityResult["zone"];
-    if (zone !== "interval" && zone !== "threshold" && zone !== "marathon") continue;
-    const planned = hard.reduce((s, x) => s + (x.target.kind === "pace" ? (x.target.minSecPerKm + x.target.maxSecPerKm) / 2 : 0), 0) / hard.length;
-    const work = (lapsOf.get(w.activity_id!) ?? [])
-      .map((l) => ({ m: Number(l.distance ?? 0), s: Number(l.duration ?? 0) }))
-      .filter((l) => l.m >= 200 && l.s >= 45 && l.s / (l.m / 1000) < easyFastest);
-    const m = work.reduce((a, l) => a + l.m, 0);
-    if (m < 1000) continue;
-    out.push({ date: w.date, zone, plannedSecPerKm: planned, actualSecPerKm: work.reduce((a, l) => a + l.s, 0) / (m / 1000) });
-  }
-  return out;
-}
-
 /** Engine proposals, created lazily (on page load / after sync). At most one pending per kind. */
 export async function refreshProposals(userId: string, today: ISODate): Promise<void> {
   const plan = await activePlan(userId);
@@ -370,7 +334,7 @@ export async function refreshProposals(userId: string, today: ISODate): Promise<
     !pendingKinds.has("missed") ? missedProposal(workouts, ctx, proposed) : null,
     !pendingKinds.has("paces") && !recent("paces")
       ? (pacesProposal(Number(plan.vdot), (await currentFitness(userId, today)).vdot) ??
-        slowerPacesProposal(Number(plan.vdot), await qualityResults(plan, today), today))
+        slowerPacesProposal(Number(plan.vdot), await qualityResultsBetween(userId, addDays(today, -21), today, plan.id), today))
       : null,
     !pendingKinds.has("volume") && !recent("volume") ? volumeProposal(workouts, ctx) : null,
   ].filter((p) => p != null);
@@ -499,4 +463,10 @@ export async function afterGarminSync(userId: string, today: ISODate, source?: G
   await reconcilePlan(userId, today);
   await refreshProposals(userId, today);
   await pushToGarmin(userId, today, source);
+  // Recovery never blocks training upkeep.
+  try {
+    await computeRecovery(userId, today);
+  } catch (e) {
+    console.error("recovery compute failed", userId, e instanceof Error ? e.message : e);
+  }
 }
