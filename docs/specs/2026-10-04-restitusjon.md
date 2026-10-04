@@ -42,6 +42,21 @@ En ny fane, **Recovery**, som viser **sammenhenger over tid** i brukerens egne d
 
 Adapteret får en ny kommando `fetch_recovery {tokens, dates[]}` som per dato henter søvn (dagssvaret inneholder søvnscore, hvilepuls, HRV-snitt, Body Battery-endring) og HRV-endepunktet (baseline). To kall per dag. Feltnavn verifiseres mot brukerens ekte konto i en spike før motoren bygges på dem.
 
+**Feltnavn (verifisert 2026-10-04 mot ekte konto):**
+
+| Felt i `recovery_days` | Sti i Garmin-svaret |
+|---|---|
+| local_date | `sleep.dailySleepDTO.calendarDate` (= morgenen man våkner, samme som forespurt dato) |
+| sleep_s, deep_s, light_s, rem_s, awake_s | `sleep.dailySleepDTO.{sleepTimeSeconds, deepSleepSeconds, lightSleepSeconds, remSleepSeconds, awakeSleepSeconds}` |
+| sleep_score | `sleep.dailySleepDTO.sleepScores.overall.value` |
+| sleep_start, sleep_end | `sleep.dailySleepDTO.sleepStartTimestampGMT` / `sleepEndTimestampGMT` (ms) |
+| resting_hr | `sleep.restingHeartRate` |
+| hrv_avg | `hrv.hrvSummary.lastNightAvg` (ellers `sleep.avgOvernightHrv`) |
+| hrv_baseline_low, hrv_baseline_high | `hrv.hrvSummary.baseline.balancedLow` / `balancedUpper` |
+| hrv_status | `hrv.hrvSummary.status` |
+| body_battery_charged | `sleep.bodyBatteryChange` |
+| activities.te_aerobic, te_anaerobic | aktivitetens `aerobicTrainingEffect` / `anaerobicTrainingEffect` (desimaltall) |
+
 ### 4.2 Datoer
 Søvn hører til **morgenen man våkner** (Garmins `calendarDate`). Natta mandag→tirsdag lagres på tirsdag og sammenlignes med mat/trening mandag.
 
