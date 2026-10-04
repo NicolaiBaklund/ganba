@@ -58,6 +58,8 @@ export type Database = {
           splits: Json | null
           start_time: string
           steps: number | null
+          te_aerobic: number | null
+          te_anaerobic: number | null
           type_key: string
           updated_at: string
           user_id: string
@@ -80,6 +82,8 @@ export type Database = {
           splits?: Json | null
           start_time: string
           steps?: number | null
+          te_aerobic?: number | null
+          te_anaerobic?: number | null
           type_key: string
           updated_at?: string
           user_id: string
@@ -102,6 +106,8 @@ export type Database = {
           splits?: Json | null
           start_time?: string
           steps?: number | null
+          te_aerobic?: number | null
+          te_anaerobic?: number | null
           type_key?: string
           updated_at?: string
           user_id?: string
@@ -337,6 +343,7 @@ export type Database = {
       }
       food_items: {
         Row: {
+          alcohol_g: number
           carbs_g: number
           confidence: Database["public"]["Enums"]["confidence"] | null
           created_at: string
@@ -351,6 +358,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          alcohol_g?: number
           carbs_g?: number
           confidence?: Database["public"]["Enums"]["confidence"] | null
           created_at?: string
@@ -365,6 +373,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          alcohol_g?: number
           carbs_g?: number
           confidence?: Database["public"]["Enums"]["confidence"] | null
           created_at?: string
@@ -400,6 +409,8 @@ export type Database = {
           last_synced_date: string | null
           race_predictions: Json | null
           race_predictions_at: string | null
+          recovery_backfilled_until: string | null
+          recovery_computed_at: string | null
           status: Database["public"]["Enums"]["garmin_status"]
           sync_started_at: string | null
           updated_at: string
@@ -416,6 +427,8 @@ export type Database = {
           last_synced_date?: string | null
           race_predictions?: Json | null
           race_predictions_at?: string | null
+          recovery_backfilled_until?: string | null
+          recovery_computed_at?: string | null
           status?: Database["public"]["Enums"]["garmin_status"]
           sync_started_at?: string | null
           updated_at?: string
@@ -432,6 +445,8 @@ export type Database = {
           last_synced_date?: string | null
           race_predictions?: Json | null
           race_predictions_at?: string | null
+          recovery_backfilled_until?: string | null
+          recovery_computed_at?: string | null
           status?: Database["public"]["Enums"]["garmin_status"]
           sync_started_at?: string | null
           updated_at?: string
@@ -760,6 +775,138 @@ export type Database = {
           onboarded_at?: string | null
           sex?: Database["public"]["Enums"]["sex"]
           timezone?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      recovery_days: {
+        Row: {
+          awake_s: number | null
+          body_battery_charged: number | null
+          created_at: string
+          deep_s: number | null
+          hrv_avg: number | null
+          hrv_baseline_high: number | null
+          hrv_baseline_low: number | null
+          hrv_status: string | null
+          id: string
+          light_s: number | null
+          local_date: string
+          raw: Json | null
+          rem_s: number | null
+          resting_hr: number | null
+          sleep_end: string | null
+          sleep_s: number | null
+          sleep_score: number | null
+          sleep_start: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          awake_s?: number | null
+          body_battery_charged?: number | null
+          created_at?: string
+          deep_s?: number | null
+          hrv_avg?: number | null
+          hrv_baseline_high?: number | null
+          hrv_baseline_low?: number | null
+          hrv_status?: string | null
+          id?: string
+          light_s?: number | null
+          local_date: string
+          raw?: Json | null
+          rem_s?: number | null
+          resting_hr?: number | null
+          sleep_end?: string | null
+          sleep_s?: number | null
+          sleep_score?: number | null
+          sleep_start?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          awake_s?: number | null
+          body_battery_charged?: number | null
+          created_at?: string
+          deep_s?: number | null
+          hrv_avg?: number | null
+          hrv_baseline_high?: number | null
+          hrv_baseline_low?: number | null
+          hrv_status?: string | null
+          id?: string
+          light_s?: number | null
+          local_date?: string
+          raw?: Json | null
+          rem_s?: number | null
+          resting_hr?: number | null
+          sleep_end?: string | null
+          sleep_s?: number | null
+          sleep_score?: number | null
+          sleep_start?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      recovery_findings: {
+        Row: {
+          computed_at: string
+          control_ok: boolean | null
+          created_at: string
+          effect_sd: number | null
+          factor: string
+          groups: Json
+          id: string
+          kind: string
+          lag: number
+          outcome: string
+          p_value: number | null
+          q_value: number | null
+          question_id: string
+          rank: number | null
+          reason: string | null
+          source: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          computed_at: string
+          control_ok?: boolean | null
+          created_at?: string
+          effect_sd?: number | null
+          factor: string
+          groups: Json
+          id?: string
+          kind: string
+          lag: number
+          outcome: string
+          p_value?: number | null
+          q_value?: number | null
+          question_id: string
+          rank?: number | null
+          reason?: string | null
+          source?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          computed_at?: string
+          control_ok?: boolean | null
+          created_at?: string
+          effect_sd?: number | null
+          factor?: string
+          groups?: Json
+          id?: string
+          kind?: string
+          lag?: number
+          outcome?: string
+          p_value?: number | null
+          q_value?: number | null
+          question_id?: string
+          rank?: number | null
+          reason?: string | null
+          source?: string
           updated_at?: string
           user_id?: string
         }
