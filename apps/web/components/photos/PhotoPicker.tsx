@@ -46,7 +46,7 @@ export function PhotoPicker({
           <button
             type="button"
             onClick={() => onChange(photos.filter((_, j) => j !== i))}
-            className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5"
+            className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white"
             aria-label="Remove"
           >
             <X className="size-3.5" />

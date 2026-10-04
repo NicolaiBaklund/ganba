@@ -45,7 +45,7 @@ export function PhotoGallery({ photos }: { photos: BodyPhoto[] }) {
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={p.url} alt="" className="aspect-square w-full object-cover" />
-            <span className="absolute inset-x-0 bottom-0 bg-black/50 py-0.5 text-[10px]">{fmt(p.date)}</span>
+            <span className="absolute inset-x-0 bottom-0 bg-black/50 py-0.5 text-[10px] text-white">{fmt(p.date)}</span>
           </button>
         ))}
       </div>

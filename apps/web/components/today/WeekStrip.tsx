@@ -60,9 +60,10 @@ export async function WeekStrip({
                 {format.dateTime(new Date(`${d.date}T00:00:00Z`), { weekday: "narrow", timeZone: "UTC" })}
               </span>
               <b
+                aria-current={selected ? "date" : undefined}
                 className={cn(
                   "num mt-[3px] grid h-[34px] place-items-center rounded-md text-[15px] font-bold",
-                  selected ? "bg-primary text-primary-foreground" : d.logged && "bg-card",
+                  selected ? "bg-primary text-primary-foreground" : d.logged && "bg-card dark:shadow-[inset_0_0_0_1px_var(--muted-foreground)]",
                 )}
               >
                 {Number(d.date.slice(8))}

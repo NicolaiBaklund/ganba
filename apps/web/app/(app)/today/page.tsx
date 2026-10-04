@@ -51,7 +51,7 @@ export default async function TodayPage({ searchParams }: PageProps<"/today">) {
         activityKcal={activity}
         breakdown={activity != null ? { base: snap.baseKcal, activity, goal: goalKcal } : null}
       />
-      <MealsList entries={snap.entries} date={snap.date} />
+      <MealsList entries={snap.entries} date={snap.date} today={snap.today} />
       {checkinView && (
         <div className="mt-6">
           <CheckinCard view={checkinView} />

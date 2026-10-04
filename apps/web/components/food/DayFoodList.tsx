@@ -43,7 +43,7 @@ export function DayFoodList({
                         <img src={photo} alt="" className="size-11 shrink-0 rounded-sm object-cover" />
                       ) : (
                         <span className="flex size-11 shrink-0 items-center justify-center rounded-sm bg-card text-muted-foreground">
-                          {e.source === "ai" ? <Sparkles className="size-4 text-primary" /> : <Zap className="size-4 text-carbs" />}
+                          {e.source === "ai" ? <Sparkles className="size-4 text-primary" /> : <Zap className="size-4 text-carbs-ink" />}
                         </span>
                       )}
                       <span className="min-w-0 flex-1">

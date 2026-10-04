@@ -10,12 +10,12 @@ export function TargetSheet({ target, breakdown, children }: { target: number; b
   const signed = (n: number) => (n >= 0 ? `+ ${n}` : `− ${Math.abs(n)}`);
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="text-right">
+      <button type="button" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-label={t("targetHow")} className="text-right">
         {children}
       </button>
       <BottomSheet open={open} onOpenChange={setOpen} title={t("targetHow")}>
         <p className="num text-lg">
-          {t("breakdown.base")} <b>{breakdown.base}</b> {signed(breakdown.activity)} {t("breakdown.activity").toLowerCase()} − {t("breakdown.goal").toLowerCase()} <b>{breakdown.goal}</b> = <b className="text-primary">{target}</b>
+          {t("breakdown.base")} <b>{breakdown.base}</b> {signed(breakdown.activity)} {t("breakdown.activity").toLowerCase()} {signed(breakdown.goal)} {t("breakdown.goal").toLowerCase()} = <b className="text-primary">{target}</b>
         </p>
       </BottomSheet>
     </>

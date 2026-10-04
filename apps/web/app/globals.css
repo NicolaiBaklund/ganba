@@ -31,6 +31,10 @@
   --color-protein: var(--protein);
   --color-carbs: var(--carbs);
   --color-fat: var(--fat);
+  --color-protein-ink: var(--protein-ink);
+  --color-carbs-ink: var(--carbs-ink);
+  --color-fat-ink: var(--fat-ink);
+  --color-paper-success: var(--paper-success);
   --color-success: var(--success);
   --color-warning: var(--warning);
   --radius-sm: 4px;
@@ -64,8 +68,13 @@
   --protein: #e8336b;
   --carbs: #e89a1a;
   --fat: #7a5cf0;
-  --success: #138a5e;
-  --warning: #b86e00;
+  /* Macro colours as text: darker in light mode for 4.5:1 contrast */
+  --protein-ink: #c2185b;
+  --carbs-ink: #8f5600;
+  --fat-ink: #5a3fd1;
+  --paper-success: #0f7a52;
+  --success: #0f7a52;
+  --warning: #9a5b00;
   --w-easy: #1fa98a;
   --w-long: #2f6fd6;
   --w-intervals: #e8336b;
@@ -92,6 +101,10 @@
     --input: #3a3d44;
     --ring: #ff3b55;
     --primary: #ff3b55;
+    --primary-foreground: #000000;
+    --protein-ink: #e8336b;
+    --carbs-ink: #e89a1a;
+    --fat-ink: #9d85f5;
     --destructive: #ff5c5c;
     --success: #34d399;
     --warning: #ffb547;

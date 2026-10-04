@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { WeekView } from "@/lib/training/view";
 import { WorkoutRow } from "./WorkoutRow";
@@ -27,16 +27,19 @@ export function TrainingMap({
   const max = Math.max(1, ...[thisWeek, ...upcoming].filter(Boolean).map((w) => w!.plannedKm));
   const bar = (km: number) => `${Math.round((km / max) * 124)}px`;
 
-  const Stop = ({ w, now }: { w: WeekView; now?: boolean }) => {
+  // A render function, not a component: a nested component would remount on every toggle and drop focus.
+  const stop = (w: WeekView, now = false) => {
     const easy = EASY.has(w.phase);
     const isOpen = now || open === w.monday;
+    const panel = `week-${w.monday}`;
     return (
-      <>
+      <Fragment key={w.monday}>
         <button
           type="button"
           disabled={now}
           onClick={() => setOpen(isOpen ? null : w.monday)}
           aria-expanded={isOpen}
+          aria-controls={panel}
           className="relative grid min-h-[42px] w-full grid-cols-[30px_1fr_auto] items-center gap-2.5 text-left"
         >
           <span aria-hidden className={cn("absolute bottom-0 left-[11px] top-0 w-2", easy ? "bg-[repeating-linear-gradient(180deg,var(--muted-foreground)_0_5px,transparent_5px_9px)]" : "bg-foreground", now && "top-1/2")} />
@@ -54,23 +57,21 @@ export function TrainingMap({
           </span>
         </button>
         {isOpen && (
-          <div className="relative ml-10 pb-2">
+          <div id={panel} className="relative ml-10 pb-2">
             <span aria-hidden className="absolute -left-[29px] bottom-0 top-0 w-2 bg-foreground" />
             {w.workouts.map((x) => (
               <WorkoutRow key={x.id} w={x} today={today} />
             ))}
           </div>
         )}
-      </>
+      </Fragment>
     );
   };
 
   return (
     <div className="mt-5">
-      {thisWeek && <Stop w={thisWeek} now />}
-      {upcoming.map((w) => (
-        <Stop key={w.monday} w={w} />
-      ))}
+      {thisWeek && stop(thisWeek, true)}
+      {upcoming.map((w) => stop(w))}
       {raceLabel && (
         <div className="relative grid grid-cols-[30px_1fr_auto] items-center gap-2.5 pt-1.5">
           <span aria-hidden className="absolute left-[11px] top-0 h-1/2 w-2 bg-foreground" />

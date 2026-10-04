@@ -183,9 +183,9 @@ export default function OnboardingPage() {
             <Row label={t("result.goalAdjust")} value={result.target.kcal - result.est.maintenanceKcal} signed />
           </div>
           <div className="grid grid-cols-3 gap-2">
-            <Macro label={t("result.protein")} grams={result.macros.proteinG} color="text-protein" />
-            <Macro label={t("result.carbs")} grams={result.macros.carbsG} color="text-carbs" />
-            <Macro label={t("result.fat")} grams={result.macros.fatG} color="text-fat" />
+            <Macro label={t("result.protein")} grams={result.macros.proteinG} color="text-protein-ink" />
+            <Macro label={t("result.carbs")} grams={result.macros.carbsG} color="text-carbs-ink" />
+            <Macro label={t("result.fat")} grams={result.macros.fatG} color="text-fat-ink" />
           </div>
           <p className="text-xs text-muted-foreground">{t("result.adaptiveNote")}</p>
         </section>

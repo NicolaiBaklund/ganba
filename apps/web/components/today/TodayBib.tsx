@@ -46,7 +46,7 @@ export async function TodayBib({
       href={`/training/workout/${workout.id}`}
       meta={
         done && workout.actualKm != null ? (
-          <span className="inline-flex items-center gap-1 text-success">
+          <span className="inline-flex items-center gap-1 text-paper-success">
             <Check className="size-4" />
             {t("doneKm", { km: workout.actualKm })}
           </span>

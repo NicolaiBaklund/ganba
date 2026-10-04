@@ -224,9 +224,9 @@ export function FoodLogger({ hasKey, mode, date }: { hasKey: boolean; mode: "pho
                   {Math.round(totals.kcal)} <span className="text-xl font-bold text-muted-foreground [font-stretch:75%]">kcal</span>
                 </p>
                 <p className="num mt-1 flex gap-4 text-[15px] font-bold">
-                  <span className="text-protein">{Math.round(totals.proteinG)}g P</span>
-                  <span className="text-carbs">{Math.round(totals.carbsG)}g C</span>
-                  <span className="text-fat">{Math.round(totals.fatG)}g F</span>
+                  <span className="text-protein-ink">{Math.round(totals.proteinG)}g P</span>
+                  <span className="text-carbs-ink">{Math.round(totals.carbsG)}g C</span>
+                  <span className="text-fat-ink">{Math.round(totals.fatG)}g F</span>
                 </p>
                 {notes && <p className="mt-2 text-xs text-muted-foreground">{notes}</p>}
               </div>

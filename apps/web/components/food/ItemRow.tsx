@@ -74,7 +74,7 @@ export function ItemRow({
         </label>
         {(["kcal", "protein_g", "carbs_g", "fat_g"] as const).map((k) => (
           <label key={k} className="flex flex-col rounded-md bg-card px-2 py-1.5">
-            <span className={cn("text-muted-foreground", k === "protein_g" && "text-protein", k === "carbs_g" && "text-carbs", k === "fat_g" && "text-fat")}>
+            <span className={cn("text-muted-foreground", k === "protein_g" && "text-protein-ink", k === "carbs_g" && "text-carbs-ink", k === "fat_g" && "text-fat-ink")}>
               {t(`short.${k}`)}
             </span>
             <input

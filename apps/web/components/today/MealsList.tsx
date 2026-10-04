@@ -6,11 +6,11 @@ import { ListRow } from "@/components/tasuki/ListRow";
 import { SectionHead } from "@/components/tasuki/SectionHead";
 
 /** The day's meals as one list: meal, what was in it, kcal. Tap opens the day on the Food tab. */
-export async function MealsList({ entries, date }: { entries: FoodEntryWithItems[]; date: string }) {
+export async function MealsList({ entries, date, today }: { entries: FoodEntryWithItems[]; date: string; today: string }) {
   const t = await getTranslations("today");
   const tm = await getTranslations("meals");
   const add = (
-    <Link href={`/food/log?mode=text&date=${date}`} className="text-[13px] font-semibold text-primary">
+    <Link href={`/food/log?mode=text${date === today ? "" : `&date=${date}`}`} className="text-[13px] font-semibold text-primary">
       {t("add")}
     </Link>
   );
