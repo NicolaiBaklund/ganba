@@ -28,17 +28,17 @@ export function ProposalCard({ p }: { p: ProposalView }) {
 
   const Icon = p.kind === "ai" ? Sparkles : Wand2;
   return (
-    <section className="rounded-3xl border border-primary/30 bg-gradient-to-br from-primary/20 to-card p-5">
+    <section className="rounded-md border-l-4 border-primary bg-card p-4">
       <div className="mb-2 flex items-center gap-2">
         <Icon className="size-4 text-primary" />
-        <h2 className="font-heading font-semibold">{t(`title.${p.kind}`)}</h2>
+        <h2 className="font-bold">{t(`title.${p.kind}`)}</h2>
       </div>
       <p className="text-sm">{p.summary}</p>
       <div className="mt-4 flex gap-2">
-        <Button className="h-11 flex-1 rounded-xl" disabled={busy} onClick={() => act("accept")}>
+        <Button className="h-11 flex-1" disabled={busy} onClick={() => act("accept")}>
           {t("accept")}
         </Button>
-        <Button variant="secondary" className="h-11 flex-1 rounded-xl" disabled={busy} onClick={() => act("reject")}>
+        <Button variant="secondary" className="h-11 flex-1" disabled={busy} onClick={() => act("reject")}>
           {t("reject")}
         </Button>
       </div>

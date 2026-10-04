@@ -169,7 +169,8 @@ for (const scheme of ["light", "dark"]) {
     await page.screenshot({ path: `${OUT}/${scheme}-${name}.png`, fullPage: full, caret: "initial" });
   };
   const go = async (path) => {
-    await page.goto(BASE + path, { waitUntil: "networkidle" });
+    await page.goto(BASE + path, { waitUntil: "load", timeout: 90000 });
+    await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
   };
 
   await go("/today");

@@ -391,7 +391,7 @@
       "half": "Half marathon",
       "marathon": "Marathon"
     },
-    "adjust": "Adjust with AI",
+    "adjust": "Adjust plan",
     "adjustTitle": "What should change?",
     "adjustPlaceholder": "E.g. “My knee is sore, keep this week easy” or “I’m away 12–18 Oct”",
     "adjustSend": "Suggest changes",
@@ -420,7 +420,9 @@
       "invalid_output": "The AI answer didn’t work out. Try rephrasing.",
       "generic": "Something went wrong. Try again."
     },
-    "weeksLeftLabel": "Weeks left"
+    "weeksLeftLabel": "Weeks left",
+    "raceDay": "Race day",
+    "buildShort": "Build"
   },
   "proposal": {
     "title": {

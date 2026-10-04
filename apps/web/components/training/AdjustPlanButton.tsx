@@ -8,8 +8,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { BottomSheet } from "@/components/common/BottomSheet";
 
-/** "Adjust with AI" sheet and "End plan" with inline confirmation. */
-export function PlanActions() {
+/** "Adjust plan" pill for the Training header. The sheet holds the AI adjust and "End plan". */
+export function AdjustPlanButton() {
   const t = useTranslations("training");
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -42,35 +42,30 @@ export function PlanActions() {
     const res = await fetch("/api/training/plan", { method: "DELETE" }).catch(() => null);
     setBusy(false);
     if (!res?.ok) return toast.error(t("errors.generic"));
+    setOpen(false);
     toast.success(t("ended"));
     router.refresh();
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <Button variant="secondary" className="h-12 rounded-2xl" onClick={() => setOpen(true)}>
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-[7px] text-[13px] font-semibold"
+      >
         <Sparkles className="size-4 text-primary" />
         {t("adjust")}
-      </Button>
-      {confirmEnd ? (
-        <div className="rounded-2xl bg-card p-4 text-sm">
-          <p>{t("endConfirm")}</p>
-          <div className="mt-3 flex gap-2">
-            <Button variant="destructive" className="h-10 flex-1 rounded-xl" disabled={busy} onClick={end}>
-              {t("endYes")}
-            </Button>
-            <Button variant="secondary" className="h-10 flex-1 rounded-xl" onClick={() => setConfirmEnd(false)}>
-              {t("cancel")}
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <button className="py-2 text-sm text-muted-foreground" onClick={() => setConfirmEnd(true)}>
-          {t("end")}
-        </button>
-      )}
+      </button>
 
-      <BottomSheet open={open} onOpenChange={setOpen} title={t("adjustTitle")}>
+      <BottomSheet
+        open={open}
+        onOpenChange={(o) => {
+          setOpen(o);
+          if (!o) setConfirmEnd(false);
+        }}
+        title={t("adjustTitle")}
+      >
         <div className="flex flex-col gap-3 pt-2">
           <textarea
             value={text}
@@ -78,14 +73,33 @@ export function PlanActions() {
             rows={4}
             maxLength={1000}
             placeholder={t("adjustPlaceholder")}
-            className="rounded-xl border border-border bg-muted p-4 outline-none focus:border-primary"
+            className="rounded-md border border-border bg-muted p-4 outline-none focus:border-primary"
           />
           <p className="text-xs text-muted-foreground">{t("adjustCost")}</p>
-          <Button className="h-12 rounded-xl" disabled={busy || text.trim().length < 3} onClick={adjust}>
+          <Button className="h-12" disabled={busy || text.trim().length < 3} onClick={adjust}>
             {busy ? t("adjustBusy") : t("adjustSend")}
           </Button>
+          <div className="mt-3 border-t border-border pt-3">
+            {confirmEnd ? (
+              <div className="text-sm">
+                <p>{t("endConfirm")}</p>
+                <div className="mt-3 flex gap-2">
+                  <Button variant="destructive" className="h-10 flex-1" disabled={busy} onClick={end}>
+                    {t("endYes")}
+                  </Button>
+                  <Button variant="secondary" className="h-10 flex-1" onClick={() => setConfirmEnd(false)}>
+                    {t("cancel")}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" className="py-1 text-sm font-semibold text-destructive" onClick={() => setConfirmEnd(true)}>
+                {t("end")}
+              </button>
+            )}
+          </div>
         </div>
       </BottomSheet>
-    </div>
+    </>
   );
 }

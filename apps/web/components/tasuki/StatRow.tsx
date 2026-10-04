@@ -1,6 +1,6 @@
-export function StatRow({ items }: { items: { value: React.ReactNode; label: string }[] }) {
+export function StatRow({ items, ruled = true }: { items: { value: React.ReactNode; label: string }[]; ruled?: boolean }) {
   return (
-    <div className="grid border-t-2 border-foreground pt-2" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
+    <div className={ruled ? "grid gap-x-3 border-t-2 border-foreground pt-2" : "grid gap-x-3"} style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
       {items.map((it) => (
         <div key={it.label} className="min-w-0">
           <p className="num truncate text-xl font-extrabold">{it.value}</p>
