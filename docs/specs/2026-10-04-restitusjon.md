@@ -1,6 +1,6 @@
 # Restitusjon — sammenhenger i egne data
 
-Dato: 2026-10-04. Status: **til godkjenning** (revidert etter gjennomgang mot koden).
+Dato: 2026-10-04. Status: **godkjent**; del 1 under arbeid (plan: `docs/plans/2026-10-04-restitusjon-del1-plan.md`).
 Beslutninger: `docs/02-decisions.md`, rader 2026-10-04 om restitusjonsfanen.
 
 ## 1. Mål
@@ -38,7 +38,7 @@ En ny fane, **Recovery**, som viser **sammenhenger over tid** i brukerens egne d
 - **HRV:** snitt gjennom natta + Garmins normalområde (baseline) og status.
 - **Hvilepuls.**
 - **Body Battery:** opplading i natt (lagres, ikke brukt i v1-spørsmålene).
-- Rått Garmin-svar lagres per dag (`raw`), så nye felt kan tas i bruk uten ny henting.
+- Rått Garmin-svar lagres per dag (`raw`), så nye felt kan tas i bruk uten ny henting. Tidsserier (lister per minutt/epoke) tas ut før lagring; de er store og brukes ikke.
 
 Adapteret får en ny kommando `fetch_recovery {tokens, dates[]}` som per dato henter søvn (dagssvaret inneholder søvnscore, hvilepuls, HRV-snitt, Body Battery-endring) og HRV-endepunktet (baseline). To kall per dag. Feltnavn verifiseres mot brukerens ekte konto i en spike før motoren bygges på dem.
 
@@ -46,7 +46,7 @@ Adapteret får en ny kommando `fetch_recovery {tokens, dates[]}` som per dato he
 Søvn hører til **morgenen man våkner** (Garmins `calendarDate`). Natta mandag→tirsdag lagres på tirsdag og sammenlignes med mat/trening mandag.
 
 ### 4.3 Henting
-- Vanlig synk: siste 3 dager.
+- Vanlig synk: siste 3 dager, eller fra dagen før siste lagrede natt hvis den er eldre (maks 10 dager), så et opphold i synkingen ikke etterlater hull.
 - **Historikk:** 90 dager bakover, **10 dager per synk** (20 kall; skånsomt mot Garmin). Fremdrift lagres på Garmin-kontoen (`recovery_backfilled_until`).
 - Mangler en natt (klokke av/tom): ingen rad, aldri utfylt med snitt.
 
@@ -80,7 +80,7 @@ Fra dagsdata bygges én rad per dato med faktorer (mat, trening, søvn natta fø
   - *Rolige turer:* meter per hjerteslag = (meter per minutt) / snittpuls, for løp ≥ 20 min som ikke er kvalitetsøkter og ikke er innendørs. Høyere = bedre.
   - *Kvalitetsøkter:* faktisk tempo på dragene / planlagt tempo (samme måling som tempo-ned-forslagene). Lavere = bedre.
   - Hvert mål avtrendes for seg (se under), deles på sitt eget standardavvik og får fortegn slik at **høyere alltid er bedre**. Så slås de sammen til én serie «løpsform» (z-verdier).
-- **Avtrending:** avvik fra brukerens glidende median over de **foregående** 28 dagene (30 for løpsform), med minst 14 verdier i vinduet; ellers er dagens utfall tomt. Jevn formfremgang eller sesong gir dermed ikke falske funn.
+- **Avtrending:** avvik fra brukerens glidende median over de **foregående** 28 dagene (30 for løpsform), med minst 14 verdier i vinduet for søvn/HRV/hvilepuls og minst 5 for hver løpstype (kvalitetsøkter er bare 1–2 i uka); ellers er dagens utfall tomt. Jevn formfremgang eller sesong gir dermed ikke falske funn.
 
 ### 5.3 Spørsmålskatalog (v1: 13 faktor–utfall-grupper = 21 tester)
 
@@ -107,7 +107,7 @@ Fra dagsdata bygges én rad per dato med faktorer (mat, trening, søvn natta fø
 ### 5.5 Krav før et funn vises
 1. **Minst 8 dager i hver gruppe.**
 2. **Effekt:** forskjell i snitt ≥ **0,4 standardavvik** av det avtrendede utfallet (SD over alle dager i vinduet).
-3. **Test:** **blokkpermutasjon** — faktorverdiene stokkes i hele blokker på 7 påfølgende dager, ikke dag for dag, fordi dagene henger sammen (HRV går i perioder, underskudd kommer i uker). 2000 omstokkinger, fast frø = samme svar hver gang, tosidig.
+3. **Test:** **blokkpermutasjon** — faktorverdiene stokkes i hele kalenderuker (blokker på 7 dager), ikke dag for dag, fordi dagene henger sammen (HRV går i perioder, underskudd kommer i uker). 2000 omstokkinger, fast frø = samme svar hver gang, tosidig.
 4. **Korreksjon:** **Benjamini–Hochberg** over alle tester i denne beregningen som har nok data (krav 1), q ≤ 0,10.
 5. **Kontroll:** for søvn/HRV/hvilepuls-spørsmål der faktoren ikke selv er trening: samme analyse **uten harde dager og langturdager** må gi samme retning og effekt ≥ 0,25 SD. Ellers stoppes funnet («likely training»).
 6. **Vindu:** siste 90 dager.
@@ -135,6 +135,8 @@ Hver test havner i nøyaktig én liste:
 - `recovery_day_answers` (user_id, local_date, question, content jsonb, input_hash, model, prompt_version, cost_usd). RLS own_rows.
 - `food_items.alcohol_g` (numeric, default 0).
 - `profiles.ai_health_consent` (bool, default false) + `ai_health_consent_at`.
+- `activities.te_aerobic`, `te_anaerobic` (Training Effect, fra `raw`; brukes for «hard dag»).
+- Del 1 lager `recovery_days`, `recovery_findings` (uten `ai_question_id`), `alcohol_g`, Training Effect og feltene på `garmin_accounts`. AI-tabellene, `ai_question_id` og samtykke kommer i del 2s migrasjon.
 - `garmin_accounts.recovery_backfilled_until` (date) + `recovery_computed_at` (timestamptz).
 
 ## 7. AI
@@ -185,8 +187,8 @@ Rekkefølge:
 - Falsk Garmin med søvndata: riktig morgen-dato, historikk 10 dager per synk, fremdrift lagres.
 - Motor mot konstruerte data:
   - innlagt sammenheng → funn med riktig retning og størrelse
-  - ren støy, 20 frø → til sammen **≤ 1** funn
-  - støy der dagene henger sammen (AR(1), ρ = 0,6), 20 frø → til sammen ≤ 1 funn (fanger opp hvis blokkpermutasjonen ikke virker)
+  - ren støy, 20 frø → **høyst 4 frø** med funn (q ≤ 0,10 tillater ca. 10 % datasett med et falskt funn; forventet ≤ 2)
+  - støy der dagene henger sammen (AR(1), ρ = 0,6), 20 frø → høyst 4 frø med funn (fanger opp hvis blokkpermutasjonen ikke virker)
   - sammenheng som bare skyldes harde dager → «Likely training», ikke funn
   - alkohol uten logget drikke → spørsmålet vises ikke
   - avtrending: jevn HRV-økning uten årsak → ingen funn
