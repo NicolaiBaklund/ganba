@@ -1,6 +1,6 @@
 import { addDays, daysBetween, weekday, type ISODate } from "../dates";
 import { mondayOf } from "./generate";
-import { pacesFor } from "./vdot";
+import { pacesFor, vo2AtSpeed } from "./vdot";
 import { buildByType, measure, repaceBlocks, rescaleBlocks, resizeQuality, type BuildContext } from "./workouts";
 import { HARD_TYPES, KEY_TYPES, type PlanWorkout, type ProposalChange, type RaceDistance, type WorkoutType } from "./types";
 
@@ -88,6 +88,46 @@ export function pacesProposal(planVdot: number, fitnessVdot: number): Proposal |
   return {
     kind: "paces",
     summary: `Your recent runs show better fitness (VDOT ${v}, plan uses ${planVdot}). Update your paces?`,
+    changes: [{ op: "repace", vdot: v }],
+  };
+}
+
+/** One completed quality session: the planned pace of its hard parts vs. how fast those laps were run. */
+export interface QualityResult {
+  date: ISODate;
+  zone: "interval" | "threshold" | "marathon";
+  plannedSecPerKm: number;
+  actualSecPerKm: number;
+}
+
+/** Share of VO2max each zone is run at (Daniels). */
+const ZONE_FRACTION = { interval: 0.975, threshold: 0.88, marathon: 0.8 } as const;
+export const SLOWER_THRESHOLD = 1.03;
+const SLOWER_SESSIONS = 2;
+const SLOWER_WINDOW_DAYS = 21;
+const MAX_VDOT_DROP = 3;
+
+/**
+ * Paces down only on clear evidence: the last two or three hard sessions (21 days) were all run
+ * > 3 % slower than planned. The new VDOT is what those laps actually show, at most 3 lower.
+ * Easy runs never count: they say nothing about fitness.
+ */
+export function slowerPacesProposal(planVdot: number, results: QualityResult[], today: ISODate): Proposal | null {
+  const recent = results
+    .filter((r) => r.date >= addDays(today, -SLOWER_WINDOW_DAYS) && r.date <= today && r.actualSecPerKm > 0 && r.plannedSecPerKm > 0)
+    .sort((a, b) => (a.date < b.date ? 1 : -1))
+    .slice(0, 3);
+  if (recent.length < SLOWER_SESSIONS) return null;
+  const ratios = recent.map((r) => r.actualSecPerKm / r.plannedSecPerKm);
+  if (ratios.some((x) => x < SLOWER_THRESHOLD)) return null;
+  const shown = recent.map((r) => vo2AtSpeed(60_000 / r.actualSecPerKm) / ZONE_FRACTION[r.zone]);
+  const mean = shown.reduce((a, b) => a + b, 0) / shown.length;
+  const v = Math.round(Math.max(planVdot - MAX_VDOT_DROP, Math.min(mean, planVdot - 0.5)) * 10) / 10;
+  if (v >= planVdot) return null;
+  const pct = Math.round(((ratios.reduce((a, b) => a + b, 0) / ratios.length) - 1) * 100);
+  return {
+    kind: "paces",
+    summary: `Your last ${recent.length} hard sessions ran about ${pct} % slower than planned. Ease your paces a little (VDOT ${planVdot} → ${v})?`,
     changes: [{ op: "repace", vdot: v }],
   };
 }

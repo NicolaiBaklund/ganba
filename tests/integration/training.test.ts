@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { addDays, HARD_TYPES, weekday, type ProposalChange } from "@loop/core";
+import { addDays, HARD_TYPES, weekday, type Block, type ProposalChange } from "@loop/core";
 import { saveTokens } from "@/lib/garmin/accounts";
 import { syncGarmin } from "@/lib/garmin/sync";
 import { acceptProposal, activePlan, createPlan, planWorkouts, pushToGarmin, reconcilePlan, refreshProposals } from "@/lib/training/service";
@@ -151,6 +151,39 @@ describe("training plan: create, push, reconcile, proposals", () => {
     const { data: after } = await admin().from("planned_workouts").select("garmin_workout_id, garmin_push_status").eq("id", pushed.id).single();
     expect(after!.garmin_workout_id).toBeNull();
     expect(after!.garmin_push_status).toBe("pending");
+  });
+
+  it("hard sessions run clearly slower than planned → a proposal to ease the paces", async () => {
+    const plan = await activePlan(u.id);
+    const ws = (await planWorkouts(plan!.id)).filter((w) => w.type === "intervals" || w.type === "threshold");
+    expect(ws.length).toBeGreaterThanOrEqual(2);
+    let n = 0;
+    for (const [i, w] of ws.slice(0, 2).entries()) {
+      const date = addDays(today, -3 - i * 3);
+      const steps = (w.blocks as unknown as Block[]).flatMap((b) => (b.kind === "repeat" ? Array.from({ length: b.times }, () => b.steps).flat() : [b]));
+      // Every hard rep run 6 % slower than its target.
+      const laps = steps
+        .filter((st) => st.kind === "run" && st.target.kind === "pace")
+        .map((st) => {
+          const pace = st.target.kind === "pace" ? ((st.target.minSecPerKm + st.target.maxSecPerKm) / 2) * 1.06 : 0;
+          const m = st.duration.kind === "distance" ? st.duration.m : st.duration.kind === "time" ? (st.duration.s / pace) * 1000 : 0;
+          return { distance: m, duration: (m / 1000) * pace, averageSpeed: 1000 / pace };
+        });
+      const { data: act } = await admin()
+        .from("activities")
+        .insert({ user_id: u.id, garmin_activity_id: 99_100_000 + n++, local_date: date, start_time: `${date}T06:00:00Z`, type_key: "running", distance_m: 9000, duration_s: 3000, splits: { lapDTOs: laps } })
+        .select("id")
+        .single();
+      await admin().from("planned_workouts").update({ date, status: "done", activity_id: act!.id }).eq("id", w.id);
+    }
+    await admin().from("plan_proposals").delete().eq("plan_id", plan!.id).eq("kind", "paces");
+    await refreshProposals(u.id, today);
+    const { data: props } = await admin().from("plan_proposals").select("changes, summary").eq("plan_id", plan!.id).eq("kind", "paces").eq("status", "pending");
+    expect(props).toHaveLength(1);
+    const repace = (props![0]!.changes as unknown as ProposalChange[])[0] as Extract<ProposalChange, { op: "repace" }>;
+    expect(repace.op).toBe("repace");
+    expect(repace.vdot).toBeLessThan(Number(plan!.vdot));
+    expect(repace.vdot).toBeGreaterThanOrEqual(Number(plan!.vdot) - 3);
   });
 
   it("a new plan cancels the old one; its sessions are deleted from Garmin", async () => {
