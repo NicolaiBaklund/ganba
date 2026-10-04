@@ -124,7 +124,7 @@ Fra dagsdata bygges én rad per dato med faktorer (mat, trening, søvn natta fø
 2. **Effekt:** forskjell i snitt ≥ **0,4 standardavvik** av det avtrendede utfallet (SD over alle dager i vinduet).
 3. **Test:** **blokkpermutasjon** — faktorverdiene stokkes i hele kalenderuker (blokker på 7 dager), ikke dag for dag, fordi dagene henger sammen (HRV går i perioder, underskudd kommer i uker). 2000 omstokkinger, fast frø = samme svar hver gang, tosidig.
 4. **Korreksjon:** **Benjamini–Hochberg** over alle tester i denne beregningen som har nok data (krav 1), q ≤ 0,10.
-5. **Kontroll:** for søvn/HRV/hvilepuls-spørsmål der faktoren ikke selv er trening: samme analyse **uten harde dager og langturdager** må gi samme retning og effekt ≥ 0,25 SD. Ellers stoppes funnet («likely training»).
+5. **Kontroll:** for søvn/HRV/hvilepuls-spørsmål der faktoren ikke selv er trening: samme analyse **uten harde dager og langturdager** må gi samme retning og effekt ≥ 0,25 SD. Ellers stoppes funnet («likely training») — også når det er for få dager igjen uten trening til å sjekke (faktoren følger treningen).
 6. **Vindu:** siste 90 dager.
 
 ### 5.6 Tre lister
@@ -202,8 +202,8 @@ Rekkefølge:
 - Falsk Garmin med søvndata: riktig morgen-dato, historikk 10 dager per synk, fremdrift lagres.
 - Motor mot konstruerte data:
   - innlagt sammenheng → funn med riktig retning og størrelse
-  - ren støy, 20 frø → **høyst 4 frø** med funn (q ≤ 0,10 tillater ca. 10 % datasett med et falskt funn; forventet ≤ 2)
-  - støy der dagene henger sammen (AR(1), ρ = 0,6), 20 frø → høyst 4 frø med funn (fanger opp hvis blokkpermutasjonen ikke virker)
+  - ren støy, 100 datasett → **høyst 15** med funn (q ≤ 0,10 tillater ca. 10 % datasett med ett falskt funn; målt 11/100)
+  - støy der dagene henger sammen (AR(1), ρ = 0,6), 100 datasett → høyst 15 med funn (målt 10/100; omstokking dag for dag ga 36/100, så ukeblokkene trengs)
   - sammenheng som bare skyldes harde dager → «Likely training», ikke funn
   - alkohol uten logget drikke → spørsmålet vises ikke
   - avtrending: jevn HRV-økning uten årsak → ingen funn
