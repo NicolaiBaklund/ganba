@@ -144,7 +144,11 @@
     "prevWeek": "Previous week",
     "nextWeek": "Next week",
     "backToToday": "Today",
-    "weekStrip": "This week"
+    "weekStrip": "This week",
+    "activityTag": "+{kcal} activity",
+    "leftToday": "kcal left today",
+    "overToday": "kcal over today",
+    "targetHow": "How today's target is set"
   },
   "weight": {
     "title": "Log weight",
