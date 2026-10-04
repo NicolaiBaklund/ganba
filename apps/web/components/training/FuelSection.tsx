@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Sparkles, UtensilsCrossed } from "lucide-react";
+import { Sparkles } from "lucide-react";
+import { SectionHead } from "@/components/tasuki/SectionHead";
 import { toast } from "sonner";
 import type { FuelAdvice, Fueling } from "@loop/core";
 
@@ -63,19 +64,15 @@ export function FuelSection({
   ];
 
   return (
-    <section className="rounded-3xl bg-card p-5">
-      <div className="mb-2 flex items-center gap-2">
-        <UtensilsCrossed className="size-4 text-primary" />
-        <h2 className="font-heading font-semibold">{t("title")}</h2>
-      </div>
-      <div className="flex flex-col gap-2.5">
+    <section>
+      <SectionHead title={t("title")} />
+      <div>
         {rows.map((r) => (
-          <div key={r.key} className="text-sm">
-            <p>
-              <span className="text-muted-foreground">{t(r.key)}</span> · <span className="num">{r.text}</span>
-            </p>
+          <div key={r.key} className="border-b border-border py-2.5">
+            <p className="font-bold">{t(r.key)}</p>
+            <p className="num text-[13px]">{r.text}</p>
             {r.ideas.map((idea) => (
-              <p key={idea} className="mt-0.5 pl-3 text-xs text-muted-foreground">
+              <p key={idea} className="mt-0.5 text-[13px] text-muted-foreground">
                 {idea}
               </p>
             ))}
@@ -83,7 +80,7 @@ export function FuelSection({
         ))}
       </div>
       {canSuggest && !advice && (
-        <button onClick={suggest} disabled={busy} className="mt-3 flex items-center gap-1.5 text-xs font-medium text-primary disabled:opacity-60">
+        <button onClick={suggest} disabled={busy} className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-primary disabled:opacity-60">
           <Sparkles className="size-3.5" />
           {busy ? t("suggesting") : t("suggest")}
         </button>

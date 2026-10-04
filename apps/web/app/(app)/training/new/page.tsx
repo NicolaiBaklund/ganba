@@ -15,12 +15,12 @@ export default async function NewPlanPage() {
   if (!(await getGarminStatus(user.id))) redirect("/training");
   const today = await todayFor(user.id);
   return (
-    <main className="flex flex-col gap-4 px-4 pt-4">
+    <main className="flex flex-col gap-4 px-[18px] pt-4">
       <Link href="/training" className="flex items-center gap-1 text-sm text-muted-foreground">
         <ChevronLeft className="size-4" />
         {tt("title")}
       </Link>
-      <h1 className="font-heading text-2xl font-bold">{t("title")}</h1>
+      <h1 className="cond text-[34px] leading-none">{t("title")}</h1>
       <PlanWizard minDate={addDays(today, 7)} />
     </main>
   );

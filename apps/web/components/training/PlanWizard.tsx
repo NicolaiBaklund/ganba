@@ -119,8 +119,8 @@ export function PlanWizard({ minDate }: { minDate: string }) {
   return (
     <div className="flex flex-col gap-4">
       {step === 0 && (
-        <section className="flex flex-col gap-4 rounded-3xl bg-card p-5">
-          <h2 className="font-heading text-lg font-semibold">{t("goalTitle")}</h2>
+        <section className="flex flex-col gap-5">
+          <h2 className="cond text-[22px] leading-tight">{t("goalTitle")}</h2>
           <div className="flex flex-wrap gap-2">
             {DISTANCES.map((d) => (
               <Chip key={d} selected={goal === d} onClick={() => setGoal(d)}>
@@ -131,7 +131,7 @@ export function PlanWizard({ minDate }: { minDate: string }) {
               {t("build")}
             </Chip>
           </div>
-          {isRace ? (
+          {isRace && (
             <>
               <label className="flex flex-col gap-1.5 text-sm text-muted-foreground">
                 {t("raceDate")}
@@ -140,7 +140,7 @@ export function PlanWizard({ minDate }: { minDate: string }) {
                   min={minDate}
                   value={raceDate}
                   onChange={(e) => setRaceDate(e.target.value)}
-                  className="h-14 rounded-xl border border-border bg-muted px-4 text-base text-foreground outline-none focus:border-primary"
+                  className="h-14 rounded-md border border-border bg-card px-4 text-base text-foreground outline-none focus:border-primary"
                 />
               </label>
               <label className="flex flex-col gap-1.5 text-sm text-muted-foreground">
@@ -150,23 +150,21 @@ export function PlanWizard({ minDate }: { minDate: string }) {
                   placeholder="0:50:00"
                   value={targetTime}
                   onChange={(e) => setTargetTime(e.target.value)}
-                  className="num h-14 rounded-xl border border-border bg-muted px-4 text-base text-foreground outline-none focus:border-primary"
+                  className="num h-14 rounded-md border border-border bg-card px-4 text-base text-foreground outline-none focus:border-primary"
                 />
                 <span className="text-xs">{t("targetTimeHint")}</span>
               </label>
             </>
-          ) : (
-            <p className="text-sm text-muted-foreground">{t("buildHint")}</p>
           )}
-          <Button className="h-12 rounded-xl" disabled={!goalValid} onClick={() => setStep(1)}>
+          <Button className="h-12" disabled={!goalValid} onClick={() => setStep(1)}>
             {t("next")}
           </Button>
         </section>
       )}
 
       {step === 1 && (
-        <section className="flex flex-col gap-4 rounded-3xl bg-card p-5">
-          <h2 className="font-heading text-lg font-semibold">{t("daysTitle")}</h2>
+        <section className="flex flex-col gap-5">
+          <h2 className="cond text-[22px] leading-tight">{t("daysTitle")}</h2>
           <div>
             <p className="mb-2 text-sm text-muted-foreground">{t("days")}</p>
             <div className="grid grid-cols-7 gap-1.5">
@@ -198,8 +196,7 @@ export function PlanWizard({ minDate }: { minDate: string }) {
             </div>
           </div>
           <div className="border-t border-border pt-4">
-            <p className="text-sm font-medium">{t("recentTitle")}</p>
-            <p className="mb-2 text-xs text-muted-foreground">{t("recentHint")}</p>
+            <p className="mb-2 text-sm font-bold">{t("recentTitle")}</p>
             <div className="flex flex-wrap gap-2">
               {DISTANCES.map((d) => (
                 <Chip key={d} selected={recentDist === d} onClick={() => setRecentDist(recentDist === d ? null : d)} className="px-3">
@@ -213,15 +210,15 @@ export function PlanWizard({ minDate }: { minDate: string }) {
                 placeholder={t("recentTime")}
                 value={recentTime}
                 onChange={(e) => setRecentTime(e.target.value)}
-                className="num mt-2 h-12 w-full rounded-xl border border-border bg-muted px-4 outline-none focus:border-primary"
+                className="num mt-2 h-12 w-full rounded-md border border-border bg-card px-4 outline-none focus:border-primary"
               />
             )}
           </div>
           <div className="flex gap-2">
-            <Button variant="secondary" className="h-12 flex-1 rounded-xl" onClick={() => setStep(0)}>
+            <Button variant="secondary" className="h-12 flex-1" onClick={() => setStep(0)}>
               {t("back")}
             </Button>
-            <Button className="h-12 flex-1 rounded-xl" disabled={!daysValid || busy || (!!recentDist && recentS == null)} onClick={toPreview}>
+            <Button className="h-12 flex-1" disabled={!daysValid || busy || (!!recentDist && recentS == null)} onClick={toPreview}>
               {t("next")}
             </Button>
           </div>
@@ -229,18 +226,18 @@ export function PlanWizard({ minDate }: { minDate: string }) {
       )}
 
       {step === 2 && preview && (
-        <section className="flex flex-col gap-4 rounded-3xl bg-card p-5">
-          <h2 className="font-heading text-lg font-semibold">{t("previewTitle")}</h2>
+        <section className="flex flex-col gap-5">
+          <h2 className="cond text-[22px] leading-tight">{t("previewTitle")}</h2>
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
               <p className="text-muted-foreground">{tt("vdot")}</p>
-              <p className="num text-xl font-semibold">{preview.fitness.vdot}</p>
+              <p className="num text-2xl font-extrabold">{preview.fitness.vdot}</p>
               <p className="text-xs text-muted-foreground">{t("kmPerWeek", { km: preview.fitness.kmPerWeek })}</p>
             </div>
             {preview.predictedTimeS != null && (
               <div>
                 <p className="text-muted-foreground">{targetS ? tt("target") : tt("predicted")}</p>
-                <p className="num text-xl font-semibold">{fmtClock(targetS ?? preview.predictedTimeS)}</p>
+                <p className="num text-2xl font-extrabold">{fmtClock(targetS ?? preview.predictedTimeS)}</p>
               </div>
             )}
           </div>
@@ -278,16 +275,16 @@ export function PlanWizard({ minDate }: { minDate: string }) {
                 <span className="w-16 text-muted-foreground">
                   {format.dateTime(new Date(`${w.date}T00:00:00Z`), { weekday: "short", day: "numeric" })}
                 </span>
-                <span className="h-4 w-1 rounded-full" style={{ background: typeColor(w.type) }} />
+                <span className="h-4 w-1.5 -skew-x-[18deg]" style={{ background: typeColor(w.type) }} />
                 <span className="flex-1 truncate">{w.title}</span>
               </div>
             ))}
           </div>
           <div className="flex gap-2">
-            <Button variant="secondary" className="h-12 flex-1 rounded-xl" onClick={() => setStep(1)}>
+            <Button variant="secondary" className="h-12 flex-1" onClick={() => setStep(1)}>
               {t("back")}
             </Button>
-            <Button className="h-12 flex-1 rounded-xl" disabled={busy} onClick={create}>
+            <Button className="h-12 flex-1" disabled={busy} onClick={create}>
               {busy ? t("creating") : t("create")}
             </Button>
           </div>

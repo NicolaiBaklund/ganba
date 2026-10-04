@@ -2,28 +2,47 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { ChevronLeft, Watch } from "lucide-react";
-import { formatPace, fuelingFor, type Step } from "@loop/core";
+import { formatPace, fuelingFor, type Block, type Step, type WorkoutType } from "@loop/core";
 import { requireUser } from "@/lib/supabase/server";
 import { loadWorkout } from "@/lib/training/view";
-import { fmtClock, fmtMinutes, fmtPaceRange, paceFromSpeed, typeColor } from "@/lib/training/format";
+import { bibNumber, fmtClock, fmtMinutes, fmtPaceRange, paceFromSpeed } from "@/lib/training/format";
 import { FuelSection } from "@/components/training/FuelSection";
+import { Bib } from "@/components/tasuki/Bib";
+import { SectionHead } from "@/components/tasuki/SectionHead";
+import { StatRow } from "@/components/tasuki/StatRow";
 
-function StepLine({ s, t }: { s: Step; t: (k: string, v?: Record<string, string | number>) => string }) {
-  const amount =
-    s.duration.kind === "distance"
-      ? s.duration.m >= 1000
-        ? `${Math.round(s.duration.m / 100) / 10} km`
-        : `${s.duration.m} m`
-      : s.duration.kind === "time"
-        ? s.duration.s >= 60
-          ? `${Math.round((s.duration.s / 60) * 10) / 10} min`
-          : `${s.duration.s} s`
-        : t("open");
+const amountOf = (s: Step, open: string) =>
+  s.duration.kind === "distance"
+    ? s.duration.m >= 1000
+      ? `${Math.round(s.duration.m / 100) / 10} km`
+      : `${s.duration.m} m`
+    : s.duration.kind === "time"
+      ? s.duration.s >= 60
+        ? `${Math.round((s.duration.s / 60) * 10) / 10} min`
+        : `${s.duration.s} s`
+      : open;
+
+/** Rough metres for the step stripe: time steps count at about 5 min/km. */
+const weightOf = (s: Step) => (s.duration.kind === "distance" ? s.duration.m : s.duration.kind === "time" ? s.duration.s * 3.3 : 500);
+
+function StepStripe({ blocks, type }: { blocks: Block[]; type: WorkoutType }) {
+  const steps = blocks.flatMap((b) => (b.kind === "repeat" ? Array.from({ length: b.times }, () => b.steps).flat() : [b]));
+  const color = (s: Step) => (s.kind === "recover" ? "var(--border)" : s.kind === "run" ? `var(--w-${type})` : "var(--w-easy)");
+  return (
+    <div aria-hidden className="mt-3 flex h-2.5 gap-[3px]">
+      {steps.map((s, i) => (
+        <span key={i} className="block h-full" style={{ flex: weightOf(s), background: color(s) }} />
+      ))}
+    </div>
+  );
+}
+
+function StepRow({ s, label, open }: { s: Step; label: string; open: string }) {
   const pace = fmtPaceRange(s.target);
   return (
-    <div className="flex items-baseline justify-between gap-3 py-1.5 text-sm">
-      <span className={s.kind === "recover" ? "text-muted-foreground" : ""}>
-        {t(`step.${s.kind}`)} · <span className="num">{amount}</span>
+    <div className="flex items-baseline justify-between gap-3 border-b border-border py-2.5">
+      <span className={s.kind === "recover" ? "text-muted-foreground" : "font-bold"}>
+        {label} <span className="num">{amountOf(s, open)}</span>
       </span>
       {pace && <span className="num text-muted-foreground">{pace}</span>}
     </div>
@@ -37,63 +56,76 @@ export default async function WorkoutPage({ params }: PageProps<"/training/worko
   const { user } = await requireUser();
   const w = await loadWorkout(user.id, id);
   if (!w) notFound();
-  const tt = (k: string, v?: Record<string, string | number>) => t(k as never, v as never);
 
   const a = w.activity;
   const pace = a && a.distanceKm > 0 ? formatPace((a.movingS ?? a.durationS) / a.distanceKm) : null;
+  const { big, unit } = bibNumber(w.title, w.plannedKm);
+  const date = format.dateTime(new Date(`${w.date}T00:00:00Z`), { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+  const status = w.status === "removed" ? null : t(w.status);
+  const watch = w.push === "pushed" ? t("onWatch") : w.push === "failed" ? t("pushFailed") : t("notOnWatch");
 
   return (
-    <main className="flex flex-col gap-4 px-4 pt-4">
-      <Link href="/training" className="flex items-center gap-1 text-sm text-muted-foreground">
+    <main className="flex flex-col px-[18px] pb-4 pt-4">
+      <Link href="/training" className="-ml-1 mb-3 flex items-center gap-1 text-sm text-muted-foreground">
         <ChevronLeft className="size-4" />
         {t("back")}
       </Link>
 
-      <section className="rounded-3xl bg-card p-5">
-        <p className="text-sm font-semibold" style={{ color: typeColor(w.type) }}>
-          {t(`types.${w.type}`)}
-        </p>
-        <h1 className="mt-1 font-heading text-2xl font-bold">{w.title}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {format.dateTime(new Date(`${w.date}T00:00:00Z`), { weekday: "long", day: "numeric", month: "long" })} ·{" "}
-          {w.status === "removed" ? "–" : t(w.status)}
-        </p>
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <div>
-            <p className="text-xs text-muted-foreground">{t("plannedKm")}</p>
-            <p className="num text-xl font-semibold">{w.plannedKm} km</p>
-            <p className="text-sm text-muted-foreground">{fmtMinutes(w.plannedDurationS)}</p>
-          </div>
-          {a && (
-            <div>
-              <p className="text-xs text-muted-foreground">{t("actualKm")}</p>
-              <p className="num text-xl font-semibold text-success">{a.distanceKm} km</p>
-              <p className="num text-sm text-muted-foreground">{fmtClock(a.movingS ?? a.durationS)}</p>
-            </div>
-          )}
-        </div>
-        {w.status === "planned" && (
-          <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-            <Watch className="size-4" />
-            {w.push === "pushed" ? t("onWatch") : w.push === "failed" ? t("pushFailed") : t("notOnWatch")}
-          </p>
-        )}
-      </section>
+      <Bib
+        type={w.type}
+        label={t(`types.${w.type}`)}
+        big={big}
+        unit={unit}
+        meta={
+          <>
+            {date}
+            {status && <span className="font-normal text-paper-ink/60">, {status.toLowerCase()}</span>}
+          </>
+        }
+        footer={
+          w.status === "planned" ? (
+            <>
+              <Watch className="size-4 shrink-0" />
+              <span>{watch}</span>
+              <span className="num ml-auto font-bold">
+                {w.plannedKm} km, {fmtMinutes(w.plannedDurationS)}
+              </span>
+            </>
+          ) : undefined
+        }
+      />
 
-      <section className="rounded-3xl bg-card p-5">
+      {a && (
+        <div className="mt-5">
+          <StatRow
+            items={[
+              { value: `${a.distanceKm} km`, label: t("actualKm") },
+              { value: `${pace ?? "–"} /km`, label: t("pace") },
+              { value: a.avgHr ?? "–", label: t("hr") },
+              { value: fmtClock(a.movingS ?? a.durationS), label: t("duration") },
+            ]}
+          />
+        </div>
+      )}
+
+      <SectionHead title={t("steps")} />
+      <StepStripe blocks={w.blocks} type={w.type} />
+      <div className="mt-1">
         {w.blocks.map((b, i) =>
           b.kind === "repeat" ? (
-            <div key={i} className="my-1 rounded-2xl border border-border px-3 py-1.5">
-              <p className="num pt-1 text-xs font-semibold text-primary">{t("repeat", { times: b.times })}</p>
-              {b.steps.map((s, j) => (
-                <StepLine key={j} s={s} t={tt} />
-              ))}
+            <div key={i} className="mt-2">
+              <p className="num pt-1 font-extrabold text-primary">{t("repeat", { times: b.times })}</p>
+              <div className="border-l-2 border-foreground pl-3">
+                {b.steps.map((s, j) => (
+                  <StepRow key={j} s={s} label={t(`step.${s.kind}`)} open={t("open")} />
+                ))}
+              </div>
             </div>
           ) : (
-            <StepLine key={i} s={b} t={tt} />
+            <StepRow key={i} s={b} label={t(`step.${b.kind}`)} open={t("open")} />
           ),
         )}
-      </section>
+      </div>
 
       {w.status !== "removed" && (
         <FuelSection
@@ -104,41 +136,23 @@ export default async function WorkoutPage({ params }: PageProps<"/training/worko
         />
       )}
 
-      {a && (
-        <section className="rounded-3xl bg-card p-5">
-          <div className="mb-3 grid grid-cols-3 gap-3 text-sm">
-            <div>
-              <p className="text-xs text-muted-foreground">{t("pace")}</p>
-              <p className="num font-semibold">{pace ?? "–"} /km</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">{t("hr")}</p>
-              <p className="num font-semibold">{a.avgHr ?? "–"}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">{t("duration")}</p>
-              <p className="num font-semibold">{fmtClock(a.durationS)}</p>
-            </div>
+      {a && a.laps.length > 1 && (
+        <>
+          <SectionHead title={t("laps")} />
+          <div>
+            {a.laps.map((l, i) => {
+              const lp = paceFromSpeed(l.avgSpeed);
+              return (
+                <div key={i} className="num grid grid-cols-4 border-b border-border py-2">
+                  <span className="text-muted-foreground">{i + 1}</span>
+                  <span>{Math.round(l.distanceM / 10) / 100} km</span>
+                  <span className="font-bold">{lp ? formatPace(lp) : "–"}</span>
+                  <span className="text-right text-muted-foreground">{l.avgHr ? Math.round(l.avgHr) : "–"}</span>
+                </div>
+              );
+            })}
           </div>
-          {a.laps.length > 1 && (
-            <>
-              <h2 className="mb-1 font-heading font-semibold">{t("laps")}</h2>
-              <div className="divide-y divide-border text-sm">
-                {a.laps.map((l, i) => {
-                  const lp = paceFromSpeed(l.avgSpeed);
-                  return (
-                    <div key={i} className="num grid grid-cols-4 py-1.5">
-                      <span className="text-muted-foreground">{i + 1}</span>
-                      <span>{Math.round(l.distanceM / 10) / 100} km</span>
-                      <span>{lp ? formatPace(lp) : "–"}</span>
-                      <span className="text-right text-muted-foreground">{l.avgHr ? Math.round(l.avgHr) : "–"}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
-        </section>
+        </>
       )}
     </main>
   );
