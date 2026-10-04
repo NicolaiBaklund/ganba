@@ -39,7 +39,7 @@ export function BottomNav() {
   };
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl">
+    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card pb-[env(safe-area-inset-bottom)]">
       <div className="mx-auto flex max-w-md items-center px-2">
         {LEFT.map(item)}
         <div className="flex flex-1 justify-center">

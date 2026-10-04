@@ -42,7 +42,7 @@ export function PlusMenu() {
       <button
         onClick={() => setOpen(true)}
         aria-label={t("open")}
-        className="-mt-6 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_8px_30px_-6px] shadow-primary/60 transition-transform active:scale-95"
+        className="-mt-5 flex size-[54px] items-center justify-center rounded-[14px] bg-[var(--plus-bg)] text-[var(--plus-fg)] transition-transform active:scale-95"
       >
         <Plus className="size-7" strokeWidth={2.5} />
       </button>
@@ -53,14 +53,14 @@ export function PlusMenu() {
             <button
               key={key}
               onClick={onClick}
-              className="flex flex-col items-start gap-3 rounded-2xl bg-card p-4 text-left transition-colors active:bg-muted"
+              className="flex flex-col items-start gap-3 rounded-md bg-muted p-4 text-left transition-colors active:bg-border"
             >
-              <span className="flex size-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
+              <span className="flex size-10 items-center justify-center rounded-md bg-card text-foreground">
                 <Icon className="size-5" />
               </span>
               <span>
-                <span className="block font-semibold">{t(`${key}.title`)}</span>
-                <span className="block text-xs text-muted-foreground">{t(`${key}.hint`)}</span>
+                <span className="block font-bold">{t(`${key}.title`)}</span>
+                <span className="block text-[13px] text-muted-foreground">{t(`${key}.hint`)}</span>
               </span>
             </button>
           ))}

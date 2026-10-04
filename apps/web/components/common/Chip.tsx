@@ -24,7 +24,7 @@ export function Chip({
         "h-11 rounded-full border px-4 text-sm font-medium transition-colors",
         selected
           ? "border-primary bg-primary text-primary-foreground"
-          : "border-border bg-muted text-foreground hover:bg-muted/70",
+          : "border-border bg-card text-foreground hover:bg-muted",
         disabled && "opacity-35",
         className,
       )}
