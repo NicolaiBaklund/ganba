@@ -171,6 +171,29 @@ def op_fetch(b: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+MAX_RECOVERY_DATES = 24
+
+
+def op_fetch_recovery(b: dict[str, Any]) -> dict[str, Any]:
+    """Sleep (with score, resting HR, overnight HRV, Body Battery) and the HRV summary (baseline) per date."""
+    tokens = b["tokens"]
+    g = session_from(tokens)
+    _profile(g)  # sleep URLs need the display name
+    nights = []
+    for d in list(b["dates"])[:MAX_RECOVERY_DATES]:
+        night: dict[str, Any] = {"date": d, "sleep": None, "hrv": None}
+        try:
+            night["sleep"] = g.get_sleep_data(d)
+        except (GarminConnectConnectionError, requests.exceptions.RequestException):
+            pass
+        try:
+            night["hrv"] = g.get_hrv_data(d)
+        except (GarminConnectConnectionError, requests.exceptions.RequestException):
+            pass
+        nights.append(night)
+    return {"nights": nights, "tokens": changed_tokens(g, tokens)}
+
+
 def _schedule_id(res: Any) -> Any:
     if not isinstance(res, dict):
         return None
@@ -207,6 +230,7 @@ OPS = {
     "login": op_login,
     "login_mfa": op_login_mfa,
     "fetch": op_fetch,
+    "fetch_recovery": op_fetch_recovery,
     "push_workout": op_push_workout,
     "delete_workout": op_delete_workout,
 }

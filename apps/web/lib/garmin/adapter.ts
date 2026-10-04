@@ -29,6 +29,8 @@ export interface GarminActivityRaw {
   steps?: number | null;
   elevationGain?: number | null;
   calories?: number | null;
+  aerobicTrainingEffect?: number | null;
+  anaerobicTrainingEffect?: number | null;
   [k: string]: unknown;
 }
 
@@ -42,6 +44,18 @@ export interface FetchResult {
   tokens: string | null;
 }
 
+/** One requested morning: Garmin's sleep and HRV payloads, null when Garmin had nothing. */
+export interface GarminNightRaw {
+  date: string;
+  sleep: unknown;
+  hrv: unknown;
+}
+
+export interface FetchRecoveryResult {
+  nights: GarminNightRaw[];
+  tokens: string | null;
+}
+
 export type LoginResult = { ok: true; tokens: string } | { mfa: true; mfaState: unknown };
 
 /** Everything the app needs from Garmin. Tests swap in a fake. */
@@ -49,6 +63,7 @@ export interface GarminSource {
   login(email: string, password: string): Promise<LoginResult>;
   loginMfa(mfaState: unknown, code: string): Promise<{ ok: true; tokens: string }>;
   fetch(tokens: string, from: string, to: string, knownIds: number[]): Promise<FetchResult>;
+  fetchRecovery(tokens: string, dates: string[]): Promise<FetchRecoveryResult>;
   pushWorkout(tokens: string, workout: unknown, date: string): Promise<{ workoutId: number; scheduleId: number | null; tokens: string | null }>;
   deleteWorkout(tokens: string, workoutId: number, scheduleId: number | null): Promise<{ tokens: string | null }>;
 }
@@ -85,6 +100,7 @@ export const httpGarmin = (): GarminSource => ({
   login: (email, password) => call({ op: "login", email, password }),
   loginMfa: (mfaState, code) => call({ op: "login_mfa", mfaState, code }),
   fetch: (tokens, from, to, knownIds) => call({ op: "fetch", tokens, from, to, knownIds }),
+  fetchRecovery: (tokens, dates) => call({ op: "fetch_recovery", tokens, dates }),
   pushWorkout: (tokens, workout, date) => call({ op: "push_workout", tokens, workout, date }),
   deleteWorkout: (tokens, workoutId, scheduleId) => call({ op: "delete_workout", tokens, workoutId, scheduleId }),
 });
