@@ -96,6 +96,7 @@ Format: dato — beslutning — begrunnelse.
 | 2026-10-04 | Tempo kan også foreslås **ned**: bare når de 2–3 siste harde øktene (21 d) alle er løpt > 3 % saktere enn planlagt (målt på Garmin-runder, ikke rolige turer). Ny VDOT = det rundene viser, maks −3. Forslag brukeren godtar. Garmin-estimatet beholder −1 VDOT-justering (ikke mer) | Brukeren: «nedjustere?» — data tyder ikke på at 42 er for høyt; svakheten var at tempo bare kunne gå opp |
 | 2026-10-04 | Domene ganba.no live (Vercel, apex som hoveddomene). Innloggings-e-post sendes via Resend fra `login@ganba.no` (DKIM/SPF på `send`-subdomene, DMARC p=none). NTNU (Microsoft 365) bouncer e-post fra det nye domenet → brukerens konto flyttet til Gmail | Gmail mottar koden; NTNU-studentadresse uansett midlertidig |
 | 2026-10-04 | **Restitusjonsfane** (erstatter Mat i bunnmenyen; idémyldring startet): hovedjobb = **sammenhenger over tid** i egne data (mat, trening, søvn, HRV osv.), ikke dagsform (den viser klokka). Mest mulig regler, minst mulig AI, kvalitet foran mengde | Brukerens valg |
+| 2026-10-04 | Restitusjonsfane forklarer **A) søvn og restitusjon** (søvnscore, HRV, hvilepuls) og **B) hvordan øktene går** (tempo mot puls, treffer intervallene) ut fra mat, trening og søvn. Vekt/energi dekkes av innsjekken | Brukeren godtok A + B |
 
 ## Åpne spørsmål
 - (Teknisk fase) Garmin-tilgang. Offisielt program er kun for bedrifter og muligens pauset (se research-notes). Sannsynlig vei: uoffisielt bibliotek i personlig fase, bak adapter-lag; offisielt når/om appen blir produkt.
