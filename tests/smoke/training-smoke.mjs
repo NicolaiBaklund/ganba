@@ -51,14 +51,14 @@ try {
   await page.getByRole("link", { name: "Create plan" }).click();
   await page.getByRole("button", { name: "10K" }).click();
   await page.locator('input[type="date"]').fill(addDays(today, 63));
-  await page.getByRole("button", { name: "Next" }).click();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
   await shot("41-wizard-days");
-  await page.getByRole("button", { name: "Next" }).click();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
   await page.getByText("Your plan").waitFor();
   await shot("42-wizard-preview");
   await page.getByRole("button", { name: "Create plan" }).click();
   await page.waitForURL(/\/training$/);
-  await page.getByText("10K ·").waitFor();
+  await page.getByText("Race day").first().waitFor();
   await shot("43-training-plan");
 
   const firstSession = page.locator('a[href^="/training/workout/"]').first();
@@ -69,7 +69,7 @@ try {
 
   await page.goto(`${BASE}/today`);
   await shot("45-today");
-  const hasBreakdown = await page.getByText(/^Base \d+/).count();
+  const hasBreakdown = await page.getByText(/^\+\d+ activity$/).count();
   await browser.close();
 
   const { data: plan } = await admin.from("training_plans").select("id, vdot").eq("user_id", uid).eq("status", "active").single();
@@ -78,7 +78,7 @@ try {
     "plan created": !!plan,
     "plan has sessions": (ws ?? []).length > 10,
     "race on race day": (ws ?? []).some((w) => w.type === "race" && w.date === addDays(today, 63)),
-    "target breakdown on Today": hasBreakdown > 0,
+    "activity tag on Today": hasBreakdown > 0,
     "fuel section on session": hasFuel > 0,
     "no console errors": errors.length === 0,
   };

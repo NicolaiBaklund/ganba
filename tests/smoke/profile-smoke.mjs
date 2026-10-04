@@ -31,7 +31,7 @@ try {
 
   const targetNow = async () => {
     await page.goto(`${BASE}/today`);
-    const txt = await page.getByText("Target", { exact: true }).locator("xpath=following-sibling::p[1]").textContent();
+    const txt = await page.getByTestId("kcal-target").textContent();
     return Number(txt);
   };
   const before = await targetNow();

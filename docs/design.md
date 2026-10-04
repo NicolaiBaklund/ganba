@@ -1,44 +1,52 @@
-# Ganba — designretning
+# Ganba — designretning «Tasuki»
 
-Inspirert av Runna (sporty, mørk, tydelige tall og fargekoder), men med egen identitet. Vi kopierer ikke Runnas merkevare (indigo + lime).
+Hentet fra japansk løpekultur: *ganbaru* (stå på) og ekiden-stafetten, der løperne bærer en tasuki (skrå stripe over brystet) og et startnummer. Spec: [specs/2026-10-04-redesign-tasuki.md](specs/2026-10-04-redesign-tasuki.md). Mockup: [mockups/2026-10-04-tasuki.html](mockups/2026-10-04-tasuki.html).
 
 ## Prinsipper
-- **Mørk først.** Nesten svart bakgrunn med blåtone, kort litt lysere. Lys modus senere.
-- **Én aksentfarge: elektrisk blå.** Brukes på primærhandlinger ("+", lagre), kcal-ring og aktive faner. Ikke som dekor.
-- **Faste farger for data.** Protein, karbo og fett har alltid samme farge. Senere: økttyper får egne faste farger.
-- **Store, fete tall.** Det viktigste tallet på hver skjerm (kcal igjen, trendvekt) i Sora, tabular-nums.
-- **Kort med luft.** Avrundede (radius 1rem), trykk for detaljer.
-- **Lite tekst.** Ikon + tall der mulig. Hjelpetekst kun der den hindrer feil.
+- **Startnummeret er hovedelementet.** Dagens økt vises som et hvitt startnummer med fire nålehull og en skrå tasuki-stripe i økttypens farge. Alltid hvitt papir med svart trykk, også i mørk modus. Hviledag = lite startnummer med grå stripe og neste økt.
+- **Én aksent: karmosinrød.** Brukes på valgt dag, aktiv fane, denne uka i kartet, «+activity»-merket og lenker. Ikke som dekor.
+- **Svart/hvitt ellers.** Lys modus: grå-hvit bakgrunn, hvite flater, svart tekst. Mørk modus: svart bakgrunn, mørkegrå flater, hvit tekst. Følger telefonens innstilling.
+- **Store, smale tall.** Det viktigste tallet på hver skjerm (startnummer, kcal igjen, trendvekt, løpsdistanse) i smal, kraftig Archivo, tabular-nums.
+- **Typografi og streker bærer hierarkiet, ikke kort.** Seksjonsoverskrift med 2 px strek under, 1 px linje mellom rader. Kort bare der noe trykkes som én enhet (startnummer, ark, innsjekk).
+- **Faste farger for data.** Protein, karbo og fett har alltid samme farge og egne barer. Hver økttype har sin farge, brukt som skrå stripe overalt (uke-stripe, lister, kart, startnummer).
 - **Minst mulig innsats** (produktprinsipp): store trykkflater, numerisk tastatur, forhåndsvalg.
 
 ## Tokens (i `apps/web/app/globals.css`)
 
-| Token | Verdi | Bruk |
-|---|---|---|
-| background | `#0a0c12` | app-bakgrunn |
-| card | `#141824` | kort |
-| popover | `#181d2a` | ark, menyer |
-| muted / secondary | `#1e2433` | inputs, sekundærknapper, spor i barer |
-| border | hvit 8 % | skiller |
-| foreground | `#f3f5fa` | tekst |
-| muted-foreground | `#8c95a8` | sekundærtekst |
-| **primary** | `#2f8cff` | aksent (elektrisk blå) |
-| protein | `#ff6b8a` | protein |
-| carbs | `#ffb547` | karbo |
-| fat | `#a78bfa` | fett |
-| success | `#34d399` | på mål / fremgang |
-| warning | `#ffb547` | advarsler (gulv, tempo) |
-| destructive | `#ff5c5c` | slett, feil |
-| w-easy / w-long / w-intervals / w-threshold / w-tempo / w-strides / w-race | `#5eead4` / `#2f8cff` / `#ff6b8a` / `#ffb547` / `#a78bfa` / `#34d399` / `#facc15` | økttyper (fase 2), `style={{ color: var(--w-…) }}` |
+| Token | Lys | Mørk | Bruk |
+|---|---|---|---|
+| background | `#eef0f2` | `#000000` | app-bakgrunn |
+| card | `#ffffff` | `#16171a` | flater, logget-dag-bokser |
+| popover | `#ffffff` | `#1c1d21` | ark, menyer |
+| muted | `#e2e5e9` | `#222428` | skjelett, inputflater |
+| foreground | `#000000` | `#ffffff` | tekst, spor, streker |
+| muted-foreground | `#5f646d` | `#9aa0aa` | sekundærtekst |
+| border | `#d6d9de` | `#2b2d32` | linjer, tomme barer |
+| **primary** | `#c8102e` | `#ff3b55` | aksent |
+| paper / paper-ink | `#ffffff` / `#000000` | samme | startnummeret |
+| protein / carbs / fat | `#e8336b` / `#e89a1a` / `#7a5cf0` | samme | makrobarer |
+| success / warning / destructive | `#138a5e` / `#b86e00` / `#c62828` | `#34d399` / `#ffb547` / `#ff5c5c` | status |
+| w-easy / w-long / w-intervals / w-threshold / w-tempo / w-strides / w-race | `#1fa98a` / `#2f6fd6` / `#e8336b` / `#e89a1a` / `#7a5cf0` / `#34b37a` / `#d4a20f` | samme | økttyper |
+| w-rest | `#b9bec6` | `#6b7079` | hviledag-stripe |
+| plus-bg / plus-fg | svart / hvit | hvit / svart | «+»-knappen |
 
-Tailwind-klasser: `bg-primary`, `text-protein`, `bg-carbs`, `text-fat`, `text-success` osv.
+Tailwind-klasser: `bg-primary`, `bg-paper`, `text-paper-ink`, `text-protein`, `bg-carbs` osv. Økttyper: `style={{ background: "var(--w-…)" }}` eller `typeColor()` i `lib/training/format.ts`.
 
 ## Typografi
-- **Sora** (`font-heading`, klasse `.num` for tall): overskrifter og nøkkeltall.
-- **Geist** (`font-sans`): brødtekst.
+- **Archivo** (variabel, `wdth` 62–125), eneste font.
+- `.cond`: overskrifter (smal 70 %, vekt 900). `.num`: tall (smal 75 %, tabular-nums). Største tall bruker `[font-stretch:62%]`.
+- Skala (px): 104 startnummer, 84 løpsdistanse, 72 kcal igjen / trendvekt, 34 sidetittel, 22 seksjon, 17 listetall, 15 brødtekst, 13 sekundær, 11 ukedag.
 
-## Inspirasjonskilder
-- [Mobbin — Health & Fitness](https://mobbin.com/explore/mobile/app-categories/health-fitness) (søk Runna, Strava, MacroFactor, MyFitnessPal)
-- [Refero](https://refero.design) — flyter
-- [Spectr — Runna](https://www.spectr.to/gallery/runna) — Runnas designsystem
-- [Dribbble — running app](https://dribbble.com/search/running-app) — stemning
+## Form
+- Radius: 6 px (startnummer, bokser), pille for knapper og merker, firkantede kartmarkører, 18 px øverst på ark.
+- Ingen glød, ingen gradienter, ingen store avrundede kort.
+
+## Komponenter
+- `components/tasuki/`: `Sash` (skrå stripe; hel = gjort, stripet = planlagt, omriss = misset), `Bib` + `RestBib`, `SectionHead`, `ListRow`, `StatRow`.
+- `components/today/WeekStrip` (uke med mat-logging og økt-striper), `KcalBlock` (kcal igjen, «+activity», makrobarer, utregning ved trykk), `TodayBib`.
+- `components/training/TrainingMap` (linjekart med km-bar per uke, sjakkflagg på løpsdag), `AdjustPlanButton`.
+- Logo: startnummer med «G» — `apps/web/scripts/icons/bib.svg`, PNG-er via `node apps/web/scripts/make-icons.mjs`.
+
+## Tekst
+- Engelsk UI, kort og konkret. Ingen tankestreker, ingen «·»-kjeder, ingen etiketter i store bokstaver.
+- Hjelpetekst bare der den hindrer feil.

@@ -36,7 +36,7 @@ export async function KcalBlock({
     <span className="block text-right text-[13px] leading-normal text-muted-foreground">
       <b className="num text-base font-extrabold text-foreground">{Math.round(intake.kcal)}</b> {t("eaten").toLowerCase()}
       <br />
-      <b className="num text-base font-extrabold text-foreground">{target.kcal}</b> {t("target").toLowerCase()}
+      <b data-testid="kcal-target" className="num text-base font-extrabold text-foreground">{target.kcal}</b> {t("target").toLowerCase()}
       {activityKcal != null && activityKcal > 0 && (
         <>
           <br />
