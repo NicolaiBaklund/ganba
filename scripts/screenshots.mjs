@@ -8,7 +8,7 @@ import { chromium } from "playwright";
 
 config({ path: "apps/web/.env.local", quiet: true });
 const BASE = process.argv[2] ?? "http://localhost:3100";
-const APP_NAME = process.env.APP_NAME ?? "Loop";
+const APP_NAME = process.env.APP_NAME ?? "Ganba";
 const OUT = "docs/screenshots";
 const TZ = "Europe/Oslo";
 mkdirSync(OUT, { recursive: true });
@@ -96,6 +96,8 @@ try {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true, timezoneId: TZ });
   await ctx.addCookies([{ name: `sb-${ref}-auth-token`, value: "base64-" + Buffer.from(JSON.stringify(s.session)).toString("base64url"), domain: new URL(BASE).hostname, path: "/" }]);
   const page = await ctx.newPage();
+  // The demo Garmin tokens are fake: keep the app from syncing (it would flag "sign in again").
+  await page.route("**/api/garmin/sync", (route) => route.fulfill({ json: { ok: true } }));
   const shot = async (name) => {
     await page.waitForTimeout(400);
     await page.screenshot({ path: `${OUT}/${name}.png`, caret: "initial" });
@@ -129,7 +131,7 @@ try {
   await admin.from("planned_workouts").update({ garmin_push_status: "pushed", garmin_workout_id: 1 }).eq("plan_id", plan.id).lte("date", day(13));
 
   await page.goto(`${BASE}/today`);
-  await page.getByText("Base", { exact: false }).first().waitFor();
+  await page.getByText(/^\+\d+ activity$/).first().waitFor();
   await shot("today");
 
   await page.goto(`${BASE}/training`);
@@ -138,7 +140,6 @@ try {
 
   await page.goto(`${BASE}/training/workout/${quality.id}`);
   await page.getByText("Fuel", { exact: true }).waitFor();
-  await page.evaluate(() => window.scrollTo(0, 260));
   await shot("workout");
 
   await page.goto(`${BASE}/body`);
@@ -175,16 +176,17 @@ try {
   const img = (n) => `data:image/png;base64,${readFileSync(`${OUT}/${n}.png`).toString("base64")}`;
   const hero = await chromium.launch();
   const hp = await hero.newPage({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 1 });
-  await hp.setContent(`<!doctype html><html><head><style>
-    body{margin:0;width:1600px;height:900px;background:radial-gradient(ellipse at 50% 120%,#1b3f8a 0%,#0a0c12 60%);font-family:system-ui,sans-serif;color:#f3f5fa;display:flex;flex-direction:column;align-items:center;overflow:hidden}
-    h1{margin:56px 0 6px;font-size:64px;letter-spacing:-2px}
-    p{margin:0 0 40px;color:#8c95a8;font-size:24px}
+  await hp.setContent(`<!doctype html><html><head><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap"><style>
+    body{margin:0;width:1600px;height:900px;background:#eef0f2;font-family:Archivo,system-ui,sans-serif;color:#000;display:flex;flex-direction:column;align-items:center;overflow:hidden}
+    h1{margin:56px 0 6px;font-size:72px;font-weight:900;font-stretch:62%;letter-spacing:-1px}
+    p{margin:0 0 40px;color:#5f646d;font-size:24px}
     .row{display:flex;gap:36px;align-items:flex-start}
-    .phone{width:300px;height:650px;border-radius:44px;padding:10px;background:#1e2433;box-shadow:0 30px 80px -20px rgba(47,140,255,.45)}
+    .phone{width:300px;height:650px;border-radius:44px;padding:10px;background:#000;box-shadow:0 30px 60px -30px rgba(0,0,0,.45)}
     .phone img{width:100%;height:100%;border-radius:34px;object-fit:cover;object-position:top}
     .phone:nth-child(2),.phone:nth-child(3){margin-top:-24px}
-  </style></head><body><h1>${APP_NAME}</h1><p>Training plan, nutrition and weight — one daily target that follows your Garmin.</p>
+  </style></head><body><h1>${APP_NAME}</h1><p>Training plan, nutrition and weight. One daily target that follows your Garmin.</p>
   <div class="row">${["today", "training", "workout", "food-ai"].map((n) => `<div class="phone"><img src="${img(n)}"/></div>`).join("")}</div></body></html>`);
+  await hp.evaluate(() => document.fonts.ready);
   await hp.screenshot({ path: `${OUT}/hero.png` });
   await hero.close();
   console.log(`screenshots written to ${OUT}/`);
