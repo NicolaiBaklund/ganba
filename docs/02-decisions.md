@@ -94,6 +94,7 @@ Format: dato — beslutning — begrunnelse.
 | 2026-10-04 | **Ny logo: startnummer** — hvitt startnummer med fire sikkerhetsnåler og svart smal «G» på karmosinrød bakgrunn. Favicon (16–32 px) får forenklet variant uten nåler. Erstatter Loop-ringen | Brukeren valgte 2 av 3 (tasuki-stripe, startnummer, 頑-segl) |
 | 2026-10-04 | Mat-fanen: kun ny stil i redesignet, struktur uendret. Brukeren vil senere legge til en restitusjons-fane og ordne fanene da | Brukerens ønske |
 | 2026-10-04 | Tempo kan også foreslås **ned**: bare når de 2–3 siste harde øktene (21 d) alle er løpt > 3 % saktere enn planlagt (målt på Garmin-runder, ikke rolige turer). Ny VDOT = det rundene viser, maks −3. Forslag brukeren godtar. Garmin-estimatet beholder −1 VDOT-justering (ikke mer) | Brukeren: «nedjustere?» — data tyder ikke på at 42 er for høyt; svakheten var at tempo bare kunne gå opp |
+| 2026-10-04 | Domene ganba.no live (Vercel, apex som hoveddomene). Innloggings-e-post sendes via Resend fra `login@ganba.no` (DKIM/SPF på `send`-subdomene, DMARC p=none). NTNU (Microsoft 365) bouncer e-post fra det nye domenet → brukerens konto flyttet til Gmail | Gmail mottar koden; NTNU-studentadresse uansett midlertidig |
 
 ## Åpne spørsmål
 - (Teknisk fase) Garmin-tilgang. Offisielt program er kun for bedrifter og muligens pauset (se research-notes). Sannsynlig vei: uoffisielt bibliotek i personlig fase, bak adapter-lag; offisielt når/om appen blir produkt.
