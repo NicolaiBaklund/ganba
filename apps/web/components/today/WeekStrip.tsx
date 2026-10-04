@@ -6,7 +6,7 @@ import { Sash } from "@/components/tasuki/Sash";
 import type { WeekDay } from "@/lib/db/week";
 import { cn } from "@/lib/utils";
 
-/** Date line + Mon–Sun strip. White box = food logged, red = selected day, stripes = sessions. */
+/** Date line + Monâ€“Sun strip. White box = food logged, red = selected day, stripes = sessions. */
 export async function WeekStrip({
   days,
   date,

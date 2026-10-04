@@ -8,7 +8,7 @@ export interface WeekDay {
   sessions: { type: WorkoutType | "other"; state: "done" | "planned" | "missed" }[];
 }
 
-/** Mon–Sun around `date`: which days have food logged and which sessions were planned or run. */
+/** Monâ€“Sun around `date`: which days have food logged and which sessions were planned or run. */
 export async function loadWeekStrip(supabase: DB, userId: string, date: ISODate): Promise<WeekDay[]> {
   const monday = mondayOf(date);
   const sunday = addDays(monday, 6);
