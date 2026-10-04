@@ -51,7 +51,7 @@ Søvn hører til **morgenen man våkner** (Garmins `calendarDate`). Natta mandag
 - Mangler en natt (klokke av/tom): ingen rad, aldri utfylt med snitt.
 
 ### 4.4 Data appen allerede har
-- **Mat per dag:** kcal mot dagsmål (underskudd), karbo og protein per kg (trendvekt), alkohol (`alcohol_g` fra AI-logg), kcal etter kl. 20 (fra måltidets tidspunkt).
+- **Mat per dag:** underskudd = forbruk (grunnforbruk + dagens aktivitet) − inntak, karbo og protein per kg (trendvekt), alkohol (`alcohol_g` fra AI-logg), kcal etter kl. 20 (fra måltidets tidspunkt).
 - **Trening per dag:** hard økt (intervall/terskel/tempo/løp, eller uplanlagt løp med snittfart under terskelfart + 10 s/km), langtur (planlagt langtur eller løp ≥ 90 min), skritt, total treningstid.
 - **Løpsform:** se §5.2.
 - **Måltidstid:** måltider kan nå få endret klokkeslett i redigeringsarket, så «sene måltider» blir riktig også når man logger i etterkant.
@@ -69,7 +69,7 @@ Fra dagsdata bygges én rad per dato med faktorer (mat, trening, søvn natta fø
 - **Kvalitetsøkter:** faktisk tempo på dragene / planlagt tempo (samme måling som tempo-ned-forslagene).
 - Alle utfall **avtrendes**: avvik fra brukerens glidende 28-dagers median (30 dager for løpsform). Jevn formfremgang eller sesong gir dermed ikke falske funn.
 
-### 5.3 Spørsmålskatalog (v1)
+### 5.3 Spørsmålskatalog (v1, 13 faktor–utfall-grupper)
 
 | Id | Faktor | Utfall | Forskyvning |
 |---|---|---|---|
