@@ -1,0 +1,877 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ganba directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=M+PLUS+1:wght@400;500;700;800&family=Zen+Maru+Gothic:wght@400;500;700;900&family=Noto+Sans+JP:wght@700;900&display=swap">
+<style>
+  /* ---------- page chrome (neutral, stays out of the way) ---------- */
+  :root {
+    --page: #e6e7ea; --page-ink: #1c1d21; --page-mute: #5d6068; --page-line: #c9cbd1; --frame: #c4c6cc;
+    --btn: #ffffff; --btn-on: #1c1d21; --btn-on-ink: #ffffff;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --page: #1d1f23; --page-ink: #eceef2; --page-mute: #9a9ea8; --page-line: #34373e; --frame: #3a3d44;
+      --btn: #2a2d33; --btn-on: #eceef2; --btn-on-ink: #1d1f23; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --page: #1d1f23; --page-ink: #eceef2; --page-mute: #9a9ea8; --page-line: #34373e; --frame: #3a3d44;
+    --btn: #2a2d33; --btn-on: #eceef2; --btn-on-ink: #1d1f23; color-scheme: dark;
+  }
+  body { background: var(--page); color: var(--page-ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 32px 20px 80px; }
+  .intro { max-width: 62ch; }
+  .intro h1 { font-size: 28px; line-height: 1.15; margin: 0 0 10px; }
+  .intro p { margin: 0 0 8px; color: var(--page-mute); }
+  .toggle { display: inline-flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--btn); margin-top: 14px; border: 1px solid var(--page-line); }
+  .toggle button { font: inherit; font-size: 14px; border: 0; background: transparent; color: var(--page-ink); padding: 7px 16px; border-radius: 999px; cursor: pointer; }
+  .toggle button[aria-pressed="true"] { background: var(--btn-on); color: var(--btn-on-ink); }
+  .toggle button:focus-visible, .phone a:focus-visible { outline: 2px solid #3b82f6; outline-offset: 2px; }
+
+  .dir { margin-top: 64px; padding-top: 28px; border-top: 1px solid var(--page-line); }
+  .dir-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 32px; align-items: start; }
+  .dir-head h2 { font-size: 24px; margin: 0; }
+  .dir-head .pitch { margin: 6px 0 0; max-width: 60ch; color: var(--page-mute); }
+  .dir-head dl { margin: 14px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 14px; max-width: 64ch; }
+  .dir-head dt { color: var(--page-mute); }
+  .dir-head dd { margin: 0; }
+  .swatches { display: flex; gap: 6px; }
+  .sw { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--page-line); }
+  .phones { display: flex; gap: 36px; flex-wrap: wrap; margin-top: 28px; }
+  .shot { display: flex; flex-direction: column; gap: 10px; }
+  .shot figcaption { font-size: 13px; color: var(--page-mute); padding-left: 6px; }
+  @media (max-width: 720px) { .dir-head { grid-template-columns: 1fr; } }
+
+  .shared { margin-top: 72px; padding-top: 28px; border-top: 1px solid var(--page-line); max-width: 70ch; }
+  .shared h2 { font-size: 24px; margin: 0 0 12px; }
+  .shared ol { padding-left: 22px; margin: 0; }
+  .shared li { margin-bottom: 10px; }
+  .shared li strong { display: block; }
+
+  /* ---------- phone frame (shared by all directions) ---------- */
+  .phone {
+    width: 340px; height: 720px; border-radius: 42px; overflow: hidden; position: relative; flex: none;
+    background: var(--bg); color: var(--ink); font-family: var(--font);
+    box-shadow: 0 0 0 9px var(--frame), 0 24px 50px -24px rgb(0 0 0 / 35%);
+  }
+  .screen { height: 100%; overflow-y: auto; padding: 22px 18px 104px; scrollbar-width: none; }
+  .screen::-webkit-scrollbar { display: none; }
+  .phone svg.i { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .phone svg.i.s { width: 16px; height: 16px; }
+  .phone .num { font-variant-numeric: tabular-nums; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .nav { position: absolute; left: 0; right: 0; bottom: 0; height: 84px; display: grid; grid-template-columns: repeat(5, 1fr); align-items: start; padding: 10px 6px 0; background: var(--nav-bg); }
+  .nav a { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 11px; color: var(--mute); text-decoration: none; }
+  .nav a.on { color: var(--ink); }
+  .nav .plus { align-self: start; justify-self: center; display: grid; place-items: center; color: var(--plus-ink); background: var(--plus-bg); }
+  .nav .plus svg.i { width: 26px; height: 26px; stroke-width: 2.2; }
+
+  /* =================================================================
+     A. TASUKI  (ekiden bib + sash)
+     ================================================================= */
+  .A {
+    --font: "Archivo", system-ui, sans-serif;
+    --bg: #eef0f2; --surface: #ffffff; --ink: #000000; --mute: #5f646d; --line: #d6d9de;
+    --red: #c8102e; --paper: #ffffff; --paper-ink: #000000;
+    --nav-bg: #ffffff; --plus-bg: #000000; --plus-ink: #ffffff;
+    --w-int: #e8336b; --w-easy: #1fa98a; --w-long: #2f6fd6; --w-thr: #e89a1a;
+  }
+  #stage[data-mode="dark"] .A {
+    --bg: #000000; --surface: #16171a; --ink: #ffffff; --mute: #9aa0aa; --line: #2b2d32;
+    --red: #ff3b55; --nav-bg: #0b0b0c; --plus-bg: #ffffff; --plus-ink: #000000;
+  }
+  .A .cond { font-stretch: 68%; }
+  .A .top { margin-bottom: 14px; }
+  .A .date { font-weight: 800; font-stretch: 75%; font-size: 15px; letter-spacing: .01em; }
+  .A .ava { width: 34px; height: 34px; border-radius: 50%; background: var(--surface); display: grid; place-items: center; font-weight: 700; font-size: 13px; border: 1px solid var(--line); }
+  .A .week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 16px; text-align: center; }
+  .A .week span { font-size: 11px; color: var(--mute); }
+  .A .week b { display: grid; place-items: center; height: 34px; margin-top: 3px; font-weight: 700; font-size: 15px; font-stretch: 80%; border-radius: 6px; }
+  .A .week b.done { background: var(--surface); box-shadow: inset 0 -3px 0 var(--ink); }
+  .A .week b.today { background: var(--red); color: #fff; }
+  /* the bib */
+  .A .bib { position: relative; overflow: hidden; background: var(--paper); color: var(--paper-ink); border-radius: 6px; padding: 14px 18px 14px; box-shadow: 0 1px 0 var(--line), 0 10px 24px -16px rgb(0 0 0 / 40%); }
+  .A .bib::before, .A .bib::after { content: ""; position: absolute; top: 9px; width: 7px; height: 7px; border-radius: 50%; background: var(--bg); box-shadow: 0 0 0 1px rgb(0 0 0 / 12%) inset; }
+  .A .bib::before { left: 9px; } .A .bib::after { right: 9px; }
+  .A .bib .pins-b::before, .A .bib .pins-b::after { content: ""; position: absolute; bottom: 9px; width: 7px; height: 7px; border-radius: 50%; background: var(--bg); box-shadow: 0 0 0 1px rgb(0 0 0 / 12%) inset; }
+  .A .bib .pins-b::before { left: 9px; } .A .bib .pins-b::after { right: 9px; }
+  .A .sash { position: absolute; top: -10px; right: 84px; width: 30px; height: 220px; background: var(--w-int); transform: rotate(-52deg); transform-origin: top center; }
+  .A .bib-type { position: relative; font-weight: 700; font-size: 13px; padding-left: 4px; }
+  .A .bib-num { position: relative; font-weight: 900; font-stretch: 62%; font-size: 104px; line-height: .86; letter-spacing: -.02em; margin: 6px 0 2px; }
+  .A .bib-num small { font-size: 34px; font-weight: 800; letter-spacing: 0; margin-left: 2px; }
+  .A .bib-meta { position: relative; font-size: 15px; font-weight: 600; }
+  .A .bib-fuel { position: relative; display: flex; gap: 8px; align-items: center; margin-top: 12px; padding-top: 10px; border-top: 2px solid var(--paper-ink); font-size: 13px; }
+  .A .bib-fuel em { font-style: normal; margin-left: auto; display: flex; align-items: center; gap: 4px; color: #4b5059; }
+  .A .energy { margin-top: 22px; }
+  .A .kcal { font-weight: 900; font-stretch: 62%; font-size: 72px; line-height: .9; letter-spacing: -.02em; }
+  .A .kcal-l { font-size: 13px; color: var(--mute); margin-top: 2px; }
+  .A .kcal-side { text-align: right; font-size: 13px; color: var(--mute); line-height: 1.5; }
+  .A .kcal-side b { color: var(--ink); font-weight: 800; font-stretch: 75%; font-size: 16px; }
+  .A .boost { display: inline-block; margin-top: 2px; font-weight: 800; font-stretch: 75%; font-size: 13px; color: #fff; background: var(--red); padding: 1px 7px; transform: skewX(-12deg); }
+  .A .track { height: 8px; background: var(--line); margin-top: 12px; display: flex; }
+  .A .track i { display: block; height: 100%; }
+  .A .mbar { display: block; height: 6px; background: var(--line); margin-top: 6px; } .A .mbar i { display: block; height: 100%; }
+  .A .breakdown { margin-top: 12px; padding: 8px 10px; background: var(--surface); font-size: 12px; color: var(--mute); border-left: 4px solid var(--red); } .A .breakdown span { color: var(--ink); margin: 0 2px; } .A .breakdown b { color: var(--ink); font-weight: 800; }
+  .A .macros { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 16px; font-size: 12px; color: var(--mute); }
+  .A .macros b { display: block; color: var(--ink); font-weight: 800; font-stretch: 75%; font-size: 15px; }
+  .A .sect { margin-top: 26px; font-weight: 900; font-stretch: 70%; font-size: 22px; display: flex; justify-content: space-between; align-items: baseline; }
+  .A .sect a { font-weight: 600; font-stretch: 100%; font-size: 13px; color: var(--red); text-decoration: none; }
+  .A .list { margin-top: 6px; border-top: 2px solid var(--ink); }
+  .A .li { padding: 11px 0; border-bottom: 1px solid var(--line); }
+  .A .li .t { font-weight: 700; font-size: 15px; }
+  .A .li .s { font-size: 13px; color: var(--mute); margin-top: 1px; }
+  .A .li .k { font-weight: 800; font-stretch: 75%; font-size: 17px; }
+  .A .nav { border-top: 1px solid var(--line); }
+  .A .nav a.on { color: var(--red); }
+  .A .nav .plus { width: 54px; height: 54px; border-radius: 14px; margin-top: -2px; }
+  /* training */
+  .A h1 { font-weight: 900; font-stretch: 70%; font-size: 34px; margin: 0; line-height: 1; }
+  .A .ai { display: inline-flex; align-items: center; gap: 6px; font: 600 13px var(--font); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px; }
+  .A .ai svg { color: var(--red); }
+  .A .race { margin-top: 18px; display: flex; align-items: flex-end; gap: 12px; }
+  .A .race-d { font-weight: 900; font-stretch: 62%; font-size: 84px; line-height: .82; letter-spacing: -.02em; }
+  .A .race-w { font-size: 14px; line-height: 1.3; padding-bottom: 4px; }
+  .A .race-w b { font-weight: 800; font-size: 18px; font-stretch: 75%; display: block; }
+  .A .stats { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 16px; border-top: 2px solid var(--ink); padding-top: 8px; font-size: 12px; color: var(--mute); }
+  .A .stats b { display: block; font-weight: 800; font-stretch: 75%; font-size: 20px; color: var(--ink); }
+  .A .bars { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; align-items: end; height: 132px; margin-top: 22px; }
+  .A .bars div { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; font-size: 10px; color: var(--mute); }
+  .A .bars i { display: block; width: 100%; background: var(--ink); border-radius: 2px 2px 0 0; }
+  .A .bars .easy i { background: repeating-linear-gradient(135deg, var(--mute) 0 2px, transparent 2px 5px); box-shadow: inset 0 0 0 1px var(--mute); }
+  .A .bars .now i { background: var(--red); }
+  .A .bars .now { color: var(--red); font-weight: 700; }
+  .A .bars .racew i { background: var(--ink); clip-path: polygon(0 0, 100% 12%, 100% 100%, 0 100%); }
+  .A .legend { display: flex; gap: 14px; font-size: 11px; color: var(--mute); margin-top: 8px; }
+  .A .legend span::before { content: ""; display: inline-block; width: 9px; height: 9px; margin-right: 5px; vertical-align: -1px; background: var(--c); }
+  .A .day { display: grid; grid-template-columns: 42px 6px 1fr auto; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .A .day .dd { font-size: 11px; color: var(--mute); line-height: 1.1; }
+  .A .day .dd b { display: block; font-size: 18px; color: var(--ink); font-weight: 800; font-stretch: 75%; }
+  .A .day .c { height: 30px; background: var(--c); transform: skewX(-18deg); }
+  .A .paces { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; font-size: 11px; color: var(--mute); margin-top: 8px; }
+  .A .paces b { display: block; color: var(--ink); font-weight: 800; font-stretch: 75%; font-size: 14px; }
+
+  /* =================================================================
+     B. LINE  (Tokyo transit: plan as a route, sessions as lines)
+     ================================================================= */
+  .B {
+    --font: "M PLUS 1", system-ui, sans-serif;
+    --bg: #ffffff; --surface: #f2f4f7; --ink: #17202b; --mute: #687280; --line: #e1e5ea;
+    --nav-bg: #ffffff; --plus-bg: #17202b; --plus-ink: #ffffff;
+    --ginza: #ff9500; --maru: #f62e36; --hibiya: #9a9a92; --tozai: #009bbf; --chiyoda: #00a776; --yuraku: #c1a470; --hanzo: #8f76d6; --namboku: #00ac9b;
+  }
+  #stage[data-mode="dark"] .B {
+    --bg: #10151c; --surface: #1a212b; --ink: #f3f6fa; --mute: #8e98a6; --line: #262f3b;
+    --nav-bg: #0d1218; --plus-bg: #f3f6fa; --plus-ink: #10151c; --hibiya: #7c7c76;
+  }
+  .B h1 { font-size: 26px; font-weight: 800; margin: 0; line-height: 1.1; }
+  .B .sub { font-size: 13px; color: var(--mute); }
+  .B .ava { width: 34px; height: 34px; border-radius: 50%; background: var(--surface); display: grid; place-items: center; font-weight: 700; font-size: 13px; }
+  .B .strip { position: relative; display: grid; grid-template-columns: repeat(7, 1fr); margin: 18px 0 20px; text-align: center; }
+  .B .strip::before { content: ""; position: absolute; left: 7%; right: 7%; top: 11px; height: 4px; border-radius: 2px; background: var(--line); }
+  .B .strip div { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; color: var(--mute); }
+  .B .st { width: 18px; height: 18px; margin-top: 4px; border-radius: 50%; background: var(--bg); border: 4px solid var(--line); box-sizing: border-box; }
+  .B .st.ok { border-color: var(--c); }
+  .B .st.now { width: 26px; height: 26px; margin-top: 0; border: 5px solid var(--maru); }
+  .B .strip .on { color: var(--ink); font-weight: 700; }
+  .B .badge { width: 44px; height: 44px; border-radius: 50%; border: 5px solid var(--c); display: grid; place-items: center; font-weight: 800; font-size: 19px; line-height: 1; flex: none; background: var(--bg); color: var(--ink); }
+  .B .badge.sm { width: 30px; height: 30px; border-width: 4px; font-size: 13px; }
+  .B .sess { background: var(--surface); border-radius: 18px; padding: 16px; }
+  .B .sess h2 { margin: 0; font-size: 19px; font-weight: 800; line-height: 1.2; }
+  .B .route { display: flex; gap: 3px; height: 10px; margin: 14px 0 6px; }
+  .B .route i { display: block; height: 100%; border-radius: 5px; }
+  .B .route-l { display: flex; justify-content: space-between; font-size: 11px; color: var(--mute); }
+  .B .fuel { display: flex; gap: 8px; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13px; }
+  .B .fuel em { margin-left: auto; font-style: normal; color: var(--mute); display: flex; gap: 4px; align-items: center; }
+  .B .kcal { font-size: 46px; font-weight: 800; line-height: 1; letter-spacing: -.02em; }
+  .B .kcal small { font-size: 15px; font-weight: 500; color: var(--mute); letter-spacing: 0; margin-left: 6px; }
+  .B .stack { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: var(--line); margin: 12px 0 10px; }
+  .B .stack i { display: block; height: 100%; }
+  .B .mac { display: grid; grid-template-columns: repeat(3, 1fr); font-size: 12px; color: var(--mute); }
+  .B .mac b { color: var(--ink); font-weight: 700; font-size: 14px; }
+  .B .mac span::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c); margin-right: 5px; }
+  .B h3 { font-size: 16px; font-weight: 800; margin: 26px 0 4px; display: flex; justify-content: space-between; align-items: baseline; }
+  .B h3 a { font-size: 13px; font-weight: 500; color: var(--tozai); text-decoration: none; }
+  .B .meal { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 11px 0; border-bottom: 1px solid var(--line); }
+  .B .meal .t { font-weight: 700; font-size: 15px; }
+  .B .meal .s { grid-column: 1; font-size: 13px; color: var(--mute); }
+  .B .meal .k { grid-row: 1 / span 2; grid-column: 2; align-self: center; font-weight: 700; font-size: 16px; }
+  .B .nav { border-top: 1px solid var(--line); }
+  .B .nav a.on { color: var(--ink); font-weight: 700; }
+  .B .nav a.on svg { color: var(--maru); }
+  .B .nav .plus { width: 52px; height: 52px; border-radius: 50%; }
+  .B .ai { display: inline-flex; align-items: center; gap: 6px; font: 700 13px var(--font); color: var(--ink); background: var(--surface); border: 0; border-radius: 999px; padding: 8px 13px; }
+  .B .ai svg { color: var(--hanzo); }
+  .B .goal { display: flex; gap: 12px; align-items: center; margin-top: 16px; }
+  .B .goal .t { font-size: 22px; font-weight: 800; line-height: 1.1; }
+  .B .gstats { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 14px; background: var(--surface); border-radius: 14px; padding: 10px 14px; font-size: 11px; color: var(--mute); }
+  .B .gstats b { display: block; font-size: 18px; font-weight: 800; color: var(--ink); }
+  .B .map { margin-top: 18px; position: relative; }
+  .B .stop { position: relative; display: grid; grid-template-columns: 30px 1fr auto; gap: 12px; align-items: center; min-height: 40px; }
+  .B .stop::before { content: ""; position: absolute; left: 12px; top: 0; bottom: 0; width: 6px; background: var(--c, var(--tozai)); }
+  .B .stop.first::before { top: 50%; } .B .stop.last::before { bottom: 50%; }
+  .B .stop .dot { position: relative; justify-self: center; width: 18px; height: 18px; border-radius: 50%; background: var(--bg); border: 4px solid var(--c, var(--tozai)); box-sizing: border-box; }
+  .B .stop.now .dot { width: 26px; height: 26px; border-width: 5px; border-color: var(--maru); }
+  .B .stop.term .dot { width: 26px; height: 26px; border: 4px double var(--yuraku); border-width: 7px; }
+  .B .stop .n { font-size: 14px; font-weight: 700; }
+  .B .stop .n span { font-weight: 400; color: var(--mute); font-size: 12px; margin-left: 6px; }
+  .B .stop .km { font-size: 14px; font-weight: 700; }
+  .B .stop.now .km { color: var(--maru); }
+  .B .open { margin: 2px 0 6px 42px; background: var(--surface); border-radius: 14px; padding: 4px 12px; }
+  .B .open .w { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 13px; }
+  .B .open .w + .w { border-top: 1px solid var(--line); }
+  .B .open .w b { font-size: 14px; }
+  .B .open .w .d { width: 34px; color: var(--mute); font-size: 12px; line-height: 1.1; }
+
+  /* =================================================================
+     C. ENSŌ  (sumi ink, hanko seals, brush strokes)
+     ================================================================= */
+  .C {
+    --font: "Zen Maru Gothic", system-ui, sans-serif;
+    --bg: #f1f2ee; --surface: #fbfbf9; --ink: #232323; --mute: #77786f; --line: #dcddd6; --faint: #d8d9d1;
+    --seal: #c4302b; --indigo: #2c4f7c;
+    --nav-bg: #f1f2ee; --plus-bg: #232323; --plus-ink: #f1f2ee;
+  }
+  #stage[data-mode="dark"] .C {
+    --bg: #1b1b1a; --surface: #242422; --ink: #ecece6; --mute: #9a9a91; --line: #33332f; --faint: #34342f;
+    --seal: #e0453c; --indigo: #8fb0dc; --nav-bg: #1b1b1a; --plus-bg: #ecece6; --plus-ink: #1b1b1a;
+  }
+  .C .dhead { display: flex; align-items: flex-end; gap: 10px; }
+  .C .dbig { font-size: 52px; font-weight: 900; line-height: .9; }
+  .C .dsm { font-size: 14px; color: var(--mute); line-height: 1.25; padding-bottom: 3px; }
+  .C .dsm b { color: var(--ink); font-weight: 700; display: block; }
+  .C .ava { width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid var(--ink); display: grid; place-items: center; font-weight: 700; font-size: 13px; }
+  .C .seals { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin: 18px 0 8px; text-align: center; font-size: 11px; color: var(--mute); }
+  .C .seal { width: 30px; height: 30px; margin: 4px auto 0; border-radius: 6px; display: grid; place-items: center; font-family: "Noto Sans JP", sans-serif; font-weight: 900; font-size: 15px; }
+  .C .seal.on { background: var(--seal); color: #fff; transform: rotate(-4deg); }
+  .C .seal.off { border: 1.5px dashed var(--line); }
+  .C .seal.today { border: 1.5px solid var(--ink); color: var(--ink); font-family: var(--font); font-size: 13px; }
+  .C .enso { position: relative; width: 236px; height: 236px; margin: 4px auto 0; }
+  .C .enso svg { width: 100%; height: 100%; display: block; }
+  .C .enso .mid { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+  .C .enso .mid b { font-size: 56px; font-weight: 900; line-height: 1; letter-spacing: -.01em; }
+  .C .enso .mid span { font-size: 13px; color: var(--mute); }
+  .C .eat { display: flex; justify-content: center; gap: 22px; font-size: 13px; color: var(--mute); margin-top: -4px; }
+  .C .eat b { color: var(--ink); font-weight: 700; }
+  .C .strokes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 18px; font-size: 12px; color: var(--mute); }
+  .C .strokes b { color: var(--ink); font-weight: 700; font-size: 14px; }
+  .C .brush { height: 7px; margin-top: 5px; background: var(--faint); border-radius: 4px 2px 5px 1px; position: relative; overflow: hidden; }
+  .C .brush i { position: absolute; inset: 0 auto 0 0; background: var(--c); border-radius: 4px 6px 3px 2px; }
+  .C .sess { margin-top: 24px; display: grid; grid-template-columns: 6px 1fr auto; gap: 14px; align-items: stretch; }
+  .C .sess .bar { border-radius: 3px; background: var(--c); }
+  .C .sess .k { font-size: 12px; color: var(--mute); }
+  .C .sess h2 { margin: 1px 0 2px; font-size: 20px; font-weight: 900; line-height: 1.2; }
+  .C .sess p { margin: 0; font-size: 14px; }
+  .C .sess .f { margin-top: 8px; font-size: 13px; color: var(--mute); }
+  .C .sess .go { align-self: center; color: var(--mute); }
+  .C h3 { font-size: 16px; font-weight: 900; margin: 28px 0 2px; display: flex; justify-content: space-between; align-items: baseline; }
+  .C h3 a { font-size: 13px; font-weight: 500; color: var(--indigo); text-decoration: none; }
+  .C .meal { display: grid; grid-template-columns: 1fr auto; gap: 1px 12px; padding: 11px 0; border-bottom: 1px solid var(--line); }
+  .C .meal .t { font-weight: 700; }
+  .C .meal .s { font-size: 13px; color: var(--mute); }
+  .C .meal .k { grid-row: 1 / span 2; grid-column: 2; align-self: center; font-weight: 700; }
+  .C .nav { background: var(--nav-bg); }
+  .C .nav a.on { color: var(--ink); font-weight: 700; }
+  .C .nav .plus { width: 52px; height: 52px; border-radius: 50%; }
+  .C h1 { font-size: 28px; font-weight: 900; margin: 0; line-height: 1.1; }
+  .C .ai { display: inline-flex; align-items: center; gap: 6px; font: 700 13px var(--font); color: var(--indigo); background: transparent; border: 1.5px solid var(--indigo); border-radius: 999px; padding: 6px 12px; }
+  .C .race { display: flex; gap: 14px; align-items: center; margin-top: 20px; }
+  .C .stamp { width: 66px; height: 66px; border-radius: 10px; background: var(--seal); color: #fff; display: grid; place-content: center; text-align: center; transform: rotate(-5deg); flex: none; }
+  .C .stamp b { font-size: 24px; font-weight: 900; line-height: 1; }
+  .C .stamp span { font-size: 10px; }
+  .C .race .t { font-size: 15px; line-height: 1.35; color: var(--mute); }
+  .C .race .t b { display: block; font-size: 22px; color: var(--ink); font-weight: 900; }
+  .C .rstats { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 16px; font-size: 12px; color: var(--mute); }
+  .C .rstats b { display: block; font-size: 19px; font-weight: 900; color: var(--ink); }
+  .C .wk { display: grid; grid-template-columns: 54px 1fr 50px; gap: 10px; align-items: center; padding: 6px 0; font-size: 13px; }
+  .C .wk .l { color: var(--mute); line-height: 1.15; }
+  .C .wk .l b { color: var(--ink); display: block; font-weight: 700; }
+  .C .wk .ink { height: 11px; background: var(--ink); border-radius: 6px 3px 7px 2px; position: relative; }
+  .C .wk .ink::after { content: ""; position: absolute; right: -3px; top: 3px; width: 10px; height: 5px; border-radius: 50%; background: inherit; opacity: .55; }
+  .C .wk.easy .ink { background: var(--mute); opacity: .55; }
+  .C .wk.now .ink { background: var(--seal); }
+  .C .wk.now .l b, .C .wk.now .km { color: var(--seal); }
+  .C .wk .km { text-align: right; font-weight: 700; }
+  .C .wopen { margin: 4px 0 10px 64px; border-left: 2px solid var(--line); padding-left: 12px; }
+  .C .wopen div { display: flex; gap: 10px; padding: 5px 0; font-size: 13px; align-items: baseline; }
+  .C .wopen span { width: 40px; color: var(--mute); font-size: 12px; }
+
+  /* ---------- Logo options ---------- */
+  .logos { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 28px; margin-top: 28px; }
+  .logo-opt { display: flex; flex-direction: column; gap: 14px; }
+  .logo-opt h3 { margin: 0; font-size: 17px; }
+  .logo-opt p { margin: 0; font-size: 14px; color: var(--page-mute); max-width: 44ch; }
+  .homes { display: grid; grid-template-columns: 1fr; border-radius: 18px; overflow: hidden; border: 1px solid var(--page-line); }
+  .home { display: flex; align-items: flex-end; gap: 14px; padding: 20px 16px 16px; }
+  .home.l { background: linear-gradient(160deg, #d9dde3, #b9c0ca); }
+  .home.d { background: linear-gradient(160deg, #23262c, #0c0d10); }
+  .home svg { display: block; flex: none; }
+  .home .big { width: 84px; height: 84px; border-radius: 19px; box-shadow: 0 6px 16px -8px rgb(0 0 0 / 50%); }
+  .home .mid { width: 52px; height: 52px; border-radius: 12px; }
+  .home .sm { width: 29px; height: 29px; border-radius: 7px; }
+  .wordmark { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px; background: #fff; color: #000; }
+  .wordmark.dk { background: #000; color: #fff; }
+  .wordmark svg { width: 32px; height: 32px; border-radius: 7px; flex: none; }
+  .wordmark b { font-family: "Archivo", sans-serif; font-weight: 900; font-stretch: 62%; font-size: 32px; line-height: 1; letter-spacing: -.01em; }
+  .wm-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* ---------- Today details: coded week strip + rest bib ---------- */
+  .A .wk2 { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 16px; text-align: center; }
+  .A .wk2 span { font-size: 11px; color: var(--mute); }
+  .A .wk2 b { display: grid; place-items: center; height: 34px; margin-top: 3px; font-weight: 700; font-size: 15px; font-stretch: 80%; border-radius: 6px; }
+  .A .wk2 b.log { background: var(--surface); }
+  .A .wk2 b.today { background: var(--red); color: #fff; }
+  .A .wk2 .ws { display: flex; gap: 2px; height: 6px; margin: 5px 4px 0; }
+  .A .wk2 .ws i { flex: 1; background: var(--c); transform: skewX(-20deg); }
+  .A .wk2 .ws i.plan { background: repeating-linear-gradient(90deg, var(--c) 0 3px, transparent 3px 5px); }
+  .A .key { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--mute); margin: -8px 0 14px; }
+  .A .key span { display: inline-flex; align-items: center; gap: 5px; }
+  .A .key i { display: inline-block; width: 14px; height: 6px; transform: skewX(-20deg); background: var(--c); }
+  .A .key i.plan { background: repeating-linear-gradient(90deg, var(--c) 0 3px, transparent 3px 5px); }
+  .A .bib.rest { padding: 12px 18px 12px; }
+  .A .bib.rest .sash { background: #b9bec6; right: 64px; height: 170px; }
+  .A .rest-t { position: relative; font-weight: 900; font-stretch: 62%; font-size: 52px; line-height: .9; letter-spacing: -.01em; margin-top: 4px; }
+  .A .rest-n { position: relative; display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 8px; border-top: 2px solid var(--paper-ink); font-size: 13px; }
+  .A .rest-n i { width: 14px; height: 14px; background: var(--c); transform: skewX(-18deg); flex: none; }
+  .A .rest-n b { font-weight: 700; }
+
+  /* ---------- A + Line: Tasuki training map ---------- */
+  .A .tmap { margin-top: 20px; }
+  .A .stn { position: relative; display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: center; min-height: 42px; }
+  .A .stn::before { content: ""; position: absolute; left: 11px; top: 0; bottom: 0; width: 8px; background: var(--ink); }
+  .A .stn.first::before { top: 50%; }
+  .A .stn.easy::before { background: repeating-linear-gradient(180deg, var(--mute) 0 5px, transparent 5px 9px); }
+  .A .stn.done::before { background: var(--red); }
+  .A .stn .mk { position: relative; justify-self: center; width: 18px; height: 18px; background: var(--bg); border: 4px solid var(--ink); box-sizing: border-box; }
+  .A .stn.easy .mk { border-color: var(--mute); }
+  .A .stn.now .mk { width: 26px; height: 26px; border: 0; background: var(--red); }
+  .A .stn .wn { font-weight: 900; font-stretch: 70%; font-size: 21px; line-height: 1; }
+  .A .stn .wn span { font-weight: 500; font-stretch: 100%; font-size: 12px; color: var(--mute); margin-left: 7px; letter-spacing: 0; }
+  .A .stn .km { font-weight: 800; font-stretch: 75%; font-size: 18px; }
+  .A .stn.now .wn, .A .stn.now .km { color: var(--red); }
+  .A .stn .kbar { display: grid; grid-template-columns: 124px 40px; align-items: center; gap: 6px; } .A .stn .kbar .km { text-align: right; } .A .tmap.stack .wn { white-space: nowrap; } .A .tmap.stack .wn span { display: block; margin: 3px 0 0; }
+  .A .stn .kbar i { display: block; height: 10px; background: var(--ink); }
+  .A .stn.easy .kbar i { background: repeating-linear-gradient(135deg, var(--mute) 0 2px, transparent 2px 5px); box-shadow: inset 0 0 0 1px var(--mute); }
+  .A .stn.now .kbar i { background: var(--red); }
+  .A .stn .kbar i.left { background: var(--line); }
+  .A .stn-days { position: relative; margin-left: 40px; padding: 2px 0 8px; }
+  .A .stn-days::before { content: ""; position: absolute; left: -29px; top: 0; bottom: 0; width: 8px; background: var(--ink); }
+  .A .stn-days .day { padding: 8px 0; }
+  .A .fin { position: relative; display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: center; padding-top: 6px; }
+  .A .fin::before { content: ""; position: absolute; left: 11px; top: 0; height: 50%; width: 8px; background: var(--ink); }
+  .A .fin .mk { position: relative; justify-self: center; width: 30px; height: 30px; background: conic-gradient(var(--ink) 25%, var(--bg) 0 50%, var(--ink) 0 75%, var(--bg) 0) 0 0 / 15px 15px; box-shadow: 0 0 0 3px var(--ink); }
+  .A .fin .wn { font-weight: 900; font-stretch: 70%; font-size: 24px; line-height: 1; }
+  .A .fin .wn span { display: block; font-weight: 500; font-stretch: 100%; font-size: 12px; color: var(--mute); margin-top: 3px; }
+  .A .fin .km { font-weight: 900; font-stretch: 62%; font-size: 34px; line-height: 1; color: var(--red); }
+  .new-tag { display: inline-block; font-size: 13px; font-weight: 600; padding: 2px 10px; border-radius: 999px; background: var(--btn-on); color: var(--btn-on-ink); margin-left: 10px; vertical-align: 4px; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .C .enso .arc { animation: draw 1.4s cubic-bezier(.6,.1,.3,1) both .3s; }
+    @keyframes draw { from { stroke-dashoffset: 55; } to { stroke-dashoffset: 0; } }
+  }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+  <symbol id="i-run" viewBox="0 0 24 24"><path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z"/><path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z"/><path d="M16 17h4M4 13h4"/></symbol>
+  <symbol id="i-food" viewBox="0 0 24 24"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></symbol>
+  <symbol id="i-scale" viewBox="0 0 24 24"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10M12 3v18M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></symbol>
+  <symbol id="i-watch" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/><path d="M12 10v2l1 1"/><path d="m16.13 7.66-.81-4.05a2 2 0 0 0-2-1.61h-2.68a2 2 0 0 0-1.98 1.61l-.78 4.05M7.88 16.36l.8 4a2 2 0 0 0 2 1.61h2.72a2 2 0 0 0 2-1.61l.81-4.05"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M9.94 14.06 8.5 19.5l-1.44-5.44L1.5 12.5l5.56-1.44L8.5 5.5l1.44 5.56 5.56 1.44z"/><path d="M19 3v4M17 5h4"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+</svg>
+
+<div class="wrap" id="stage" data-mode="light">
+  <div class="intro">
+    <h1>Three directions for Ganba</h1>
+    <p>Each one takes a different piece of Japanese running culture and turns it into the app's look. Same data, same features. Every direction also applies the layout fixes listed at the bottom.</p>
+    <p>Phones scroll. Pick the one that feels most like you, or mix: "A's bib with B's training map" is a fine answer.</p>
+    <div class="toggle" role="group" aria-label="Phone colour mode">
+      <button type="button" data-set="light" aria-pressed="true">Light</button>
+      <button type="button" data-set="dark" aria-pressed="false">Dark</button>
+    </div>
+  </div>
+
+  <!-- ====================== Logo ====================== -->
+  <section class="dir" id="logo">
+    <div class="dir-head">
+      <div>
+        <h2>Logo<span class="new-tag">New</span></h2>
+        <p class="pitch">Three app icons from the Tasuki world, each shown on a light and a dark home screen at three sizes, with the name set in the app's squeezed Archivo.</p>
+      </div>
+    </div>
+    <div class="logos">
+      <div class="logo-opt">
+        <h3>1. Sash</h3>
+        <p>A crimson tasuki crossing a black square, with a white G. The same stripe as on the bib, so the icon and the app match. Holds up best at small sizes.</p>
+        <div class="homes"><div class="home l"><svg viewBox="0 0 512 512" class="big" aria-label="Sash icon"><rect width="512" height="512" fill="#000"/>
+      <polygon points="-40,150 150,-40 552,362 362,552" fill="#c8102e"/>
+      <text x="256" y="398" font-size="400" fill="#fff" font-family="Archivo, sans-serif" font-weight="900" style="font-stretch:62%" text-anchor="middle">G</text></svg><svg viewBox="0 0 512 512" class="mid" aria-label="Sash icon"><rect width="512" height="512" fill="#000"/>
+      <polygon points="-40,150 150,-40 552,362 362,552" fill="#c8102e"/>
+      <text x="256" y="398" font-size="400" fill="#fff" font-family="Archivo, sans-serif" font-weight="900" style="font-stretch:62%" text-anchor="middle">G</text></svg><svg viewBox="0 0 512 512" class="sm" aria-label="Sash icon"><rect width="512" height="512" fill="#000"/>
+      <polygon points="-40,150 150,-40 552,362 362,552" fill="#c8102e"/>
+      <text x="256" y="398" font-size="400" fill="#fff" font-family="Archivo, sans-serif" font-weight="900" style="font-stretch:62%" text-anchor="middle">G</text></svg></div><div class="home d"><svg viewBox="0 0 512 512" class="big" aria-label="Sash icon"><rect width="512" height="512" fill="#000"/>
+      <polygon points="-40,150 150,-40 552,362 362,552" fill="#c8102e"/>
+      <text x="256" y="398" font-size="400" fill="#fff" font-family="Archivo, sans-serif" font-weight="900" style="font-stretch:62%" text-anchor="middle">G</text></svg><svg viewBox="0 0 512 512" class="mid" aria-label="Sash icon"><rect width="512" height="512" fill="#000"/>
+      <polygon points="-40,150 150,-40 552,362 362,552" fill="#c8102e"/>
+      <text x="256" y="398" font-size="400" fill="#fff" font-family="Archivo, sans-serif" font-weight="900" style="font-stretch:62%" text-anchor="middle">G</text></svg><svg viewBox="0 0 512 512" class="sm" aria-label="Sash icon"><rect width="512" height="512" fill="#000"/>
+      <polygon points="-40,150 150,-40 552,362 362,552" fill="#c8102e"/>
+      <text x="256" y="398" font-size="400" fill="#fff" font-family="Archivo, sans-serif" font-weight="900" style="font-stretch:62%" text-anchor="middle">G</text></svg></div></div>
+        <div class="wm-row"><div class="wordmark"><svg viewBox="0 0 512 512" class="" aria-label="Sash icon"><rect width="512" height="512" fill="#000"/>
+      <polygon points="-40,150 150,-40 552,362 362,552" fill="#c8102e"/>
+      <text x="256" y="398" font-size="400" fill="#fff" font-family="Archivo, sans-serif" font-weight="900" style="font-stretch:62%" text-anchor="middle">G</text></svg><b>GANBA</b></div><div class="wordmark dk"><svg viewBox="0 0 512 512" class="" aria-label="Sash icon"><rect width="512" height="512" fill="#000"/>
+      <polygon points="-40,150 150,-40 552,362 362,552" fill="#c8102e"/>
+      <text x="256" y="398" font-size="400" fill="#fff" font-family="Archivo, sans-serif" font-weight="900" style="font-stretch:62%" text-anchor="middle">G</text></svg><b>GANBA</b></div></div>
+      </div>
+      <div class="logo-opt">
+        <h3>2. Bib</h3>
+        <p>A race bib with four safety pins and G as the bib number. Most literal link to the Today screen, but the pins disappear at small sizes.</p>
+        <div class="homes"><div class="home l"><svg viewBox="0 0 512 512" class="big" aria-label="Bib icon"><rect width="512" height="512" fill="#c8102e"/>
+      <rect x="64" y="104" width="384" height="304" rx="16" fill="#fff"/>
+      <circle cx="98" cy="138" r="13" fill="#c8102e"/><circle cx="414" cy="138" r="13" fill="#c8102e"/><circle cx="98" cy="374" r="13" fill="#c8102e"/><circle cx="414" cy="374" r="13" fill="#c8102e"/>
+      <text x="256" y="368" font-size="300" fill="#000" font-family="Archivo, sans-serif" font-weight="900" style="font-stretch:62%" text-anchor="middle">G</text></svg><svg viewBox="0 0 512 512" class="mid" aria-label="Bib icon"><rect width="512" height="512" fill="#c8102e"/>
+      <rect x="64" y="104" width="384" height="304" rx="16" fill="#fff"/>
+      <circle cx="98" cy="138" r="13" fill="#c8102e"/><circle cx="414" cy="138" r="13" fill="#c8102e"/><circle cx="98" cy="374" r="13" fill="#c8102e"/><circle cx="414" cy="374" r="13" fill="#c8102e"/>
+      <text x="256" y="368" font-size="300" fill="#000" font-family="Archivo, sans-serif" font-weight="900" style="font-stretch:62%" text-anchor="middle">G</text></svg><svg viewBox="0 0 512 512" class="sm" aria-label="Bib icon"><rect width="512" height="512" fill="#c8102e"/>
+      <rect x="64" y="104" width="384" height="304" rx="16" fill="#fff"/>
+      <circle cx="98" cy="138" r="13" fill="#c8102e"/><circle cx="414" cy="138" r="13" fill="#c8102e"/><circle cx="98" cy="374" r="13" fill="#c8102e"/><circle cx="414" cy="374" r="13" fill="#c8102e"/>
+      <text x="256" y="368" font-size="300" fill="#000" font-family="Archivo, sans-serif" font-weight="900" style="font-stretch:62%" text-anchor="middle">G</text></svg></div><div class="home d"><svg viewBox="0 0 512 512" class="big" aria-label="Bib icon"><rect width="512" height="512" fill="#c8102e"/>
+      <rect x="64" y="104" width="384" height="304" rx="16" fill="#fff"/>
+      <circle cx="98" cy="138" r="13" fill="#c8102e"/><circle cx="414" cy="138" r="13" fill="#c8102e"/><circle cx="98" cy="374" r="13" fill="#c8102e"/><circle cx="414" cy="374" r="13" fill="#c8102e"/>
+      <text x="256" y="368" font-size="300" fill="#000" font-family="Archivo, sans-serif" font-weight="900" style="font-stretch:62%" text-anchor="middle">G</text></svg><svg viewBox="0 0 512 512" class="mid" aria-label="Bib icon"><rect width="512" height="512" fill="#c8102e"/>
+      <rect x="64" y="104" width="384" height="304" rx="16" fill="#fff"/>
+      <circle cx="98" cy="138" r="13" fill="#c8102e"/><circle cx="414" cy="138" r="13" fill="#c8102e"/><circle cx="98" cy="374" r="13" fill="#c8102e"/><circle cx="414" cy="374" r="13" fill="#c8102e"/>
+      <text x="256" y="368" font-size="300" fill="#000" font-family="Archivo, sans-serif" font-weight="900" style="font-stretch:62%" text-anchor="middle">G</text></svg><svg viewBox="0 0 512 512" class="sm" aria-label="Bib icon"><rect width="512" height="512" fill="#c8102e"/>
+      <rect x="64" y="104" width="384" height="304" rx="16" fill="#fff"/>
+      <circle cx="98" cy="138" r="13" fill="#c8102e"/><circle cx="414" cy="138" r="13" fill="#c8102e"/><circle cx="98" cy="374" r="13" fill="#c8102e"/><circle cx="414" cy="374" r="13" fill="#c8102e"/>
+      <text x="256" y="368" font-size="300" fill="#000" font-family="Archivo, sans-serif" font-weight="900" style="font-stretch:62%" text-anchor="middle">G</text></svg></div></div>
+        <div class="wm-row"><div class="wordmark"><svg viewBox="0 0 512 512" class="" aria-label="Bib icon"><rect width="512" height="512" fill="#c8102e"/>
+      <rect x="64" y="104" width="384" height="304" rx="16" fill="#fff"/>
+      <circle cx="98" cy="138" r="13" fill="#c8102e"/><circle cx="414" cy="138" r="13" fill="#c8102e"/><circle cx="98" cy="374" r="13" fill="#c8102e"/><circle cx="414" cy="374" r="13" fill="#c8102e"/>
+      <text x="256" y="368" font-size="300" fill="#000" font-family="Archivo, sans-serif" font-weight="900" style="font-stretch:62%" text-anchor="middle">G</text></svg><b>GANBA</b></div><div class="wordmark dk"><svg viewBox="0 0 512 512" class="" aria-label="Bib icon"><rect width="512" height="512" fill="#c8102e"/>
+      <rect x="64" y="104" width="384" height="304" rx="16" fill="#fff"/>
+      <circle cx="98" cy="138" r="13" fill="#c8102e"/><circle cx="414" cy="138" r="13" fill="#c8102e"/><circle cx="98" cy="374" r="13" fill="#c8102e"/><circle cx="414" cy="374" r="13" fill="#c8102e"/>
+      <text x="256" y="368" font-size="300" fill="#000" font-family="Archivo, sans-serif" font-weight="900" style="font-stretch:62%" text-anchor="middle">G</text></svg><b>GANBA</b></div></div>
+      </div>
+      <div class="logo-opt">
+        <h3>3. Seal</h3>
+        <p>A hanko seal with 頑, the first character of ganbaru. Most Japanese and most meaningful, but less tied to the bib and sash look.</p>
+        <div class="homes"><div class="home l"><svg viewBox="0 0 512 512" class="big" aria-label="Seal icon"><rect width="512" height="512" fill="#c8102e"/>
+      <rect x="62" y="62" width="388" height="388" rx="30" fill="none" stroke="#fff" stroke-width="16"/>
+      <text x="256" y="366" font-size="290" fill="#fff" font-family="Noto Sans JP, sans-serif" font-weight="900" text-anchor="middle">頑</text></svg><svg viewBox="0 0 512 512" class="mid" aria-label="Seal icon"><rect width="512" height="512" fill="#c8102e"/>
+      <rect x="62" y="62" width="388" height="388" rx="30" fill="none" stroke="#fff" stroke-width="16"/>
+      <text x="256" y="366" font-size="290" fill="#fff" font-family="Noto Sans JP, sans-serif" font-weight="900" text-anchor="middle">頑</text></svg><svg viewBox="0 0 512 512" class="sm" aria-label="Seal icon"><rect width="512" height="512" fill="#c8102e"/>
+      <rect x="62" y="62" width="388" height="388" rx="30" fill="none" stroke="#fff" stroke-width="16"/>
+      <text x="256" y="366" font-size="290" fill="#fff" font-family="Noto Sans JP, sans-serif" font-weight="900" text-anchor="middle">頑</text></svg></div><div class="home d"><svg viewBox="0 0 512 512" class="big" aria-label="Seal icon"><rect width="512" height="512" fill="#c8102e"/>
+      <rect x="62" y="62" width="388" height="388" rx="30" fill="none" stroke="#fff" stroke-width="16"/>
+      <text x="256" y="366" font-size="290" fill="#fff" font-family="Noto Sans JP, sans-serif" font-weight="900" text-anchor="middle">頑</text></svg><svg viewBox="0 0 512 512" class="mid" aria-label="Seal icon"><rect width="512" height="512" fill="#c8102e"/>
+      <rect x="62" y="62" width="388" height="388" rx="30" fill="none" stroke="#fff" stroke-width="16"/>
+      <text x="256" y="366" font-size="290" fill="#fff" font-family="Noto Sans JP, sans-serif" font-weight="900" text-anchor="middle">頑</text></svg><svg viewBox="0 0 512 512" class="sm" aria-label="Seal icon"><rect width="512" height="512" fill="#c8102e"/>
+      <rect x="62" y="62" width="388" height="388" rx="30" fill="none" stroke="#fff" stroke-width="16"/>
+      <text x="256" y="366" font-size="290" fill="#fff" font-family="Noto Sans JP, sans-serif" font-weight="900" text-anchor="middle">頑</text></svg></div></div>
+        <div class="wm-row"><div class="wordmark"><svg viewBox="0 0 512 512" class="" aria-label="Seal icon"><rect width="512" height="512" fill="#c8102e"/>
+      <rect x="62" y="62" width="388" height="388" rx="30" fill="none" stroke="#fff" stroke-width="16"/>
+      <text x="256" y="366" font-size="290" fill="#fff" font-family="Noto Sans JP, sans-serif" font-weight="900" text-anchor="middle">頑</text></svg><b>GANBA</b></div><div class="wordmark dk"><svg viewBox="0 0 512 512" class="" aria-label="Seal icon"><rect width="512" height="512" fill="#c8102e"/>
+      <rect x="62" y="62" width="388" height="388" rx="30" fill="none" stroke="#fff" stroke-width="16"/>
+      <text x="256" y="366" font-size="290" fill="#fff" font-family="Noto Sans JP, sans-serif" font-weight="900" text-anchor="middle">頑</text></svg><b>GANBA</b></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====================== Today details ====================== -->
+  <section class="dir A" id="today-details">
+    <div class="dir-head">
+      <div>
+        <h2>Today: week strip and rest days<span class="new-tag">New</span></h2>
+        <p class="pitch">The week strip now shows your training. Each day gets a small sash stripe in the session's colour: solid when done, striped when planned. Two sessions on one day get two stripes. A white box still means you logged food that day. On rest days the bib shrinks to a small one that says what comes next.</p>
+        <dl>
+          <dt>Left</dt><dd>Run day. Wednesday had threshold plus an easy shakeout, so two stripes. Today's intervals are still planned.</dd>
+          <dt>Right</dt><dd>Rest day on Thursday. Friday to Sunday are planned. No planned run today, so a lower target.</dd>
+          <dt>Key</dt><dd>The colour key under the strip is here for the mockup. In the app it could live behind a tap, since the colours repeat everywhere.</dd>
+        </dl>
+      </div>
+    </div>
+    <div class="phones">
+      <figure class="shot" style="margin:0">
+        <div class="phone"><div class="screen">
+          <div class="row top"><span class="date">Sunday 4 October</span><span class="ava">NB</span></div>
+          <div class="wk2"><div><span>M</span><b class="log">28</b><div class="ws"><i class="" style="--c:var(--w-easy)"></i></div></div><div><span>T</span><b class="log">29</b><div class="ws"></div></div><div><span>W</span><b class="log">30</b><div class="ws"><i class="" style="--c:var(--w-thr)"></i><i class="" style="--c:var(--w-easy)"></i></div></div><div><span>T</span><b class="">1</b><div class="ws"></div></div><div><span>F</span><b class="log">2</b><div class="ws"><i class="" style="--c:var(--w-easy)"></i></div></div><div><span>S</span><b class="log">3</b><div class="ws"><i class="" style="--c:var(--w-long)"></i></div></div><div><span>S</span><b class="today">4</b><div class="ws"><i class="plan" style="--c:var(--w-int)"></i></div></div></div>
+          <div class="key"><span><i style="--c:var(--w-easy)"></i>Easy</span><span><i style="--c:var(--w-long)"></i>Long</span><span><i style="--c:var(--w-thr)"></i>Threshold</span><span><i style="--c:var(--w-int)"></i>Intervals</span><span><i class="plan" style="--c:var(--mute)"></i>Planned</span></div>
+          <div class="bib">
+            <div class="sash"></div><div class="pins-b"></div>
+            <div class="bib-type">Intervals</div>
+            <div class="bib-num num">5&times;1<small>km</small></div>
+            <div class="bib-meta">10.5 km in about 55 min</div>
+            <div class="bib-fuel"><svg class="i s"><use href="#i-food"/></svg>85 g carbs before, 25 g protein after<em><svg class="i s"><use href="#i-watch"/></svg></em></div>
+          </div>
+          <div class="energy">
+            <div class="row" style="align-items:flex-end">
+              <div><div class="kcal num">1204</div><div class="kcal-l">kcal left today</div></div>
+              <div class="kcal-side"><b class="num">1448</b> eaten<br><b class="num">2652</b> target<br><span class="boost num">+912 activity</span></div>
+            </div>
+            <div class="macros"><div><b class="num">74/169 g</b>Protein<span class="mbar"><i style="width:44%;background:#e8336b"></i></span></div><div><b class="num">180/328 g</b>Carbs<span class="mbar"><i style="width:55%;background:#e89a1a"></i></span></div><div><b class="num">47/74 g</b>Fat<span class="mbar"><i style="width:64%;background:#7a5cf0"></i></span></div></div>
+          </div>
+          
+        </div>
+        <nav class="nav"><a class="on" href="#"><svg class="i"><use href="#i-cal"/></svg>Today</a><a href="#"><svg class="i"><use href="#i-run"/></svg>Training</a><a class="plus" href="#" aria-label="Log"><svg class="i"><use href="#i-plus"/></svg></a><a href="#"><svg class="i"><use href="#i-food"/></svg>Food</a><a href="#"><svg class="i"><use href="#i-scale"/></svg>Body</a></nav>
+        </div>
+        <figcaption>Run day</figcaption>
+      </figure>
+      <figure class="shot" style="margin:0">
+        <div class="phone"><div class="screen">
+          <div class="row top"><span class="date">Thursday 1 October</span><span class="ava">NB</span></div>
+          <div class="wk2"><div><span>M</span><b class="log">28</b><div class="ws"><i class="" style="--c:var(--w-easy)"></i></div></div><div><span>T</span><b class="log">29</b><div class="ws"></div></div><div><span>W</span><b class="log">30</b><div class="ws"><i class="" style="--c:var(--w-thr)"></i><i class="" style="--c:var(--w-easy)"></i></div></div><div><span>T</span><b class="today">1</b><div class="ws"></div></div><div><span>F</span><b class="">2</b><div class="ws"><i class="plan" style="--c:var(--w-easy)"></i></div></div><div><span>S</span><b class="">3</b><div class="ws"><i class="plan" style="--c:var(--w-long)"></i></div></div><div><span>S</span><b class="">4</b><div class="ws"><i class="plan" style="--c:var(--w-int)"></i></div></div></div>
+          <div class="key"><span><i style="--c:var(--w-easy)"></i>Easy</span><span><i style="--c:var(--w-long)"></i>Long</span><span><i style="--c:var(--w-thr)"></i>Threshold</span><span><i style="--c:var(--w-int)"></i>Intervals</span><span><i class="plan" style="--c:var(--mute)"></i>Planned</span></div>
+          <div class="bib rest">
+            <div class="sash"></div><div class="pins-b"></div>
+            <div class="rest-t">Rest day</div>
+            <div class="rest-n" style="--c:var(--w-easy)"><i></i>Next: <b>Friday, easy run 6 km</b></div>
+          </div>
+          <div class="energy">
+            <div class="row" style="align-items:flex-end">
+              <div><div class="kcal num">793</div><div class="kcal-l">kcal left today</div></div>
+              <div class="kcal-side"><b class="num">1060</b> eaten<br><b class="num">1853</b> target<br><span class="boost num">+113 activity</span></div>
+            </div>
+            <div class="macros"><div><b class="num">61/169 g</b>Protein<span class="mbar"><i style="width:36%;background:#e8336b"></i></span></div><div><b class="num">96/230 g</b>Carbs<span class="mbar"><i style="width:42%;background:#e89a1a"></i></span></div><div><b class="num">38/62 g</b>Fat<span class="mbar"><i style="width:61%;background:#7a5cf0"></i></span></div></div>
+          </div>
+          <div class="sect">Meals <a href="#">Add</a></div>
+          <div class="list">
+            <div class="li row"><div><div class="t">Breakfast</div><div class="s">Oatmeal, banana, peanut butter</div></div><span class="k num">520</span></div>
+            <div class="li row"><div><div class="t">Lunch</div><div class="s">Tuna sandwich, apple</div></div><span class="k num">540</span></div>
+          </div>
+        </div>
+        <nav class="nav"><a class="on" href="#"><svg class="i"><use href="#i-cal"/></svg>Today</a><a href="#"><svg class="i"><use href="#i-run"/></svg>Training</a><a class="plus" href="#" aria-label="Log"><svg class="i"><use href="#i-plus"/></svg></a><a href="#"><svg class="i"><use href="#i-food"/></svg>Food</a><a href="#"><svg class="i"><use href="#i-scale"/></svg>Body</a></nav>
+        </div>
+        <figcaption>Rest day</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ====================== A + Line ====================== -->
+  <section class="dir A" id="tasuki-map">
+    <div class="dir-head">
+      <div>
+        <h2>Tasuki training map<span class="new-tag">New</span></h2>
+        <p class="pitch">B's route map, drawn the Tasuki way. The line is a thick black track. Weeks are square markers, easy weeks get a dashed track, this week is a crimson block and race day is a chequered finish. The whole plan fits on one screen, and Adjust plan stays in the header.</p>
+        <dl>
+          <dt>Left</dt><dd>Pure map. Calmest, km as numbers only.</dd>
+          <dt>Right</dt><dd>Map plus a km bar for each week, so you also see the plan build up toward the peak.</dd>
+          <dt>Tap</dt><dd>Tapping a week opens its sessions under the marker, like this week is open here.</dd>
+        </dl>
+      </div>
+    </div>
+    <div class="phones">
+      <figure class="shot" style="margin:0">
+        <div class="phone"><div class="screen">
+          <div class="row"><h1>Training</h1><button class="ai" type="button"><svg class="i s"><use href="#i-spark"/></svg>Adjust plan</button></div>
+          <div class="race"><div class="race-d">10K</div><div class="race-w"><b>13 December</b>Race day</div></div>
+          <div class="stats"><div><b class="num">10</b>weeks left</div><div><b class="num">47:24</b>predicted</div><div><b class="num">42.6</b>VDOT</div></div>
+          <div class="tmap">
+            <div class="stn first now"><i class="mk"></i><span class="wn">This week</span><span class="km num">0 / 10.5</span></div>
+            <div class="stn-days"><div class="day"><div class="dd">Sun<b>4</b></div><div class="c" style="--c:var(--w-int)"></div><div style="font-weight:700">Intervals 5×1 km</div><b class="num" style="font-stretch:75%">10.5</b></div></div>
+            <div class="stn"><i class="mk"></i><span class="wn">Week 2<span>Build</span></span><span class="km num">35.3</span></div>
+            <div class="stn"><i class="mk"></i><span class="wn">Week 3<span>Build</span></span><span class="km num">26.5</span></div>
+            <div class="stn easy"><i class="mk"></i><span class="wn">Week 4<span>Easy week</span></span><span class="km num">27.6</span></div>
+            <div class="stn"><i class="mk"></i><span class="wn">Week 5<span>Build</span></span><span class="km num">38.9</span></div>
+            <div class="stn"><i class="mk"></i><span class="wn">Week 6<span>Build</span></span><span class="km num">40.8</span></div>
+            <div class="stn"><i class="mk"></i><span class="wn">Week 7<span>Peak</span></span><span class="km num">42.6</span></div>
+            <div class="stn"><i class="mk"></i><span class="wn">Week 8<span>Peak</span></span><span class="km num">44.1</span></div>
+            <div class="stn easy"><i class="mk"></i><span class="wn">Week 9<span>Taper</span></span><span class="km num">30.2</span></div>
+            <div class="fin"><i class="mk"></i><span class="wn">Race day<span>Saturday 13 December</span></span><span class="km">10K</span></div>
+          </div>
+        </div>
+        <nav class="nav"><a href="#"><svg class="i"><use href="#i-cal"/></svg>Today</a><a class="on" href="#"><svg class="i"><use href="#i-run"/></svg>Training</a><a class="plus" href="#" aria-label="Log"><svg class="i"><use href="#i-plus"/></svg></a><a href="#"><svg class="i"><use href="#i-food"/></svg>Food</a><a href="#"><svg class="i"><use href="#i-scale"/></svg>Body</a></nav>
+        </div>
+        <figcaption>Pure map</figcaption>
+      </figure>
+
+      <figure class="shot" style="margin:0">
+        <div class="phone"><div class="screen">
+          <div class="row"><h1>Training</h1><button class="ai" type="button"><svg class="i s"><use href="#i-spark"/></svg>Adjust plan</button></div>
+          <div class="race"><div class="race-d">10K</div><div class="race-w"><b>13 December</b>Race day</div></div>
+          <div class="stats"><div><b class="num">10</b>weeks left</div><div><b class="num">47:24</b>predicted</div><div><b class="num">42.6</b>VDOT</div></div>
+          <div class="tmap stack">
+            <div class="stn first now"><i class="mk"></i><span class="wn">This week</span><span class="kbar"><i style="width:29px"></i><span class="km num">10.5</span></span></div>
+            <div class="stn-days"><div class="day"><div class="dd">Sun<b>4</b></div><div class="c" style="--c:var(--w-int)"></div><div style="font-weight:700">Intervals 5×1 km</div><b class="num" style="font-stretch:75%">10.5</b></div></div>
+            <div class="stn"><i class="mk"></i><span class="wn">Week 2</span><span class="kbar"><i style="width:96px"></i><span class="km num">35.3</span></span></div>
+            <div class="stn"><i class="mk"></i><span class="wn">Week 3</span><span class="kbar"><i style="width:72px"></i><span class="km num">26.5</span></span></div>
+            <div class="stn easy"><i class="mk"></i><span class="wn">Week 4<span>Easy</span></span><span class="kbar"><i style="width:75px"></i><span class="km num">27.6</span></span></div>
+            <div class="stn"><i class="mk"></i><span class="wn">Week 5</span><span class="kbar"><i style="width:106px"></i><span class="km num">38.9</span></span></div>
+            <div class="stn"><i class="mk"></i><span class="wn">Week 6</span><span class="kbar"><i style="width:111px"></i><span class="km num">40.8</span></span></div>
+            <div class="stn"><i class="mk"></i><span class="wn">Week 7<span>Peak</span></span><span class="kbar"><i style="width:116px"></i><span class="km num">42.6</span></span></div>
+            <div class="stn"><i class="mk"></i><span class="wn">Week 8<span>Peak</span></span><span class="kbar"><i style="width:120px"></i><span class="km num">44.1</span></span></div>
+            <div class="stn easy"><i class="mk"></i><span class="wn">Week 9<span>Taper</span></span><span class="kbar"><i style="width:82px"></i><span class="km num">30.2</span></span></div>
+            <div class="fin"><i class="mk"></i><span class="wn">Race day<span>Saturday 13 December</span></span><span class="km">10K</span></div>
+          </div>
+        </div>
+        <nav class="nav"><a href="#"><svg class="i"><use href="#i-cal"/></svg>Today</a><a class="on" href="#"><svg class="i"><use href="#i-run"/></svg>Training</a><a class="plus" href="#" aria-label="Log"><svg class="i"><use href="#i-plus"/></svg></a><a href="#"><svg class="i"><use href="#i-food"/></svg>Food</a><a href="#"><svg class="i"><use href="#i-scale"/></svg>Body</a></nav>
+        </div>
+        <figcaption>Map with km bars</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ====================== A ====================== -->
+  <section class="dir A">
+    <div class="dir-head">
+      <div>
+        <h2>A. Tasuki</h2>
+        <p class="pitch">Ekiden relay energy. Today's session is a race bib you pin on, with a sash stripe in the session's colour. Heavy condensed numbers like bib print. Black, white and one crimson. Most "ganbaru" of the three: effort, grit, race day every day.</p>
+        <dl>
+          <dt>Type</dt><dd>Archivo, one family. Squeezed to 62% width for big numbers, normal width for text.</dd>
+          <dt>Signature</dt><dd>The bib on Today, the volume bar chart on Training.</dd>
+          <dt>Risk</dt><dd>Loud. Could feel intense on rest days.</dd>
+        </dl>
+      </div>
+      <div class="swatches" aria-label="Palette">
+        <div class="sw" style="background:#000"></div><div class="sw" style="background:#fff"></div><div class="sw" style="background:#eef0f2"></div><div class="sw" style="background:#c8102e"></div><div class="sw" style="background:#e8336b"></div>
+      </div>
+    </div>
+    <div class="phones">
+      <figure class="shot" style="margin:0">
+        <div class="phone"><div class="screen">
+          <div class="row top"><span class="date">Sunday 4 October</span><span class="ava">NB</span></div>
+          <div class="week">
+            <div><span>M</span><b class="done">28</b></div><div><span>T</span><b class="done">29</b></div><div><span>W</span><b class="done">30</b></div><div><span>T</span><b>1</b></div><div><span>F</span><b class="done">2</b></div><div><span>S</span><b class="done">3</b></div><div><span>S</span><b class="today">4</b></div>
+          </div>
+          <div class="bib">
+            <div class="sash"></div><div class="pins-b"></div>
+            <div class="bib-type">Intervals</div>
+            <div class="bib-num num">5×1<small>km</small></div>
+            <div class="bib-meta">10.5 km in about 55 min</div>
+            <div class="bib-fuel"><svg class="i s"><use href="#i-food"/></svg>85 g carbs before, 25 g protein after<em><svg class="i s"><use href="#i-watch"/></svg></em></div>
+          </div>
+          <div class="energy">
+            <div class="row" style="align-items:flex-end">
+              <div><div class="kcal num">1204</div><div class="kcal-l">kcal left today</div></div>
+              <div class="kcal-side"><b class="num">1448</b> eaten<br><b class="num">2652</b> target<br><span class="boost num">+912 activity</span></div>
+            </div>
+            <div class="macros"><div><b class="num">74/169 g</b>Protein<span class="mbar"><i style="width:44%;background:#e8336b"></i></span></div><div><b class="num">180/328 g</b>Carbs<span class="mbar"><i style="width:55%;background:#e89a1a"></i></span></div><div><b class="num">47/74 g</b>Fat<span class="mbar"><i style="width:64%;background:#7a5cf0"></i></span></div></div>
+          </div>
+          <div class="sect">Meals <a href="#">Add</a></div>
+          <div class="list">
+            <div class="li row"><div><div class="t">Breakfast</div><div class="s">Greek yoghurt, granola, blueberries</div></div><span class="k num">500</span></div>
+            <div class="li row"><div><div class="t">Lunch</div><div class="s">Chicken katsu, rice, curry sauce</div></div><span class="k num">841</span></div>
+            <div class="li row"><div><div class="t">Snack</div><div class="s">Banana</div></div><span class="k num">107</span></div>
+          </div>
+          <div class="sect">Weight</div>
+          <div class="list"><div class="li row"><div><div class="t">84.6 kg</div><div class="s">Down 0.5 kg a week. Goal 80 kg around 11 Dec.</div></div></div></div>
+        </div>
+        <nav class="nav"><a class="on" href="#"><svg class="i"><use href="#i-cal"/></svg>Today</a><a href="#"><svg class="i"><use href="#i-run"/></svg>Training</a><a class="plus" href="#" aria-label="Log"><svg class="i"><use href="#i-plus"/></svg></a><a href="#"><svg class="i"><use href="#i-food"/></svg>Food</a><a href="#"><svg class="i"><use href="#i-scale"/></svg>Body</a></nav>
+        </div>
+        <figcaption>Today</figcaption>
+      </figure>
+
+      <figure class="shot" style="margin:0">
+        <div class="phone"><div class="screen">
+          <div class="row"><h1>Training</h1><button class="ai" type="button"><svg class="i s"><use href="#i-spark"/></svg>Adjust plan</button></div>
+          <div class="race"><div class="race-d">10K</div><div class="race-w"><b>13 December</b>Race day</div></div>
+          <div class="stats"><div><b class="num">10</b>weeks left</div><div><b class="num">47:24</b>predicted</div><div><b class="num">42.6</b>VDOT</div></div>
+          <div class="bars" aria-label="Weekly kilometres">
+            <div class="now"><i style="height:24px"></i>1</div><div><i style="height:80px"></i>2</div><div><i style="height:60px"></i>3</div><div class="easy"><i style="height:63px"></i>4</div><div><i style="height:88px"></i>5</div><div><i style="height:92px"></i>6</div><div><i style="height:97px"></i>7</div><div><i style="height:100px"></i>8</div><div class="easy"><i style="height:68px"></i>9</div><div class="racew"><i style="height:41px"></i>10</div>
+          </div>
+          <div class="legend"><span style="--c:var(--red)">This week</span><span style="--c:var(--ink)">Build</span><span style="--c:var(--mute)">Easy</span></div>
+          <div class="sect">This week <span class="num" style="font-size:14px;font-weight:700;font-stretch:80%;color:var(--mute)">0 / 10.5 km</span></div>
+          <div class="list">
+            <div class="day"><div class="dd">Sun<b>4</b></div><div class="c" style="--c:var(--w-int)"></div><div><div style="font-weight:700">Intervals 5×1 km</div><div style="font-size:12px;color:var(--mute)">On your watch</div></div><b class="num" style="font-stretch:75%">10.5</b></div>
+          </div>
+          <div class="sect">Week 2 <span class="num" style="font-size:14px;font-weight:700;font-stretch:80%;color:var(--mute)">35.3 km</span></div>
+          <div class="list">
+            <div class="day"><div class="dd">Tue<b>6</b></div><div class="c" style="--c:var(--w-easy)"></div><div style="font-weight:700">Easy run</div><b class="num" style="font-stretch:75%">6.0</b></div>
+            <div class="day"><div class="dd">Thu<b>8</b></div><div class="c" style="--c:var(--w-thr)"></div><div style="font-weight:700">Threshold 3×10 min</div><b class="num" style="font-stretch:75%">9.5</b></div>
+            <div class="day"><div class="dd">Sat<b>10</b></div><div class="c" style="--c:var(--w-easy)"></div><div style="font-weight:700">Easy run</div><b class="num" style="font-stretch:75%">7.0</b></div>
+            <div class="day"><div class="dd">Sun<b>11</b></div><div class="c" style="--c:var(--w-long)"></div><div style="font-weight:700">Long run</div><b class="num" style="font-stretch:75%">12.8</b></div>
+          </div>
+          <div class="sect">Paces</div>
+          <div class="paces"><div><b class="num">5:34–6:10</b>Easy</div><div><b class="num">5:10</b>Marathon</div><div><b class="num">4:50</b>Threshold</div><div><b class="num">4:27</b>Interval</div></div>
+        </div>
+        <nav class="nav"><a href="#"><svg class="i"><use href="#i-cal"/></svg>Today</a><a class="on" href="#"><svg class="i"><use href="#i-run"/></svg>Training</a><a class="plus" href="#" aria-label="Log"><svg class="i"><use href="#i-plus"/></svg></a><a href="#"><svg class="i"><use href="#i-food"/></svg>Food</a><a href="#"><svg class="i"><use href="#i-scale"/></svg>Body</a></nav>
+        </div>
+        <figcaption>Training</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ====================== B ====================== -->
+  <section class="dir B">
+    <div class="dir-head">
+      <div>
+        <h2>B. Line</h2>
+        <p class="pitch">Tokyo transit map. Your plan is a train line running to race day, each week a station. Each session type gets a line colour and a round badge, like Ginza or Marunouchi. Today's session shows its structure as a little route. Friendly, clear, very readable.</p>
+        <dl>
+          <dt>Type</dt><dd>M PLUS 1, a Japanese signage-style sans with matching Latin letters.</dd>
+          <dt>Signature</dt><dd>The route map on Training, the station strip for the week.</dd>
+          <dt>Risk</dt><dd>Many colours. Needs discipline so it doesn't turn into a rainbow.</dd>
+        </dl>
+      </div>
+      <div class="swatches" aria-label="Palette">
+        <div class="sw" style="background:#17202b"></div><div class="sw" style="background:#f2f4f7"></div><div class="sw" style="background:#f62e36"></div><div class="sw" style="background:#009bbf"></div><div class="sw" style="background:#00a776"></div><div class="sw" style="background:#ff9500"></div>
+      </div>
+    </div>
+    <div class="phones">
+      <figure class="shot" style="margin:0">
+        <div class="phone"><div class="screen">
+          <div class="row"><div><h1>Today</h1><div class="sub">Sunday 4 October</div></div><span class="ava">NB</span></div>
+          <div class="strip">
+            <div><i class="st ok" style="--c:var(--chiyoda)"></i>M</div><div><i class="st ok" style="--c:var(--ginza)"></i>T</div><div><i class="st ok" style="--c:var(--chiyoda)"></i>W</div><div><i class="st"></i>T</div><div><i class="st ok" style="--c:var(--chiyoda)"></i>F</div><div><i class="st ok" style="--c:var(--tozai)"></i>S</div><div class="on"><i class="st now"></i>S</div>
+          </div>
+          <div class="sess">
+            <div class="row" style="justify-content:flex-start"><span class="badge" style="--c:var(--maru)">I</span><div><h2>Intervals 5×1 km</h2><div class="sub">10.5 km, about 55 min</div></div></div>
+            <div class="route"><i style="flex:2;background:var(--chiyoda)"></i><i style="flex:1;background:var(--maru)"></i><i style="flex:1;background:var(--maru)"></i><i style="flex:1;background:var(--maru)"></i><i style="flex:1;background:var(--maru)"></i><i style="flex:1;background:var(--maru)"></i><i style="flex:1.5;background:var(--chiyoda)"></i></div>
+            <div class="route-l"><span>Warm up 2 km</span><span>5 × 1 km at 4:22–4:32</span><span>Cool down</span></div>
+            <div class="fuel"><svg class="i s"><use href="#i-food"/></svg>85 g carbs before, 25 g protein after<em><svg class="i s"><use href="#i-watch"/></svg>Sent</em></div>
+          </div>
+          <div style="margin-top:22px">
+            <div class="kcal num">1204<small>kcal left</small></div>
+            <div class="stack" aria-label="1448 of 2652 kcal eaten"><i style="width:11%;background:var(--maru)"></i><i style="width:27%;background:var(--ginza)"></i><i style="width:16%;background:var(--hanzo)"></i></div>
+            <div class="mac"><span style="--c:var(--maru)"><b class="num">74</b>/169 g</span><span style="--c:var(--ginza)"><b class="num">180</b>/328 g</span><span style="--c:var(--hanzo)"><b class="num">47</b>/74 g</span></div>
+          </div>
+          <h3>Meals <a href="#">Add</a></h3>
+          <div class="meal"><span class="t">Breakfast</span><span class="s">Greek yoghurt, granola, blueberries</span><span class="k num">500</span></div>
+          <div class="meal"><span class="t">Lunch</span><span class="s">Chicken katsu, rice, curry sauce</span><span class="k num">841</span></div>
+          <div class="meal"><span class="t">Snack</span><span class="s">Banana</span><span class="k num">107</span></div>
+          <h3>Weight</h3>
+          <div class="meal"><span class="t num">84.6 kg</span><span class="s">Down 0.5 kg a week, goal 80 kg around 11 Dec</span></div>
+        </div>
+        <nav class="nav"><a class="on" href="#"><svg class="i"><use href="#i-cal"/></svg>Today</a><a href="#"><svg class="i"><use href="#i-run"/></svg>Training</a><a class="plus" href="#" aria-label="Log"><svg class="i"><use href="#i-plus"/></svg></a><a href="#"><svg class="i"><use href="#i-food"/></svg>Food</a><a href="#"><svg class="i"><use href="#i-scale"/></svg>Body</a></nav>
+        </div>
+        <figcaption>Today</figcaption>
+      </figure>
+
+      <figure class="shot" style="margin:0">
+        <div class="phone"><div class="screen">
+          <div class="row"><h1>Training</h1><button class="ai" type="button"><svg class="i s"><use href="#i-spark"/></svg>Adjust plan</button></div>
+          <div class="goal"><span class="badge" style="--c:var(--yuraku)">10K</span><div><div class="t">10K on 13 December</div><div class="sub">10 weeks to go</div></div></div>
+          <div class="gstats"><div><b class="num">47:24</b>Predicted</div><div><b class="num">42.6</b>VDOT</div><div><b class="num">4:50</b>Threshold</div></div>
+          <div class="map">
+            <div class="stop first now" style="--c:var(--tozai)"><i class="dot"></i><span class="n">This week</span><span class="km num">0 / 10.5</span></div>
+            <div class="open"><div class="w"><span class="d">Sun<br>4</span><span class="badge sm" style="--c:var(--maru)">I</span><b>Intervals 5×1 km</b></div></div>
+            <div class="stop" style="--c:var(--tozai)"><i class="dot"></i><span class="n">Week 2<span>Build</span></span><span class="km num">35.3</span></div>
+            <div class="stop" style="--c:var(--tozai)"><i class="dot"></i><span class="n">Week 3<span>Build</span></span><span class="km num">26.5</span></div>
+            <div class="stop" style="--c:var(--hibiya)"><i class="dot"></i><span class="n">Week 4<span>Easy week</span></span><span class="km num">27.6</span></div>
+            <div class="stop" style="--c:var(--tozai)"><i class="dot"></i><span class="n">Week 5<span>Build</span></span><span class="km num">38.9</span></div>
+            <div class="stop" style="--c:var(--tozai)"><i class="dot"></i><span class="n">Week 6<span>Build</span></span><span class="km num">40.8</span></div>
+            <div class="stop" style="--c:var(--tozai)"><i class="dot"></i><span class="n">Week 7<span>Peak</span></span><span class="km num">42.6</span></div>
+            <div class="stop" style="--c:var(--tozai)"><i class="dot"></i><span class="n">Week 8<span>Peak</span></span><span class="km num">44.1</span></div>
+            <div class="stop" style="--c:var(--yuraku)"><i class="dot"></i><span class="n">Week 9<span>Taper</span></span><span class="km num">30.2</span></div>
+            <div class="stop last term" style="--c:var(--yuraku)"><i class="dot"></i><span class="n">Race day<span>Sat 13 Dec</span></span><span class="km num">10K</span></div>
+          </div>
+        </div>
+        <nav class="nav"><a href="#"><svg class="i"><use href="#i-cal"/></svg>Today</a><a class="on" href="#"><svg class="i"><use href="#i-run"/></svg>Training</a><a class="plus" href="#" aria-label="Log"><svg class="i"><use href="#i-plus"/></svg></a><a href="#"><svg class="i"><use href="#i-food"/></svg>Food</a><a href="#"><svg class="i"><use href="#i-scale"/></svg>Body</a></nav>
+        </div>
+        <figcaption>Training</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ====================== C ====================== -->
+  <section class="dir C">
+    <div class="dir-head">
+      <div>
+        <h2>C. Ensō</h2>
+        <p class="pitch">Sumi ink and hanko seals. The calorie ring is an ensō, the Zen circle drawn in one brush stroke, inked as you eat. Logged days get a red seal. The plan reads as ink strokes, one per week. Calm and quiet: steady effort rather than race-day noise.</p>
+        <dl>
+          <dt>Type</dt><dd>Zen Maru Gothic, a soft rounded Japanese sans.</dd>
+          <dt>Signature</dt><dd>The ensō on Today, red seals for logged days.</dd>
+          <dt>Risk</dt><dd>Calm can read as spa or meditation app rather than training.</dd>
+        </dl>
+      </div>
+      <div class="swatches" aria-label="Palette">
+        <div class="sw" style="background:#232323"></div><div class="sw" style="background:#f1f2ee"></div><div class="sw" style="background:#fbfbf9"></div><div class="sw" style="background:#c4302b"></div><div class="sw" style="background:#2c4f7c"></div>
+      </div>
+    </div>
+    <div class="phones">
+      <figure class="shot" style="margin:0">
+        <div class="phone"><div class="screen">
+          <div class="row"><div class="dhead"><span class="dbig num">4</span><span class="dsm"><b>Sunday</b>October</span></div><span class="ava">NB</span></div>
+          <div class="seals">
+            <div>M<div class="seal on">済</div></div><div>T<div class="seal on">済</div></div><div>W<div class="seal on">済</div></div><div>T<div class="seal off"></div></div><div>F<div class="seal on">済</div></div><div>S<div class="seal on">済</div></div><div>S<div class="seal today num">4</div></div>
+          </div>
+          <div class="enso">
+            <svg viewBox="0 0 200 200" aria-hidden="true">
+              <defs><filter id="brush" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" seed="3"/><feDisplacementMap in="SourceGraphic" scale="4.5"/></filter></defs>
+              <circle cx="100" cy="100" r="78" fill="none" stroke="var(--faint)" stroke-width="5"/>
+              <g filter="url(#brush)" transform="rotate(-96 100 100)">
+                <circle class="arc" cx="100" cy="100" r="78" fill="none" stroke="var(--ink)" stroke-width="15" stroke-linecap="round" pathLength="100" stroke-dasharray="40 100"/>
+                <circle class="arc" cx="100" cy="100" r="78" fill="none" stroke="var(--ink)" stroke-width="9" stroke-linecap="round" pathLength="100" stroke-dasharray="50 100"/>
+                <circle class="arc" cx="100" cy="100" r="78" fill="none" stroke="var(--ink)" stroke-width="4" stroke-linecap="round" pathLength="100" stroke-dasharray="55 100"/>
+              </g>
+            </svg>
+            <div class="mid"><b class="num">1204</b><span>kcal left</span></div>
+          </div>
+          <div class="eat"><span><b class="num">1448</b> eaten</span><span><b class="num">2652</b> target</span></div>
+          <div class="strokes">
+            <div>Protein<br><b class="num">74</b> / 169 g<div class="brush"><i style="width:44%;--c:#c4302b"></i></div></div>
+            <div>Carbs<br><b class="num">180</b> / 328 g<div class="brush"><i style="width:55%;--c:#d99a2b"></i></div></div>
+            <div>Fat<br><b class="num">47</b> / 74 g<div class="brush"><i style="width:64%;--c:#6b5b95"></i></div></div>
+          </div>
+          <div class="sess" style="--c:#c4302b">
+            <div class="bar"></div>
+            <div><div class="k">Today's run</div><h2>Intervals 5×1 km</h2><p>10.5 km, about 55 min</p><div class="f">85 g carbs before, 25 g protein after</div></div>
+            <svg class="i go"><use href="#i-chev"/></svg>
+          </div>
+          <h3>Meals <a href="#">Add</a></h3>
+          <div class="meal"><span class="t">Breakfast</span><span class="s">Greek yoghurt, granola, blueberries</span><span class="k num">500</span></div>
+          <div class="meal"><span class="t">Lunch</span><span class="s">Chicken katsu, rice, curry sauce</span><span class="k num">841</span></div>
+          <div class="meal"><span class="t">Snack</span><span class="s">Banana</span><span class="k num">107</span></div>
+        </div>
+        <nav class="nav"><a class="on" href="#"><svg class="i"><use href="#i-cal"/></svg>Today</a><a href="#"><svg class="i"><use href="#i-run"/></svg>Training</a><a class="plus" href="#" aria-label="Log"><svg class="i"><use href="#i-plus"/></svg></a><a href="#"><svg class="i"><use href="#i-food"/></svg>Food</a><a href="#"><svg class="i"><use href="#i-scale"/></svg>Body</a></nav>
+        </div>
+        <figcaption>Today</figcaption>
+      </figure>
+
+      <figure class="shot" style="margin:0">
+        <div class="phone"><div class="screen">
+          <div class="row"><h1>Training</h1><button class="ai" type="button"><svg class="i s"><use href="#i-spark"/></svg>Adjust plan</button></div>
+          <div class="race"><div class="stamp"><b>10K</b><span>13 Dec</span></div><div class="t"><b>10 weeks to go</b>Race on Saturday 13 December</div></div>
+          <div class="rstats"><div><b class="num">47:24</b>predicted</div><div><b class="num">42.6</b>VDOT</div><div><b class="num">4:50</b>threshold</div></div>
+          <h3>Plan</h3>
+          <div class="wk now"><span class="l"><b>Now</b>Week 1</span><span class="ink" style="width:24%"></span><span class="km num">10.5</span></div>
+          <div class="wopen"><div><span>Sun 4</span>Intervals 5×1 km</div></div>
+          <div class="wk"><span class="l"><b>Week 2</b>Build</span><span class="ink" style="width:80%"></span><span class="km num">35.3</span></div>
+          <div class="wk"><span class="l"><b>Week 3</b>Build</span><span class="ink" style="width:60%"></span><span class="km num">26.5</span></div>
+          <div class="wk easy"><span class="l"><b>Week 4</b>Easy</span><span class="ink" style="width:63%"></span><span class="km num">27.6</span></div>
+          <div class="wk"><span class="l"><b>Week 5</b>Build</span><span class="ink" style="width:88%"></span><span class="km num">38.9</span></div>
+          <div class="wk"><span class="l"><b>Week 6</b>Build</span><span class="ink" style="width:92%"></span><span class="km num">40.8</span></div>
+          <div class="wk"><span class="l"><b>Week 7</b>Peak</span><span class="ink" style="width:97%"></span><span class="km num">42.6</span></div>
+          <div class="wk"><span class="l"><b>Week 8</b>Peak</span><span class="ink" style="width:100%"></span><span class="km num">44.1</span></div>
+          <div class="wk easy"><span class="l"><b>Week 9</b>Taper</span><span class="ink" style="width:68%"></span><span class="km num">30.2</span></div>
+          <div class="wk"><span class="l"><b>Week 10</b>Race</span><span class="ink" style="width:41%"></span><span class="km num">18.0</span></div>
+        </div>
+        <nav class="nav"><a href="#"><svg class="i"><use href="#i-cal"/></svg>Today</a><a class="on" href="#"><svg class="i"><use href="#i-run"/></svg>Training</a><a class="plus" href="#" aria-label="Log"><svg class="i"><use href="#i-plus"/></svg></a><a href="#"><svg class="i"><use href="#i-food"/></svg>Food</a><a href="#"><svg class="i"><use href="#i-scale"/></svg>Body</a></nav>
+        </div>
+        <figcaption>Training</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="shared">
+    <h2>Layout fixes in every direction</h2>
+    <ol>
+      <li><strong>Today is home, not a sub-page.</strong>The back arrow and centered title go. A week strip at the top shows which days you logged; tap a day to look back.</li>
+      <li><strong>Session first, fuel inside it.</strong>One block tells you what to run and what to eat around it.</li>
+      <li><strong>Calories and macros in one compact block.</strong>The "Base, Activity, Planned run, Goal" line moves behind a tap on the number.</li>
+      <li><strong>Meals as one list.</strong>No card per meal. Three meals take a third of the height they do now.</li>
+      <li><strong>Adjust plan sits in the Training header.</strong>Whole plan visible at a glance; tap a week to open it. End plan moves into a menu.</li>
+      <li><strong>Fewer containers.</strong>Type size and weight carry hierarchy. Cards only where something is tappable as a unit.</li>
+      <li><strong>Copy pass.</strong>Helper notes removed unless they stop a mistake. No em dashes, no dot-separated chains.</li>
+    </ol>
+  </section>
+</div>
+
+<script>
+  (function () {
+    var stage = document.getElementById('stage');
+    var btns = stage.querySelectorAll('.toggle button');
+    function set(mode) {
+      stage.setAttribute('data-mode', mode);
+      btns.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.set === mode)); });
+    }
+    btns.forEach(function (b) { b.addEventListener('click', function () { set(b.dataset.set); }); });
+    var root = document.documentElement.getAttribute('data-theme');
+    var dark = root ? root === 'dark' : (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+    set(dark ? 'dark' : 'light');
+  })();
+</script>
+</html>
