@@ -625,7 +625,8 @@
       "lateUnknown": "time not set",
       "training": "Training",
       "rest": "Rest day",
-      "noNight": "No sleep recorded this night."
+      "noNight": "No sleep recorded this night.",
+      "nothingLogged": "No food logged"
     },
     "ai": {
       "summary": "This week",
@@ -639,6 +640,8 @@
       "noKey": "Add your Anthropic key in Profile to get AI insights.",
       "error": "AI is unavailable right now.",
       "notEnough": "Not enough data for this yet."
-    }
+    },
+    "belowNormal": "Below your normal",
+    "aboveNormal": "Above your normal"
   }
 }

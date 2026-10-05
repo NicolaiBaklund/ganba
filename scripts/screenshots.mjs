@@ -89,6 +89,25 @@ try {
   must(await admin.from("garmin_days").insert(days));
   must(await admin.from("activities").insert(acts));
 
+  // --- recovery: 60 nights and the engine's stored results (the engine itself runs in the app) -----
+  must(await admin.from("garmin_accounts").update({ recovery_backfilled_until: day(-89), recovery_computed_at: new Date().toISOString() }).eq("user_id", uid));
+  must(await admin.from("recovery_days").insert(
+    Array.from({ length: 60 }, (_, i) => ({
+      user_id: uid, local_date: day(-i), sleep_s: 25800 + ((i * 37) % 7) * 600, deep_s: 5100, light_s: 13900, rem_s: 5900, awake_s: 700,
+      sleep_score: 70 + ((i * 7) % 13), hrv_avg: 54 + ((i * 5) % 9) - (i % 6 === 2 ? 5 : 0), resting_hr: 46 + ((i * 3) % 5), hrv_baseline_low: 50, hrv_baseline_high: 62,
+    })),
+  ));
+  const grp = (n, mean, bound) => ({ n, mean, bound });
+  const found = (question_id, factor, outcome, lag, kind, groups, effect_sd, rank, reason = null) =>
+    ({ user_id: uid, computed_at: new Date().toISOString(), question_id, factor, outcome, lag, kind, reason, groups, effect_sd, q_value: kind === "finding" ? 0.03 : null, control_ok: kind === "finding" ? true : null, rank });
+  must(await admin.from("recovery_findings").insert([
+    found("deficit-hrv", "deficit", "hrv", 1, "finding", { high: grp(24, -4.2, 820), low: grp(23, 1.9, 240), needed: 9 }, -0.9, 1),
+    found("alcohol-sleep", "alcohol", "sleepScore", 1, "finding", { high: grp(9, -6.4, null), low: grp(58, 0.8, null), needed: 8 }, -0.8, 2),
+    found("sleep-run", "sleepScore", "runForm", 0, "finding", { high: grp(11, 0.4, 82), low: grp(10, -0.3, 72), needed: 8 }, 0.7, 3),
+    found("steps-sleep", "steps", "sleepScore", 1, "no_effect", { high: grp(26, 0.3, 12400), low: grp(25, 0.1, 7100), needed: 8 }, 0.05, null),
+    found("rest-run", "daysSinceHard", "runForm", 0, "needs_data", { high: grp(5, 0.2, 3), low: grp(6, -0.1, 1), needed: 8 }, null, null, "few_days"),
+  ]));
+
   // --- browser ---------------------------------------------------------------------------------
   const anon = createClient(U, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, { auth: { persistSession: false } });
   const { data: s } = await anon.auth.signInWithPassword({ email, password });
@@ -145,6 +164,11 @@ try {
   await page.goto(`${BASE}/body`);
   await page.waitForTimeout(800);
   await shot("body");
+
+  await page.goto(`${BASE}/recovery`);
+  await page.getByText("What affects you").waitFor();
+  await page.waitForTimeout(800);
+  await shot("recovery");
 
   // AI food logging (estimate mocked: no API key or cost needed).
   await admin.from("api_keys").insert({ user_id: uid, ciphertext: "x", iv: "x", auth_tag: "x", last4: "demo" });

@@ -58,11 +58,17 @@ export function DaySheet({ date, onClose, whySlot }: { date: ISODate | null; onC
           )}
 
           <SectionHead title={t("day.dayBefore")} />
-          <ListRow title={t("day.kcal", { kcal: day.before.kcal, target: day.before.targetKcal })} />
-          <ListRow title={t("day.carbs")} value={`${day.before.carbsG} g`} />
-          <ListRow title={t("day.protein")} value={`${day.before.proteinG} g`} />
-          {day.before.alcoholG > 0 && <ListRow title={t("day.alcohol")} value={`${day.before.alcoholG} g`} />}
-          <ListRow title={t("day.late")} value={day.before.lateKcal == null ? t("day.lateUnknown") : `${day.before.lateKcal} kcal`} />
+          {day.before.meals === 0 ? (
+            <ListRow title={t("day.nothingLogged")} />
+          ) : (
+            <>
+              <ListRow title={t("day.kcal", { kcal: day.before.kcal, target: day.before.targetKcal })} />
+              <ListRow title={t("day.carbs")} value={`${day.before.carbsG} g`} />
+              <ListRow title={t("day.protein")} value={`${day.before.proteinG} g`} />
+              {day.before.alcoholG > 0 && <ListRow title={t("day.alcohol")} value={`${day.before.alcoholG} g`} />}
+              <ListRow title={t("day.late")} value={day.before.lateKcal == null ? t("day.lateUnknown") : `${day.before.lateKcal} kcal`} />
+            </>
+          )}
           <ListRow
             title={t("day.training")}
             sub={day.before.training.length ? day.before.training.map((a) => `${a.typeKey.replace(/_/g, " ")} ${a.km != null ? `${a.km} km` : `${a.minutes} min`}`).join(", ") : t("day.rest")}

@@ -1,6 +1,6 @@
 # Restitusjon — sammenhenger i egne data
 
-Dato: 2026-10-04. Status: **godkjent**; del 1 under arbeid (plan: `docs/plans/2026-10-04-restitusjon-del1-plan.md`).
+Dato: 2026-10-04. Status: **godkjent; del 1 og 2 levert** (planer: `docs/plans/2026-10-04-restitusjon-del1-plan.md`, `docs/plans/2026-10-05-restitusjon-del2-plan.md`).
 Beslutninger: `docs/02-decisions.md`, rader 2026-10-04 om restitusjonsfanen.
 
 ## 1. Mål
