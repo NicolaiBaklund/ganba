@@ -68,7 +68,8 @@
     "food": "Food",
     "body": "Body",
     "profile": "Profile",
-    "training": "Training"
+    "training": "Training",
+    "recovery": "Recovery"
   },
   "meals": {
     "breakfast": "Breakfast",
@@ -152,7 +153,8 @@
     "weightUp": "Up {kg} kg a week.",
     "weightSteady": "Steady.",
     "goalEta": "Goal {kg} kg around {date}.",
-    "goalOnly": "Goal {kg} kg."
+    "goalOnly": "Goal {kg} kg.",
+    "allMeals": "All meals"
   },
   "weight": {
     "title": "Log weight",
@@ -284,7 +286,9 @@
     "saveError": "Couldn’t save. Try again.",
     "delete": "Delete entry",
     "confirmDelete": "Yes, delete",
-    "deleteError": "Couldn’t delete."
+    "deleteError": "Couldn’t delete.",
+    "time": "Time",
+    "timeUnknown": "Logged on another day. Set the time if it was a late meal."
   },
   "checkin": {
     "title": "Weekly check-in",
@@ -513,5 +517,13 @@
     "suggest": "Suggest food",
     "suggesting": "Thinking…",
     "ideas": "Ideas"
+  },
+  "aiHealth": {
+    "title": "Use my health data with AI",
+    "explain": "Lets AI write your weekly recovery summary, explain a single day and suggest new things to test. Sends daily numbers (sleep, HRV, resting heart rate, food totals, training) and findings. Never photos or your name.",
+    "error": "Couldn’t save. Try again."
+  },
+  "recovery": {
+    "title": "Recovery"
   }
 }

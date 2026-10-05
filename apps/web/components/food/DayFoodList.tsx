@@ -13,9 +13,11 @@ const kcalOf = (e: FoodEntryWithItems) => e.items.reduce((s, i) => s + Number(i.
 export function DayFoodList({
   entries,
   photoUrls,
+  timezone,
 }: {
   entries: FoodEntryWithItems[];
   photoUrls: Record<string, string | null>;
+  timezone: string;
 }) {
   const t = useTranslations("food");
   const tm = useTranslations("meals");
@@ -61,7 +63,7 @@ export function DayFoodList({
           </section>
         );
       })}
-      <EditEntrySheet entry={editing} onClose={() => setEditing(null)} />
+      <EditEntrySheet entry={editing} timezone={timezone} onClose={() => setEditing(null)} />
     </>
   );
 }

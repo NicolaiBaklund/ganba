@@ -30,7 +30,7 @@ export default async function FoodPage({ searchParams }: PageProps<"/food">) {
         activityKcal={activity}
         breakdown={activity != null ? { base: snap.baseKcal, activity, goal: goalKcal } : null}
       />
-      <DayFoodList entries={snap.entries} photoUrls={urls} />
+      <DayFoodList entries={snap.entries} photoUrls={urls} timezone={snap.timezone} />
     </main>
   );
 }

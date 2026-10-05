@@ -10,9 +10,14 @@ export async function MealsList({ entries, date, today }: { entries: FoodEntryWi
   const t = await getTranslations("today");
   const tm = await getTranslations("meals");
   const add = (
-    <Link href={`/food/log?mode=text${date === today ? "" : `&date=${date}`}`} className="text-[13px] font-semibold text-primary">
-      {t("add")}
-    </Link>
+    <span className="flex gap-4">
+      <Link href={`/food?date=${date}`} className="text-[13px] font-semibold text-muted-foreground">
+        {t("allMeals")}
+      </Link>
+      <Link href={`/food/log?mode=text${date === today ? "" : `&date=${date}`}`} className="text-[13px] font-semibold text-primary">
+        {t("add")}
+      </Link>
+    </span>
   );
 
   return (
