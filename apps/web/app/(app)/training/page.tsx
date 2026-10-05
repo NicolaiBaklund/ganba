@@ -6,7 +6,7 @@ import { requireUser } from "@/lib/supabase/server";
 import { loadTrainingView } from "@/lib/training/view";
 import { fmtClock } from "@/lib/training/format";
 import { ProposalCard } from "@/components/training/ProposalCard";
-import { AdjustPlanButton } from "@/components/training/AdjustPlanButton";
+import { CoachButton } from "@/components/coach/CoachButton";
 import { TrainingMap } from "@/components/training/TrainingMap";
 import { SectionHead } from "@/components/tasuki/SectionHead";
 import { StatRow } from "@/components/tasuki/StatRow";
@@ -55,7 +55,7 @@ export default async function TrainingPage() {
     <main className="flex flex-col px-[18px] pb-4 pt-5">
       <div className="flex items-center justify-between gap-3">
         <h1 className="cond text-[34px] leading-none">{t("title")}</h1>
-        <AdjustPlanButton />
+        <CoachButton />
       </div>
 
       <div className="mb-4 mt-4 flex items-end gap-3">

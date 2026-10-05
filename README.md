@@ -33,7 +33,8 @@ A training plan, nutrition and weight tracking in one mobile web app, driven by 
 - Plans for 5K, 10K, half marathon, marathon, or just building fitness, on the days you choose.
 - Paces from your recent runs. Sessions are sent to your Garmin watch.
 - The whole plan as a line map to race day, with weekly kilometres.
-- Changes come as suggestions you accept: a missed session, new paces, a lighter week. You can also ask for changes in plain words.
+- Changes come as suggestions you accept: a missed session, new paces, a lighter week.
+- A coach you can talk to: it rewrites, moves or adds sessions, checks the load first and tells you plainly when something is unwise.
 
 ### Recovery
 - What affects your sleep, HRV and resting heart rate, and how your runs go: links found in your own data, each with the numbers behind it.

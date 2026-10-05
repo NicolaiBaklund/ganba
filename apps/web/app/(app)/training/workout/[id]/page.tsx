@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/supabase/server";
 import { loadWorkout } from "@/lib/training/view";
 import { bibNumber, fmtClock, fmtMinutes, fmtPaceRange, paceFromSpeed } from "@/lib/training/format";
 import { FuelSection } from "@/components/training/FuelSection";
+import { CoachButton } from "@/components/coach/CoachButton";
 import { Bib } from "@/components/tasuki/Bib";
 import { SectionHead } from "@/components/tasuki/SectionHead";
 import { StatRow } from "@/components/tasuki/StatRow";
@@ -153,6 +154,11 @@ export default async function WorkoutPage({ params }: PageProps<"/training/worko
             })}
           </div>
         </>
+      )}
+      {w.status === "planned" && (
+        <div className="mt-6">
+          <CoachButton aboutWorkoutId={w.id} variant="link" />
+        </div>
       )}
     </main>
   );

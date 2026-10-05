@@ -1,7 +1,7 @@
-import { addDays, daysBetween, weekday, type ISODate } from "../dates";
+import { addDays, weekday, type ISODate } from "../dates";
 import { mondayOf } from "./generate";
 import { pacesFor, vo2AtSpeed } from "./vdot";
-import { buildByType, measure, repaceBlocks, rescaleBlocks, resizeQuality, type BuildContext } from "./workouts";
+import { blocksFromSteps, buildByType, defaultTitle, measure, repaceBlocks, rescaleBlocks, resizeQuality, type BuildContext } from "./workouts";
 import { HARD_TYPES, KEY_TYPES, type PlanWorkout, type ProposalChange, type RaceDistance, type WorkoutType } from "./types";
 
 export interface PlanContext {
@@ -193,6 +193,31 @@ export function applyChanges(all: PlanWorkout[], changes: ProposalChange[], ctx:
         }
       continue;
     }
+    if (c.op === "add") {
+      const blocks = blocksFromSteps(c.steps, build());
+      const m = measure(blocks, build().paces);
+      // Week and phase from a session in the same calendar week, else the nearest one before.
+      const near =
+        list.find((x) => x.status !== "removed" && mondayOf(x.date) === mondayOf(c.date)) ??
+        [...list].filter((x) => x.date <= c.date).sort((a, b) => (a.date < b.date ? -1 : 1)).at(-1) ??
+        list[0];
+      const nw: PlanWorkout = {
+        id: `new:${changed.size}:${c.date}`,
+        date: c.date,
+        type: c.type,
+        title: c.title?.trim() || defaultTitle(c.type, m.km),
+        blocks,
+        plannedKm: m.km,
+        plannedDurationS: m.s,
+        week: near?.week ?? 1,
+        phase: near?.phase ?? "build",
+        status: "planned",
+      };
+      list.push(nw);
+      byId.set(nw.id, nw);
+      changed.add(nw.id);
+      continue;
+    }
     const w = byId.get(c.workoutId);
     if (!w) continue;
     if (c.op === "move") {
@@ -212,94 +237,14 @@ export function applyChanges(all: PlanWorkout[], changes: ProposalChange[], ctx:
         const b = buildByType(c.type, c.km, ctx.distance ?? "10k", 2, build());
         Object.assign(w, { type: b.type, title: b.title, blocks: b.blocks, plannedKm: b.plannedKm, plannedDurationS: b.plannedDurationS });
       }
+    } else if (c.op === "edit") {
+      const blocks = blocksFromSteps(c.steps, build());
+      const m = measure(blocks, build().paces);
+      const type = c.type ?? w.type;
+      Object.assign(w, { type, title: c.title?.trim() || defaultTitle(type, m.km), blocks, plannedKm: m.km, plannedDurationS: m.s });
     }
     changed.add(w.id);
   }
   return { workouts: list, changedIds: changed, vdot };
 }
 
-export interface Rejected {
-  change: ProposalChange;
-  reason: string;
-}
-
-/**
- * Guard rails for changes not made by the engine itself (AI suggestions):
- * only future planned sessions, allowed days (unless the user named a day), no back-to-back
- * hard days, volume increase ≤ 10 % per week, small pace changes.
- */
-export function validateChanges(
-  all: PlanWorkout[],
-  changes: ProposalChange[],
-  ctx: PlanContext,
-  opts: { allowAnyDay: boolean },
-): { valid: ProposalChange[]; rejected: Rejected[] } {
-  const valid: ProposalChange[] = [];
-  const rejected: Rejected[] = [];
-  let state = all;
-  const weekKm = (list: PlanWorkout[], monday: ISODate) =>
-    list.filter((w) => active(w) && w.status !== "missed" && mondayOf(w.date) === monday).reduce((s, w) => s + w.plannedKm, 0);
-
-  for (const c of changes) {
-    const reject = (reason: string) => rejected.push({ change: c, reason });
-    if (c.op === "repace") {
-      if (Math.abs(c.vdot - ctx.vdot) > 3) {
-        reject("pace change too large");
-        continue;
-      }
-    } else if (c.op === "rescale") {
-      if (c.factor < 0.5 || c.factor > 1.1) {
-        reject("volume change out of range");
-        continue;
-      }
-      if (c.fromDate < ctx.today) {
-        reject("cannot change the past");
-        continue;
-      }
-    } else {
-      const w = state.find((x) => x.id === c.workoutId);
-      if (!w || w.status === "removed" || w.status === "done" || w.date < ctx.today && c.op !== "move") {
-        reject("not a future planned session");
-        continue;
-      }
-      if (w.type === "race") {
-        reject("race day cannot be changed");
-        continue;
-      }
-      if (c.op === "move") {
-        if (c.toDate < ctx.today || daysBetween(ctx.today, c.toDate) > 60) {
-          reject("date out of range");
-          continue;
-        }
-        if (!opts.allowAnyDay && !ctx.weekdays.includes(weekday(c.toDate))) {
-          reject("not one of your running days");
-          continue;
-        }
-        if (isHard(w) && hardNeighbour(state, c.toDate, w.id)) {
-          reject("would put two hard days in a row");
-          continue;
-        }
-      }
-      if (c.op === "replace") {
-        if (c.type === "race" || c.km < 2 || c.km > 45) {
-          reject("invalid session");
-          continue;
-        }
-        if (HARD_TYPES.has(c.type) && hardNeighbour(state, w.date, w.id)) {
-          reject("would put two hard days in a row");
-          continue;
-        }
-      }
-    }
-    const next = applyChanges(state, [c], ctx).workouts;
-    const mondays = new Set(next.filter((w) => w.date >= ctx.today).map((w) => mondayOf(w.date)));
-    const grows = [...mondays].some((m) => weekKm(next, m) > weekKm(state, m) * 1.1 + 0.5 && weekKm(next, m) > weekKm(all, m) * 1.1 + 0.5);
-    if (grows) {
-      reject("adds more than 10 % to a week");
-      continue;
-    }
-    valid.push(c);
-    state = next;
-  }
-  return { valid, rejected };
-}

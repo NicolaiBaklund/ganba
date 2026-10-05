@@ -258,6 +258,135 @@ export type Database = {
         }
         Relationships: []
       }
+      coach_messages: {
+        Row: {
+          about_workout_id: string | null
+          applying_until: string | null
+          cost_usd: number | null
+          created_at: string
+          id: string
+          input_tokens: number | null
+          model: string | null
+          options: Json
+          output_tokens: number | null
+          prompt_version: number | null
+          role: string
+          text: string
+          thread_id: string
+          updated_at: string
+          used_health: boolean
+          user_id: string
+        }
+        Insert: {
+          about_workout_id?: string | null
+          applying_until?: string | null
+          cost_usd?: number | null
+          created_at?: string
+          id?: string
+          input_tokens?: number | null
+          model?: string | null
+          options?: Json
+          output_tokens?: number | null
+          prompt_version?: number | null
+          role: string
+          text: string
+          thread_id: string
+          updated_at?: string
+          used_health?: boolean
+          user_id: string
+        }
+        Update: {
+          about_workout_id?: string | null
+          applying_until?: string | null
+          cost_usd?: number | null
+          created_at?: string
+          id?: string
+          input_tokens?: number | null
+          model?: string | null
+          options?: Json
+          output_tokens?: number | null
+          prompt_version?: number | null
+          role?: string
+          text?: string
+          thread_id?: string
+          updated_at?: string
+          used_health?: boolean
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_messages_about_workout_id_fkey"
+            columns: ["about_workout_id"]
+            isOneToOne: false
+            referencedRelation: "planned_workouts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "coach_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coach_notes: {
+        Row: {
+          created_at: string
+          id: string
+          source: string
+          text: string
+          until: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          source: string
+          text: string
+          until?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          source?: string
+          text?: string
+          until?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      coach_threads: {
+        Row: {
+          archived_at: string | null
+          busy_until: string | null
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          busy_until?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          busy_until?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       energy_plans: {
         Row: {
           base_expenditure_kcal: number
@@ -1235,7 +1364,16 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      save_plan_changes: {
+        Args: {
+          p_inserts: Json
+          p_plan: string
+          p_updates: Json
+          p_user: string
+          p_vdot: number
+        }
+        Returns: string[]
+      }
     }
     Enums: {
       checkin_status: "pending" | "accepted" | "kept" | "insufficient_data"

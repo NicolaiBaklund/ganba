@@ -344,6 +344,32 @@ export async function refreshProposals(userId: string, today: ISODate): Promise<
 }
 
 /** Applies a proposal's changes to the plan. Returns false if it is no longer pending. */
+/** Applies engine changes to the stored plan: updates changed sessions, inserts added ones, marks all for Garmin push. */
+export async function savePlanChanges(userId: string, plan: PlanRow, changes: ProposalChange[], today: ISODate): Promise<string[]> {
+  const before = await planWorkoutsWithKm(plan);
+  const result = applyChanges(before, changes, planContext(plan, today));
+  const changed = result.workouts.filter((x) => result.changedIds.has(x.id));
+  const fields = (w: PlanWorkout) => ({
+    date: w.date,
+    status: w.status,
+    type: w.type,
+    title: w.title,
+    blocks: w.blocks,
+    planned_km: w.plannedKm,
+    planned_duration_s: w.plannedDurationS,
+  });
+  // One transaction: either every session changes or none does.
+  const { data, error } = await db().rpc("save_plan_changes", {
+    p_user: userId,
+    p_plan: plan.id,
+    p_vdot: (result.vdot !== Number(plan.vdot) ? result.vdot : null) as number, // null = unchanged (generated types miss nullable args)
+    p_updates: changed.filter((w) => !w.id.startsWith("new:")).map((w) => ({ id: w.id, ...fields(w) })) as unknown as Json,
+    p_inserts: changed.filter((w) => w.id.startsWith("new:")).map((w) => ({ ...fields(w), week: w.week, phase: w.phase })) as unknown as Json,
+  });
+  if (error) throw error;
+  return (data ?? []) as unknown as string[];
+}
+
 export async function acceptProposal(userId: string, proposalId: string): Promise<boolean> {
   const d = db();
   const { data: p } = await d.from("plan_proposals").select("*").eq("id", proposalId).eq("user_id", userId).maybeSingle();
@@ -354,24 +380,7 @@ export async function acceptProposal(userId: string, proposalId: string): Promis
     return false;
   }
   const today = await todayFor(userId);
-  const before = await planWorkoutsWithKm(plan);
-  const result = applyChanges(before, p.changes as unknown as ProposalChange[], planContext(plan, today));
-  for (const w of result.workouts.filter((x) => result.changedIds.has(x.id))) {
-    await d
-      .from("planned_workouts")
-      .update({
-        date: w.date,
-        status: w.status,
-        type: w.type,
-        title: w.title,
-        blocks: w.blocks as unknown as Json,
-        planned_km: w.plannedKm,
-        planned_duration_s: w.plannedDurationS,
-        garmin_push_status: "pending",
-      })
-      .eq("id", w.id);
-  }
-  if (result.vdot !== Number(plan.vdot)) await d.from("training_plans").update({ vdot: result.vdot }).eq("id", plan.id);
+  await savePlanChanges(userId, plan, p.changes as unknown as ProposalChange[], today);
   await d.from("plan_proposals").update({ status: "accepted" }).eq("id", p.id);
   return true;
 }

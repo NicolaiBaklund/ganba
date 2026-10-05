@@ -44,7 +44,7 @@ Tailwind-klasser: `bg-primary`, `bg-paper`, `text-paper-ink`, `text-protein`, `b
 ## Komponenter
 - `components/tasuki/`: `Sash` (skrå stripe; hel = gjort, stripet = planlagt, omriss = misset), `Bib` + `RestBib`, `SectionHead`, `ListRow`, `StatRow`.
 - `components/today/WeekStrip` (uke med mat-logging og økt-striper), `KcalBlock` (kcal igjen, «+activity», makrobarer, utregning ved trykk), `TodayBib`.
-- `components/training/TrainingMap` (linjekart med km-bar per uke, sjakkflagg på løpsdag), `AdjustPlanButton`.
+- `components/training/TrainingMap` (linjekart med km-bar per uke, sjakkflagg på løpsdag); `components/coach/` (`CoachButton`, `CoachSheet` i ca. 92 % høyde, `OptionCard`, `NotesPanel`).
 - Logo: startnummer med «G» — `apps/web/scripts/icons/bib.svg`, PNG-er via `node apps/web/scripts/make-icons.mjs`.
 
 ## Tekst
