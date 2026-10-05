@@ -9,6 +9,7 @@ export const Item = z.object({
   protein_g: z.number().min(0).max(1000).default(0),
   carbs_g: z.number().min(0).max(2000).default(0),
   fat_g: z.number().min(0).max(1000).default(0),
+  alcohol_g: z.number().min(0).max(500).optional(),
   confidence: z.enum(["low", "medium", "high"]).nullish(),
 });
 export type ItemInput = z.input<typeof Item>;
@@ -27,4 +28,6 @@ export type CreateEntryInput = z.input<typeof CreateEntry>;
 export const UpdateEntry = z.object({
   mealType: MealTypeSchema.optional(),
   items: z.array(Item).min(1).max(40).optional(),
+  /** Local wall-clock time on the entry's own date, e.g. "19:30". */
+  time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(),
 });

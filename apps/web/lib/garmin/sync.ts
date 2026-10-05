@@ -4,13 +4,14 @@ import { createAdminSupabase } from "@/lib/supabase/admin";
 import type { Json } from "@/lib/db/types";
 import { GarminError, httpGarmin, type GarminActivityRaw, type GarminSource } from "./adapter";
 import { loadTokens, markReauth, updateTokens } from "./accounts";
+import { syncRecovery } from "@/lib/recovery/fetch";
 
 export const FIRST_SYNC_DAYS = 90;
 export const MAX_BACKFILL_DAYS = 30;
 const LOCK_MS = 2 * 60_000;
 
 export type SyncOutcome =
-  | { status: "ok"; from: ISODate; to: ISODate; days: number; activities: number; firstSync: boolean }
+  | { status: "ok"; from: ISODate; to: ISODate; days: number; activities: number; nights: number | null; firstSync: boolean }
   | { status: "not_connected" | "reauth_required" | "busy" }
   | { status: "error"; error: string };
 
@@ -38,6 +39,8 @@ const toActivityRow = (userId: string, a: GarminActivityRaw) => ({
   steps: a.steps ?? null,
   elevation_gain_m: a.elevationGain ?? null,
   garmin_kcal: a.calories != null ? Math.round(a.calories) : null,
+  te_aerobic: a.aerobicTrainingEffect ?? null,
+  te_anaerobic: a.anaerobicTrainingEffect ?? null,
   raw: a as unknown as Json,
 });
 
@@ -144,8 +147,20 @@ export async function syncGarmin(userId: string, opts: SyncOptions = {}): Promis
       })
       .eq("user_id", userId);
 
+    // Sleep/HRV after the sync is recorded, so a slow fetch can never undo the import above. A failure here
+    // never fails the sync (e.g. an adapter without fetch_recovery); only auth does. No history on the first sync.
+    let nights: number | null = null;
+    try {
+      const r = await syncRecovery(userId, res.tokens ?? tokens, today, source, { backfill: !firstSync });
+      if (r.tokens) await updateTokens(userId, r.tokens);
+      nights = r.nights;
+    } catch (e) {
+      if (e instanceof GarminError && e.kind === "auth") throw e;
+      console.error("garmin recovery fetch failed", userId, e instanceof Error ? e.message : e);
+    }
+
     if (opts.afterSync) await opts.afterSync(userId, today);
-    return { status: "ok", from, to: today, days: dayRows.length, activities: actRows.length, firstSync };
+    return { status: "ok", from, to: today, days: dayRows.length, activities: actRows.length, nights, firstSync };
   } catch (e) {
     if (e instanceof GarminError) {
       if (e.kind === "auth") {

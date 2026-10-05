@@ -33,6 +33,7 @@ export function EditEntrySheet({ entry, onClose }: { entry: FoodEntryWithItems |
         protein_g: Number(i.protein_g),
         carbs_g: Number(i.carbs_g),
         fat_g: Number(i.fat_g),
+        alcohol_g: Number(i.alcohol_g ?? 0),
         confidence: i.confidence,
       })),
     );
@@ -50,13 +51,14 @@ export function EditEntrySheet({ entry, onClose }: { entry: FoodEntryWithItems |
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         mealType: meal,
-        items: items.map(({ name, grams, kcal, protein_g, carbs_g, fat_g, confidence }) => ({
+        items: items.map(({ name, grams, kcal, protein_g, carbs_g, fat_g, alcohol_g, confidence }) => ({
           name: name.trim() || "Item",
           grams,
           kcal,
           protein_g,
           carbs_g,
           fat_g,
+          alcohol_g,
           confidence,
         })),
       }),

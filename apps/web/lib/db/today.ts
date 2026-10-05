@@ -26,6 +26,7 @@ export interface FoodItemRow {
   protein_g: number;
   carbs_g: number;
   fat_g: number;
+  alcohol_g: number;
   confidence: "low" | "medium" | "high" | null;
 }
 
@@ -82,7 +83,7 @@ export async function getDaySnapshot(supabase: DB, userId: string, dateArg?: ISO
     rowForDate(supabase, "activity_baselines", userId, date),
     supabase
       .from("food_entries")
-      .select("id, logged_at, meal_type, source, items:food_items(id, name, grams, kcal, protein_g, carbs_g, fat_g, confidence), photos(id, storage_path)")
+      .select("id, logged_at, meal_type, source, items:food_items(id, name, grams, kcal, protein_g, carbs_g, fat_g, alcohol_g, confidence), photos(id, storage_path)")
       .eq("user_id", userId)
       .eq("local_date", date)
       .order("logged_at"),

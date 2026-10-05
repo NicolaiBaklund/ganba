@@ -29,3 +29,32 @@ export const ageOn = (birth: ISODate, on: ISODate): number => {
   const [oy, om, od] = on.split("-").map(Number) as [number, number, number];
   return oy - by - (om < bm || (om === bm && od < bd) ? 1 : 0);
 };
+
+const zonedParts = (tz: string, at: Date) => {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(at);
+  const n = (t: string) => Number(parts.find((p) => p.type === t)!.value);
+  return { y: n("year"), mo: n("month"), d: n("day"), h: n("hour"), mi: n("minute"), s: n("second") };
+};
+
+/** Hour of day (0–23) in the given IANA timezone. */
+export const localHour = (tz: string, at: Date): number => zonedParts(tz, at).h;
+
+/** The instant a wall-clock time ("HH:MM") on `date` happens in `tz`. */
+export function zonedTime(date: ISODate, hhmm: string, tz: string): Date {
+  const wall = Date.parse(`${date}T${hhmm}:00Z`);
+  const offset = (at: number) => {
+    const p = zonedParts(tz, new Date(at));
+    return Date.UTC(p.y, p.mo - 1, p.d, p.h, p.mi, p.s) - at;
+  };
+  const first = wall - offset(wall);
+  return new Date(wall - offset(first));
+}

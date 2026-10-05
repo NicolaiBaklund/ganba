@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { UpdateEntry } from "@/lib/validation/food";
+import { EntryError, updateFoodEntry } from "@/lib/food/entries";
 
 async function auth() {
   const supabase = await createServerSupabase();
@@ -17,18 +18,11 @@ export async function PATCH(req: Request, ctx: RouteContext<"/api/food/entries/[
   const body = UpdateEntry.safeParse(await req.json().catch(() => null));
   if (!body.success) return NextResponse.json({ error: "invalid_input" }, { status: 400 });
 
-  const { data: entry } = await supabase.from("food_entries").select("id").eq("id", id).maybeSingle();
-  if (!entry) return NextResponse.json({ error: "not_found" }, { status: 404 });
-
-  if (body.data.mealType) {
-    await supabase.from("food_entries").update({ meal_type: body.data.mealType }).eq("id", id);
-  }
-  if (body.data.items) {
-    await supabase.from("food_items").delete().eq("food_entry_id", id);
-    const { error } = await supabase
-      .from("food_items")
-      .insert(body.data.items.map((it) => ({ ...it, user_id: user.id, food_entry_id: id })));
-    if (error) return NextResponse.json({ error: "db_error" }, { status: 500 });
+  try {
+    await updateFoodEntry(supabase, user.id, id, body.data);
+  } catch (e) {
+    if (e instanceof EntryError) return NextResponse.json({ error: e.code }, { status: e.status });
+    throw e;
   }
   return NextResponse.json({ ok: true });
 }
