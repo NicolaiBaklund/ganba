@@ -66,6 +66,33 @@ try {
   await page.waitForURL(/\/training\/workout\//);
   await shot("44-workout");
   const hasFuel = await page.getByText("Fuel", { exact: true }).count();
+  const hasAskCoach = await page.getByRole("button", { name: "Ask the coach" }).count();
+
+  // Coach: a seeded conversation with one option (no AI call); apply it from the sheet.
+  const { data: easy } = await admin.from("planned_workouts").select("id, planned_km").eq("user_id", uid).eq("type", "easy").gte("date", today).order("date").limit(1).single();
+  const { data: thread } = await admin.from("coach_threads").insert({ user_id: uid }).select("id").single();
+  const longer = Math.round((Number(easy.planned_km) + 2) * 10) / 10;
+  const seeded = await admin.from("coach_messages").insert([
+    { thread_id: thread.id, user_id: uid, role: "user", text: "Make my next easy run 2 km longer", options: [] },
+    {
+      thread_id: thread.id, user_id: uid, role: "coach", text: "Sure. It stays easy, so the load is fine.",
+      options: [{ id: "opt1", title: "Easy run +2 km", summary: `${easy.planned_km} to ${longer} km`, status: "pending", warnings: [],
+        changes: [{ op: "edit", workoutId: easy.id, steps: [{ kind: "run", km: longer }] }] }],
+    },
+  ]);
+  if (seeded.error) console.log("coach seed error", seeded.error.message);
+  await admin.from("coach_notes").insert({ user_id: uid, text: "Prefers morning runs", source: "coach" });
+  await page.goto(`${BASE}/training`);
+  await page.getByRole("button", { name: "Coach", exact: true }).click();
+  await page.getByText("Easy run +2 km").waitFor();
+  await page.waitForTimeout(400);
+  await shot("46-coach");
+  await page.getByRole("button", { name: "Apply" }).click();
+  await page.getByText("Applied").waitFor({ timeout: 30_000 }).catch(() => null);
+  const { data: afterEasy } = await admin.from("planned_workouts").select("planned_km").eq("id", easy.id).single();
+  await page.getByRole("button", { name: /What the coach remembers/ }).click();
+  const notesShown = await page.getByText("Prefers morning runs").count();
+  await shot("47-coach-applied");
 
   await page.goto(`${BASE}/today`);
   await shot("45-today");
@@ -80,6 +107,9 @@ try {
     "race on race day": (ws ?? []).some((w) => w.type === "race" && w.date === addDays(today, 63)),
     "activity tag on Today": hasBreakdown > 0,
     "fuel section on session": hasFuel > 0,
+    "ask the coach on session": hasAskCoach > 0,
+    "coach option applied": Number(afterEasy.planned_km) === longer,
+    "coach notes shown": notesShown > 0,
     "no console errors": errors.length === 0,
   };
   console.log(checks);

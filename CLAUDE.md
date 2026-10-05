@@ -7,6 +7,7 @@ Personlig trenings- + ernæringsapp (Runna + MyFitnessPal i ett). Webapp, må fu
 Systemet er **generelt/flerbruker** — aldri hardkod brukerens personlige verdier.
 
 ## Les først
+- [docs/specs/2026-10-05-coach.md](docs/specs/2026-10-05-coach.md) — **coach** (samtale om planen; plan: docs/plans/2026-10-05-coach-plan.md)
 - [docs/specs/2026-10-04-restitusjon.md](docs/specs/2026-10-04-restitusjon.md) — **restitusjon** (søvn/HRV, sammenhenger i egne data); planer: docs/plans/2026-10-04-restitusjon-del1-plan.md, docs/plans/2026-10-05-restitusjon-del2-plan.md
 - [docs/specs/2026-10-04-redesign-tasuki.md](docs/specs/2026-10-04-redesign-tasuki.md) — **redesign** (Tasuki-uttrykket, tokens, komponenter)
 - [docs/specs/2026-10-03-fase2-garmin-trening.md](docs/specs/2026-10-03-fase2-garmin-trening.md) — **spec fase 2** (Garmin + treningsplan)

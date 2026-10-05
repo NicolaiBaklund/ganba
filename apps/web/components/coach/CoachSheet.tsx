@@ -72,7 +72,7 @@ export function CoachSheet({ aboutWorkoutId, onClose }: { aboutWorkoutId?: strin
 
   const shown = reading ?? data?.messages ?? [];
   return (
-    <BottomSheet open onOpenChange={(o) => !o && onClose()} title={t("title")} className="flex h-[92dvh] flex-col">
+    <BottomSheet open onOpenChange={(o) => !o && onClose()} title={t("title")} className="flex flex-col data-[side=bottom]:h-[92dvh]">
       <div className="relative flex min-h-0 flex-1 flex-col">
         <button onClick={() => setMenu(!menu)} aria-label={t("menu")} aria-expanded={menu} className="absolute -top-9 right-8 p-1 text-muted-foreground">
           <MoreHorizontal className="size-5" />

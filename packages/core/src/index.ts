@@ -17,7 +17,6 @@ export * from "./training/workouts";
 export * from "./training/schedule";
 export * from "./training/generate";
 export * from "./training/proposals";
-export * from "./training/ai";
 export * from "./training/fueling";
 export * from "./recovery/types";
 export * from "./recovery/variables";
