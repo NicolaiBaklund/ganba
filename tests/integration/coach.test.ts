@@ -6,6 +6,7 @@ import { saveTokens } from "@/lib/garmin/accounts";
 import { syncGarmin } from "@/lib/garmin/sync";
 import { setAiHealthConsent } from "@/lib/recovery/consent";
 import { runCoach } from "@/lib/coach/run";
+import { applyOption } from "@/lib/coach/apply";
 import { activeThread, addMessage, listNotes } from "@/lib/coach/store";
 import { activePlan, createPlan, planWorkouts } from "@/lib/training/service";
 // @ts-expect-error — plain JS helper shared with the smoke scripts
@@ -124,5 +125,69 @@ describe("coach: tool loop, options, memory, consent", () => {
     expect((await runCoach(u.id, { text: "hello?" }, { ai })).ok).toBe(false);
     const plan = await activePlan(u.id);
     expect((await planWorkouts(plan!.id)).length).toBeGreaterThan(0);
+  });
+});
+
+describe("coach: applying options", () => {
+  let u: TestUser;
+  let today: string;
+  const ai = new FakeCoach();
+  const garmin = new FakeGarmin();
+
+  beforeAll(async () => {
+    u = await createTestUser("coach-apply");
+    ({ today } = await seedUser(admin(), u.id, { days: 20 }));
+    for (let d = 28; d >= 1; d--) {
+      const date = addDays(today, -d);
+      if ([2, 4].includes(weekday(date))) garmin.activities.push(run(date, 7));
+      if (weekday(date) === 0) garmin.activities.push(run(date, 12));
+    }
+    await saveTokens(u.id, JSON.stringify({ di_token: "fake" }));
+    await syncGarmin(u.id, { source: garmin });
+    await createPlan(u.id, { goal: { kind: "build" }, weekdays: [2, 4, 0], longRunWeekday: 0, runsPerWeek: 3 });
+    const enc = encryptSecret("sk-ant-test-0000000000000000");
+    await admin().from("api_keys").insert({ user_id: u.id, provider: "anthropic", ciphertext: enc.ciphertext, iv: enc.iv, auth_tag: enc.authTag, last4: "0000" });
+  });
+  afterAll(cleanup);
+
+  const askFor = async (options: (p: CoachParams) => unknown[]) => {
+    ai.script = [(p) => tool("reply", { message: "Here you go", options: options(p) })];
+    const r = await runCoach(u.id, { text: "please" }, { ai });
+    if (!r.ok) throw new Error(r.error);
+    return r.message;
+  };
+
+  it("applying saves the sessions, marks them for the watch, and the other option becomes not used", async () => {
+    const m = await askFor((p) => [
+      { title: "Longer easy", summary: "", changes: [{ op: "edit", session: refFor(p, "easy"), steps: [{ kind: "run", km: 10 }] }] },
+      { title: "Extra run", summary: "", changes: [{ op: "add", date: addDays(today, 2), type: "easy", steps: [{ kind: "run", km: 5 }] }] },
+    ]);
+    expect(await applyOption(u.id, m.id, m.options[1]!.id)).toEqual({ ok: true });
+    const plan = await activePlan(u.id);
+    const ws = await planWorkouts(plan!.id);
+    const added = ws.find((w) => w.date === addDays(today, 2) && Number(w.planned_km) === 5);
+    expect(added?.garmin_push_status).toBe("pending");
+    const { data } = await admin().from("coach_messages").select("options").eq("id", m.id).single();
+    expect((data!.options as { status: string }[]).map((o) => o.status)).toEqual(["not_used", "applied"]);
+  });
+
+  it("if the plan changed meanwhile and the warnings differ, it asks again; confirm applies", async () => {
+    const m = await askFor((p) => [{ title: "Long run tomorrow", summary: "", changes: [{ op: "move", session: refFor(p, "long"), toDate: addDays(today, 1) }] }]);
+    // Meanwhile a hard session lands the day before.
+    const plan = await activePlan(u.id);
+    const ws = await planWorkouts(plan!.id);
+    const quality = ws.find((w) => ["intervals", "threshold", "tempo"].includes(w.type) && w.date > today)!;
+    await admin().from("planned_workouts").update({ date: today }).eq("id", quality.id);
+    const first = await applyOption(u.id, m.id, m.options[0]!.id);
+    expect(first.ok).toBe(false);
+    expect(!first.ok && first.error).toBe("changed");
+    expect(!first.ok && first.warnings!.some((w) => w.code === "hard_back_to_back")).toBe(true);
+    expect(await applyOption(u.id, m.id, m.options[0]!.id, { confirm: true })).toEqual({ ok: true });
+  });
+
+  it("an applied option cannot be applied twice", async () => {
+    const m = await askFor((p) => [{ title: "Shorter easy", summary: "", changes: [{ op: "edit", session: refFor(p, "easy"), steps: [{ kind: "run", km: 6 }] }] }]);
+    expect((await applyOption(u.id, m.id, m.options[0]!.id)).ok).toBe(true);
+    expect(await applyOption(u.id, m.id, m.options[0]!.id)).toEqual({ ok: false, error: "not_pending" });
   });
 });
