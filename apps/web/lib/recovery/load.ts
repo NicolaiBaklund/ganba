@@ -73,7 +73,7 @@ export async function loadRecoveryDays(userId: string, today: ISODate, days = RE
   const early = addDays(from, -FALLBACK_DAYS);
   const [profile, nights, entries, weights, plans, goals, gdays, acts, planned, quality] = await Promise.all([
     db.from("profiles").select("sex, timezone").eq("user_id", userId).single().then(must),
-    db.from("recovery_days").select("local_date, sleep_score, hrv_avg, resting_hr").eq("user_id", userId).gte("local_date", from).then(must),
+    db.from("recovery_days").select("local_date, sleep_score, hrv_avg, resting_hr, sleep_s, sleep_need_s, hrv_baseline_low, hrv_baseline_high").eq("user_id", userId).gte("local_date", from).then(must),
     foodEntries(userId, from, today),
     db.from("weight_entries").select("local_date, measured_at, weight_kg").eq("user_id", userId).order("local_date").then(must),
     db.from("energy_plans").select("*").eq("user_id", userId).order("valid_from").order("created_at").then(must),
@@ -81,7 +81,7 @@ export async function loadRecoveryDays(userId: string, today: ISODate, days = RE
     db.from("garmin_days").select("local_date, steps").eq("user_id", userId).gte("local_date", early).then(must),
     db
       .from("activities")
-      .select("id, local_date, type_key, distance_m, duration_s, moving_s, avg_hr, steps, te_aerobic, te_anaerobic")
+      .select("id, local_date, type_key, distance_m, duration_s, moving_s, avg_hr, steps, te_aerobic, te_anaerobic, training_load")
       .eq("user_id", userId)
       .gte("local_date", early)
       .then(must),
@@ -181,6 +181,11 @@ export async function loadRecoveryDays(userId: string, today: ISODate, days = RE
       steps: dayData.get(date)?.steps ?? null,
       easyMetersPerBeat: easy.length ? avg(easy) : null,
       qualityPaceRatio: ratios.length ? avg(ratios) : null,
+      sleepS: n?.sleep_s ?? null,
+      sleepNeedS: n?.sleep_need_s ?? null,
+      hrvLow: n?.hrv_baseline_low ?? null,
+      hrvHigh: n?.hrv_baseline_high ?? null,
+      load: dayActs.length ? dayActs.reduce((s, a) => s + num(a.training_load), 0) : hasData(dayData.get(date)) ? 0 : null,
     });
   }
   return out;

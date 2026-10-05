@@ -4,6 +4,7 @@ import { RECOVERY_FACTORS, RECOVERY_OUTCOMES, type RecoveryFactor, type Recovery
 import type { RecoveryQuestion } from "./questions";
 
 export const RECOVERY_PROMPT_VERSION = 1;
+export const FORM_PROMPT_VERSION = 1;
 
 export const GroundedSentenceSchema = z.object({ text: z.string(), refs: z.array(z.string()) });
 export type GroundedSentence = z.infer<typeof GroundedSentenceSchema>;
@@ -62,12 +63,13 @@ export function keepGrounded(sentences: readonly GroundedSentence[], allowed: Re
     .map((s) => ({ text: s.text.trim().slice(0, 300), refs: s.refs }));
 }
 
-const RULES = `Rules:
-- Use only the numbers in the tables. Never guess, never add outside knowledge about the person.
-- Every sentence needs refs: "finding:<id>" for a finding, "day:<date>:<field>" for a value in the day table. A sentence without valid refs is deleted.
+const BASE_RULES = `- Use only the numbers in the tables. Never guess, never add outside knowledge about the person.
 - Correlation, not cause: say "on days with …", never "X causes Y". No medical advice, no diagnosis.
 - Plain, short sentences. No emojis.
 - Answer in the language given.`;
+const RULES = `Rules:
+- Every sentence needs refs: "finding:<id>" for a finding, "day:<date>:<field>" for a value in the day table. A sentence without valid refs is deleted.
+${BASE_RULES}`;
 
 export const RECOVERY_SUMMARY_PROMPT = `You write a short weekly recovery summary for a runner from their own data.
 You get last week's daily table (sleep score, HRV, resting heart rate with their deviation from the person's own normal, food and training), verified findings from a statistics engine, and next week's planned sessions.
@@ -85,7 +87,22 @@ Propose at most 3 new questions: factor (from the catalogue), transform ("tertil
 Do not repeat existing questions. Prefer questions a runner would find useful.
 Answer in the language given (the rationale only).`;
 
+export const RECOVERY_FORM_PROMPT = `You write the one line under a runner's daily Form number (0–100, 50 = an ordinary day).
+You get today's score, the parts that make it up (each with its points from 50 and the numbers behind it), today's planned session (or none) and verified findings from the person's own data.
+Return 1–2 short sentences: what today's number means for today's session, and the one or two parts that matter most. Use findings only when they explain a part.
+Rules:
+- Every sentence needs refs: "part:<id>" for a part (only parts with status "ok"), "finding:<id>" for a finding. A sentence without valid refs is deleted.
+${BASE_RULES}`;
+
 const table = (rows: readonly object[]) => JSON.stringify(rows);
+
+export function formMessage(i: { language: string; date: ISODate; score: number; parts: object[]; workout: { type: string; title: string } | null; findings: AiFinding[] }): string {
+  return `Language: ${i.language}
+Form for ${i.date}: ${i.score}
+Parts: ${table(i.parts)}
+Today's session: ${i.workout ? table([i.workout]) : "none (rest day)"}
+Findings: ${table(i.findings)}`;
+}
 
 export function summaryMessage(i: { language: string; weekStart: ISODate; days: AiDayRow[]; findings: AiFinding[]; nextWeek: { date: ISODate; title: string }[] }): string {
   return `Language: ${i.language}

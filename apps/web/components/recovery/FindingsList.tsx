@@ -9,12 +9,13 @@ import type { FindingRow } from "@/lib/recovery/view";
 import { FindingSheet } from "./FindingSheet";
 
 /** One line per finding: "Deficit over 820 kcal: HRV −6 ms the next morning", with n under. Tap → sheet. */
-export function FindingsList({ findings }: { findings: FindingRow[] }) {
+export function FindingsList({ findings, title, children }: { findings: FindingRow[]; title?: string; children?: React.ReactNode }) {
   const t = useTranslations("recovery");
   const [open, setOpen] = useState<FindingRow | null>(null);
   return (
     <section>
-      <SectionHead title={t("findings")} />
+      <SectionHead title={title ?? t("findings")} />
+      {children}
       {!findings.length && <p className="border-b border-border py-3 text-[13px] text-muted-foreground">{t("noFindings")}</p>}
       {findings.map((f) => {
         const p = findingParams(f);

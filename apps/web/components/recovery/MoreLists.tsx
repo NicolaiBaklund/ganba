@@ -8,11 +8,11 @@ import { findingParams } from "@/lib/recovery/text";
 import type { FindingRow } from "@/lib/recovery/view";
 import { cn } from "@/lib/utils";
 
-/** "No clear link" and "Needs more data", folded away by default. */
-export function MoreLists({ noEffect, needsData }: { noEffect: FindingRow[]; needsData: FindingRow[] }) {
+/** Everything below the glance, folded away by default: `children` (summary, curves), "No clear link" and "Needs more data". */
+export function MoreLists({ noEffect, needsData, children }: { noEffect: FindingRow[]; needsData: FindingRow[]; children?: React.ReactNode }) {
   const t = useTranslations("recovery");
   const [open, setOpen] = useState(false);
-  if (!noEffect.length && !needsData.length) return null;
+  if (!noEffect.length && !needsData.length && !children) return null;
   const name = (f: FindingRow) => `${t(`factor.${f.factor}.high`, { v: findingParams(f).high })}: ${t(`metric.${f.outcome}`)}`;
   const status = (f: FindingRow) => {
     const p = findingParams(f);
@@ -26,6 +26,7 @@ export function MoreLists({ noEffect, needsData }: { noEffect: FindingRow[]; nee
       </button>
       {open && (
         <>
+          {children}
           {!!noEffect.length && <p className="mt-3 text-[13px] font-bold">{t("noEffect")}</p>}
           {noEffect.map((f) => <ListRow key={f.questionId} title={name(f)} />)}
           {!!needsData.length && <p className="mt-3 text-[13px] font-bold">{t("needsData")}</p>}

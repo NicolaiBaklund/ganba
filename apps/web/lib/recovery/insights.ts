@@ -50,7 +50,7 @@ const db = () => createAdminSupabase();
 const round = (v: number | null | undefined, d = 0) => (v == null ? null : Math.round(v * 10 ** d) / 10 ** d);
 
 /** Consent first (no AI call without it), then the key. */
-async function gate(userId: string): Promise<{ ok: true; apiKey: string; language: string; today: ISODate } | { ok: false; error: InsightError }> {
+export async function gate(userId: string): Promise<{ ok: true; apiKey: string; language: string; today: ISODate } | { ok: false; error: InsightError }> {
   if (!(await getAiHealthConsent(userId))) return { ok: false, error: "consent_required" };
   const apiKey = await resolveAnthropicKey(userId);
   if (!apiKey) return { ok: false, error: "no_key" };
@@ -76,7 +76,7 @@ function aiRow(d: RecoveryDayInput, r: RecoveryRow | undefined): AiDayRow {
   };
 }
 
-async function verifiedFindings(userId: string): Promise<AiFinding[]> {
+export async function verifiedFindings(userId: string): Promise<AiFinding[]> {
   const { data } = await db().from("recovery_findings").select("question_id, factor, outcome, lag, groups").eq("user_id", userId).eq("kind", "finding");
   return (data ?? []).map((f) => {
     const g = f.groups as unknown as { high: { n: number; mean: number | null; bound: number | null }; low: { n: number; mean: number | null; bound: number | null } };
@@ -94,9 +94,9 @@ async function verifiedFindings(userId: string): Promise<AiFinding[]> {
   });
 }
 
-const usageCols = (r: { usage: { input: number; output: number; cacheRead: number; cacheWrite: number }; model: string }) => ({
+export const usageCols = (r: { usage: { input: number; output: number; cacheRead: number; cacheWrite: number }; model: string }, promptVersion = RECOVERY_PROMPT_VERSION) => ({
   model: r.model,
-  prompt_version: RECOVERY_PROMPT_VERSION,
+  prompt_version: promptVersion,
   input_tokens: r.usage.input + r.usage.cacheRead + r.usage.cacheWrite,
   output_tokens: r.usage.output,
   cost_usd: costUsd(r.model, r.usage),

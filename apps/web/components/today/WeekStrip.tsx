@@ -13,12 +13,15 @@ export async function WeekStrip({
   today,
   basePath,
   profileLink = false,
+  form,
 }: {
   days: WeekDay[];
   date: string;
   today: string;
   basePath: string;
   profileLink?: boolean;
+  /** Shown in the top bar, left of the profile button (the Form ring on Today). */
+  form?: React.ReactNode;
 }) {
   const t = await getTranslations("today");
   const format = await getFormatter();
@@ -44,8 +47,9 @@ export async function WeekStrip({
             {t("backToToday")}
           </Link>
         )}
+        {form && <span className="ml-auto">{form}</span>}
         {profileLink && (
-          <Link href="/profile" className="ml-auto grid size-[34px] place-items-center rounded-full border border-border bg-card" aria-label={t("profile")}>
+          <Link href="/profile" className={cn(form ? "ml-2" : "ml-auto", "grid size-[34px] place-items-center rounded-full border border-border bg-card")} aria-label={t("profile")}>
             <UserRound className="size-4" />
           </Link>
         )}

@@ -42,6 +42,19 @@ try {
     { user_id: uid, computed_at: new Date().toISOString(), question_id: "rest-run", factor: "daysSinceHard", outcome: "runForm", lag: 0, kind: "needs_data", reason: "few_days", groups: { high: g(4, 0.2, 3), low: g(5, -0.1, 1), needed: 8 }, rank: null },
   ]);
 
+  // Form as computeRecovery stores it: a low morning with every kind of part (ok, learned, missing).
+  await admin.from("form_days").insert({
+    user_id: uid, local_date: today, score: 35, band: "low",
+    parts: [
+      { id: "hrv", points: -12, status: "ok", learned: true, values: { hrv: 41, low: 48, high: 62 } },
+      { id: "sleep", points: -5, status: "ok", learned: false, values: { score: 55, hours: 6.1 } },
+      { id: "rhr", points: 2, status: "ok", learned: false, values: { rhr: 46, normal: 49 } },
+      { id: "sleepDebt", points: 0, status: "ok", learned: false, values: { hours: -2.5, nights: 7 } },
+      { id: "load", points: 0, status: "missing", learned: false, values: {} },
+      { id: "energy", points: 0, status: "missing", learned: false, values: {} },
+    ],
+  });
+
   const anon = createClient(U, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, { auth: { persistSession: false } });
   const { data: s } = await anon.auth.signInWithPassword({ email, password });
   const browser = await chromium.launch();
@@ -51,12 +64,20 @@ try {
   const errors = [];
   const aiCalls = [];
   page.on("console", (m) => m.type() === "error" && errors.push(m.text().slice(0, 3000)));
-  page.on("request", (r) => /\/api\/recovery\/(summary|questions)|\/why/.test(r.url()) && aiCalls.push(r.url()));
+  page.on("request", (r) => /\/api\/recovery\/(summary|questions|form-note)|\/why/.test(r.url()) && aiCalls.push(r.url()));
   const shot = (name) => page.screenshot({ path: `tests/smoke/out/${name}.png`, fullPage: true, caret: "initial" });
 
   await page.goto(`${BASE}/recovery`);
-  await page.getByText("What affects you").waitFor();
+  await page.getByText("Learned about you").waitFor();
   await shot("60-recovery");
+  check(await page.getByText("Held back by HRV and sleep.").count(), "template sentence from the parts");
+  await page.getByRole("button", { name: "Form 35, see what counts" }).click();
+  await page.getByText("HRV last night").waitFor();
+  await page.waitForTimeout(400);
+  check(await page.getByText("Learned", { exact: true }).count(), "learned part marked");
+  check(await page.getByText("Log food 3 days in a row").count(), "missing part says why");
+  await shot("60b-recovery-form");
+  await page.keyboard.press("Escape");
   check(await page.getByText("Deficit over 820 kcal").count(), "finding line with the real bound");
   check(await page.getByText("Turn on AI insights").count(), "AI-off link");
   await page.getByText("Deficit over 820 kcal").click();
@@ -83,6 +104,7 @@ try {
 
   await page.goto(`${BASE}/today`);
   check(await page.getByRole("link", { name: "All meals" }).count(), "All meals link on Today");
+  check(await page.getByRole("link", { name: "Form 35, open Recovery" }).count(), "Form ring on Today");
   await page.goto(`${BASE}/profile`);
   const sw = page.getByRole("switch", { name: "Use my health data with AI" });
   await sw.waitFor({ timeout: 30_000 }).catch(() => null);

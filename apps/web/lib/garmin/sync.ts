@@ -41,6 +41,7 @@ const toActivityRow = (userId: string, a: GarminActivityRaw) => ({
   garmin_kcal: a.calories != null ? Math.round(a.calories) : null,
   te_aerobic: a.aerobicTrainingEffect ?? null,
   te_anaerobic: a.anaerobicTrainingEffect ?? null,
+  training_load: a.activityTrainingLoad != null ? Math.round(a.activityTrainingLoad * 10) / 10 : null,
   raw: a as unknown as Json,
 });
 

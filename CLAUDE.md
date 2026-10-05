@@ -7,6 +7,7 @@ Personlig trenings- + ernæringsapp (Runna + MyFitnessPal i ett). Webapp, må fu
 Systemet er **generelt/flerbruker** — aldri hardkod brukerens personlige verdier.
 
 ## Les først
+- [docs/specs/2026-10-05-form.md](docs/specs/2026-10-05-form.md) — **Form** (dagstall 0–100 på Recovery og forsiden; plan: docs/plans/2026-10-05-form-plan.md)
 - [docs/specs/2026-10-05-coach.md](docs/specs/2026-10-05-coach.md) — **coach** (samtale om planen; plan: docs/plans/2026-10-05-coach-plan.md)
 - [docs/specs/2026-10-04-restitusjon.md](docs/specs/2026-10-04-restitusjon.md) — **restitusjon** (søvn/HRV, sammenhenger i egne data); planer: docs/plans/2026-10-04-restitusjon-del1-plan.md, docs/plans/2026-10-05-restitusjon-del2-plan.md
 - [docs/specs/2026-10-04-redesign-tasuki.md](docs/specs/2026-10-04-redesign-tasuki.md) — **redesign** (Tasuki-uttrykket, tokens, komponenter)
@@ -25,8 +26,9 @@ Systemet er **generelt/flerbruker** — aldri hardkod brukerens personlige verdi
 ## Kjøre og teste
 - `pnpm dev` (port 3000), `pnpm typecheck`, `pnpm build`
 - `pnpm test:int` — integrasjonstester (Vitest) mot Supabase-prosjektet i `apps/web/.env.local`, med testbrukere som slettes etterpå
-- `node tests/smoke/smoke.mjs [url]` (+ `checkin-smoke.mjs`, `profile-smoke.mjs`, `training-smoke.mjs`, `recovery-smoke.mjs`, `redesign-shots.mjs` for alle skjermer i lys og mørk) — Playwright-flyter mot kjørende app (default `http://localhost:3100`), skjermbilder i `tests/smoke/out/`
+- `node tests/smoke/smoke.mjs [url]` (+ `checkin-smoke.mjs`, `profile-smoke.mjs`, `training-smoke.mjs`, `recovery-smoke.mjs` (inkl. Form), `redesign-shots.mjs` for alle skjermer i lys og mørk) — Playwright-flyter mot kjørende app (default `http://localhost:3100`), skjermbilder i `tests/smoke/out/`
 - Garmin-adapter lokalt: `python -m venv .venv && .venv/Scripts/pip install -r apps/web/requirements.txt`, så `.venv/Scripts/python apps/web/scripts/garmin-dev.py` (port 3200, leser `.env.local` selv) og `GARMIN_ADAPTER_URL=http://127.0.0.1:3200` + `GARMIN_ADAPTER_SECRET` i `.env.local`. Integrasjonstestene bruker en falsk Garmin (`tests/integration/fake-garmin.ts`)
+- Form på ekte data: `SPIKE_EMAIL=<e-post> pnpm exec vitest run tests/integration/form-spike.test.ts` (bare lesing; `SPIKE_WRITE=1` regner ut og lagrer som en synk)
 - Restitusjon-spike mot ekte konto: start adapteret lokalt, så `SPIKE_EMAIL=<e-post> pnpm exec vitest run tests/integration/recovery-spike.test.ts` (hoppes over ellers)
 - `npx tsx evals/food/run.mts` — AI-eval, koster penger (se `evals/food/README.md`)
 - DB-endringer: ny fil i `supabase/migrations/`, så `pnpm db:push` (pusher og regenererer `apps/web/lib/db/types.ts`; typene overskrives bare hvis genereringen lykkes). Krever `pnpm exec supabase login` én gang, eller `SUPABASE_ACCESS_TOKEN` i `apps/web/.env.local`

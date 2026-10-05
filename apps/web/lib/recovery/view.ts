@@ -1,5 +1,23 @@
 import "server-only";
-import { addDays, localDate, nightSeries, recoveryCurve, recoveryRunForm, type CurvePoint, type ISODate, type RecoveryFactor, type RecoveryGroup, type RecoveryOutcome } from "@loop/core";
+import {
+  addDays,
+  formSelfCheck,
+  HARD_TYPES,
+  localDate,
+  nightSeries,
+  recoveryCurve,
+  recoveryRunForm,
+  weekBalance,
+  type CurvePoint,
+  type FormBand,
+  type FormPart,
+  type ISODate,
+  type RecoveryFactor,
+  type RecoveryGroup,
+  type RecoveryOutcome,
+  type WeekBalance,
+} from "@loop/core";
+import { todaysWorkout, type WorkoutListItem } from "@/lib/training/view";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { getApiKeyStatus } from "@/lib/ai/keys";
 import { getGarminStatus } from "@/lib/garmin/accounts";
@@ -27,6 +45,17 @@ export interface FindingRow {
   source: "engine" | "ai";
 }
 
+export interface FormView {
+  /** Today's Form, null without a night. */
+  today: { score: number; band: FormBand; parts: FormPart[] } | null;
+  workout: Pick<WorkoutListItem, "id" | "type" | "title" | "status"> | null;
+  /** Low Form with a hard session still to do today: offer the coach. */
+  action: boolean;
+  week: WeekBalance;
+  curve: CurvePoint[];
+  selfCheck: { diffSd: number; nHigh: number; nLow: number } | null;
+}
+
 export interface RecoveryView {
   garmin: "none" | "active" | "reauth_required";
   consent: boolean;
@@ -36,8 +65,11 @@ export interface RecoveryView {
   noEffect: FindingRow[];
   needsData: FindingRow[];
   curves: Record<"sleepScore" | "hrv" | "restingHr" | "runForm", CurvePoint[]>;
+  form: FormView | null;
   today: ISODate;
 }
+
+export const FORM_LOW_ACTION = 40;
 
 type Groups = { high: RecoveryGroup; low: RecoveryGroup; needed: number };
 
@@ -51,14 +83,18 @@ export async function loadRecoveryView(userId: string): Promise<RecoveryView> {
   ]);
   const today = localDate(profile?.timezone ?? "UTC");
   const empty = { sleepScore: [], hrv: [], restingHr: [], runForm: [] };
-  if (!garmin) return { garmin: "none", consent, hasKey: !!key, historyDays: 0, findings: [], noEffect: [], needsData: [], curves: empty, today };
+  if (!garmin) return { garmin: "none", consent, hasKey: !!key, historyDays: 0, findings: [], noEffect: [], needsData: [], curves: empty, form: null, today };
 
-  const [{ data: acct }, { data: rows }, days] = await Promise.all([
+  const [{ data: acct }, { data: rows }, days, { data: formRows }, session] = await Promise.all([
     db.from("garmin_accounts").select("recovery_backfilled_until").eq("user_id", userId).single(),
     db.from("recovery_findings").select("*").eq("user_id", userId),
-    // Curves: 30 days shown + 30 days of history for each day's normal band.
-    loadRecoveryDays(userId, today, CURVE_DAYS * 2),
+    // Curves need 30 days shown + 30 for the normal band; the self-check needs the whole window plus run-form history.
+    loadRecoveryDays(userId, today),
+    db.from("form_days").select("local_date, score").eq("user_id", userId).gte("local_date", addDays(today, -89)).order("local_date"),
+    todaysWorkout(userId, today),
   ]);
+  // The parts are only needed for today.
+  const { data: todayRow } = await db.from("form_days").select("score, band, parts").eq("user_id", userId).eq("local_date", today).maybeSingle();
   // AI-suggested findings are part of the AI layer: hidden while the switch is off (spec §7.1).
   const all: FindingRow[] = (rows ?? []).filter((r) => consent || r.source !== "ai").map((r) => {
     const g = r.groups as unknown as Groups;
@@ -80,6 +116,16 @@ export async function loadRecoveryView(userId: string): Promise<RecoveryView> {
     };
   });
   const from = addDays(today, -(CURVE_DAYS - 1));
+  const scores = new Map((formRows ?? []).flatMap((r) => (r.score == null ? [] : [[r.local_date, r.score] as const])));
+  const w = session.workout;
+  const form: FormView = {
+    today: todayRow?.score != null ? { score: todayRow.score, band: todayRow.band as FormBand, parts: todayRow.parts as unknown as FormPart[] } : null,
+    workout: w ? { id: w.id, type: w.type, title: w.title, status: w.status } : null,
+    action: todayRow?.score != null && todayRow.score < FORM_LOW_ACTION && !!w && w.status === "planned" && HARD_TYPES.has(w.type),
+    week: weekBalance(days, today),
+    curve: recoveryCurve(scores, from, today, 28, 14),
+    selfCheck: formSelfCheck(scores, recoveryRunForm(days)),
+  };
   return {
     garmin: garmin.status,
     consent,
@@ -100,6 +146,7 @@ export async function loadRecoveryView(userId: string): Promise<RecoveryView> {
       restingHr: recoveryCurve(nightSeries(days, "restingHr"), from, today),
       runForm: recoveryCurve(recoveryRunForm(days), from, today, 30, 5),
     },
+    form,
     today,
   };
 }

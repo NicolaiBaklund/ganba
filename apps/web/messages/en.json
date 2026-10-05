@@ -154,7 +154,8 @@
     "weightSteady": "Steady.",
     "goalEta": "Goal {kg} kg around {date}.",
     "goalOnly": "Goal {kg} kg.",
-    "allMeals": "All meals"
+    "allMeals": "All meals",
+    "form": "Form {score}, open Recovery"
   },
   "weight": {
     "title": "Log weight",
@@ -636,7 +637,94 @@
     },
     "belowNormal": "Below your normal",
     "aboveNormal": "Above your normal",
-    "pickDay": "Pick a day"
+    "pickDay": "Pick a day",
+    "form": {
+      "label": "Form",
+      "aria": "Form {score}, see what counts",
+      "none": "No sleep recorded last night.",
+      "what": "What counts",
+      "from": "from 50",
+      "learned": "Learned",
+      "band": {
+        "ready": "Ready",
+        "steady": "Take it steady",
+        "low": "Recover"
+      },
+      "lead": {
+        "workout": "{band, select, ready {Ready for {workout}.} steady {Take {workout} steady.} other {Today's {workout} will feel hard.}}",
+        "rest": "{band, select, ready {A good day to train.} steady {An ordinary day.} other {Take it easy today.}}"
+      },
+      "drivers": {
+        "both": "Lifted by {up}, held back by {down}.",
+        "up": "Lifted by {up}.",
+        "down": "Held back by {down}.",
+        "and": "{a} and {b}"
+      },
+      "short": {
+        "hrv": "HRV",
+        "sleep": "sleep",
+        "rhr": "resting HR",
+        "sleepDebt": "sleep this week",
+        "load": "training load",
+        "energy": "energy",
+        "carbs": "carbs",
+        "rest": "rest days"
+      },
+      "part": {
+        "hrv": "HRV last night",
+        "sleep": "Sleep last night",
+        "rhr": "Resting HR",
+        "sleepDebt": "Sleep last 7 nights",
+        "load": "Training load",
+        "energy": "Energy last 3 days",
+        "carbs": "Carbs yesterday",
+        "rest": "Rest before hard sessions"
+      },
+      "detail": {
+        "hrv": "{hrv} ms, normal {low} to {high}",
+        "sleep": "Score {score}",
+        "sleepHours": "Score {score}, {hours} h",
+        "rhr": "{rhr} bpm, normal {normal}",
+        "sleepDebt": "{hours} h vs your need",
+        "load": "Last 7 days {ratio}x your usual",
+        "energyUnder": "{kcal} kcal a day under what you burn",
+        "energyOver": "{kcal} kcal a day over what you burn",
+        "carbs": "{v} g/kg before a hard session",
+        "rest": "{days} days since a hard day"
+      },
+      "missing": {
+        "hrv": "No HRV last night",
+        "sleep": "No sleep score",
+        "rhr": "Needs 2 weeks of nights",
+        "sleepDebt": "Needs 4 nights with sleep need",
+        "load": "Needs 3 weeks of watch data",
+        "energy": "Log food 3 days in a row",
+        "carbs": "Not logged yesterday",
+        "rest": "No data"
+      },
+      "selfCheck": "On days with Form over 70 your runs went {diff} SD {dir, select, better {better} other {worse}} than on days under 40 ({high} vs {low} runs).",
+      "action": "Make today easier",
+      "draft": "My Form is {score} today ({reasons}). Can you make today's {workout} easier or move it?",
+      "tonight": "Last night",
+      "week": "This week",
+      "tile": {
+        "sleep": "sleep vs your need, 7 nights",
+        "fuel": "kcal a day under use on hard days",
+        "fuelNone": "Log food on hard days",
+        "load": "training load vs usual",
+        "loadWord": {
+          "low": "low",
+          "normal": "normal",
+          "high": "high"
+        },
+        "run": "run form, 6 weeks",
+        "none": "Not enough data yet"
+      },
+      "curve": "Form, 30 days",
+      "learnedTitle": "Learned about you",
+      "progress": "{found} found, {almost} almost there, {need} need more data",
+      "aiNote": "Written by AI from the numbers above"
+    }
   },
   "coach": {
     "open": "Coach",

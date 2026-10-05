@@ -14,12 +14,13 @@ import { OptionCard } from "./OptionCard";
 
 type Data = { messages: CoachMessage[]; notes: CoachNote[]; archived: { id: string; createdAt: string }[]; hasKey: boolean; hasPlan: boolean };
 
-export function CoachSheet({ aboutWorkoutId, onClose }: { aboutWorkoutId?: string; onClose: () => void }) {
+/** `draft` prefills the message box; the person still sends it themselves. */
+export function CoachSheet({ aboutWorkoutId, draft, onClose }: { aboutWorkoutId?: string; draft?: string; onClose: () => void }) {
   const t = useTranslations("coach");
   const format = useFormatter();
   const router = useRouter();
   const [data, setData] = useState<Data | null>(null);
-  const [text, setText] = useState("");
+  const [text, setText] = useState(draft ?? "");
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   const [menu, setMenu] = useState(false);
