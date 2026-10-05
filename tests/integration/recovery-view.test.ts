@@ -6,6 +6,7 @@ import { loadRecoveryDay } from "@/lib/recovery/day";
 import { loadRecoveryView } from "@/lib/recovery/view";
 import { loadRecoveryDays } from "@/lib/recovery/load";
 import { getAiHealthConsent, setAiHealthConsent } from "@/lib/recovery/consent";
+import { isRealDate } from "@/lib/recovery/dates";
 // @ts-expect-error — plain JS helper shared with the smoke scripts
 import { seedUser } from "../smoke/seed.mjs";
 import { admin, cleanup, createTestUser, type TestUser } from "./setup";
@@ -32,6 +33,22 @@ describe("recovery: AI consent", () => {
     await admin().from("recovery_summaries").insert({ user_id: u.id, week_start: "2026-09-28", content: { headline: "x", sentences: [], tips: [] } });
     const { data } = await u.client.from("recovery_summaries").select("week_start");
     expect(data).toHaveLength(1);
+  });
+
+  it("users can read but never write recovery rows (only the server writes them)", async () => {
+    const tries = await Promise.all([
+      u.client.from("recovery_summaries").insert({ user_id: u.id, week_start: "2026-09-21", content: { headline: "forged", sentences: [], tips: [] } }),
+      u.client.from("recovery_findings").insert({ user_id: u.id, computed_at: new Date().toISOString(), question_id: "x", factor: "deficit", outcome: "hrv", lag: 1, kind: "finding", groups: {} }),
+      u.client.from("recovery_days").insert({ user_id: u.id, local_date: "2026-01-01", sleep_score: 99 }),
+    ]);
+    for (const r of tries) expect(r.error).not.toBeNull();
+  });
+
+  it("dates on the recovery routes must be real", () => {
+    expect(isRealDate("2026-10-05")).toBe(true);
+    expect(isRealDate("2026-13-45")).toBe(false);
+    expect(isRealDate("2026-02-30")).toBe(false);
+    expect(isRealDate("yesterday")).toBe(false);
   });
 });
 

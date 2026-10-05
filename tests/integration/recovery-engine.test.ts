@@ -87,6 +87,7 @@ describe("recovery engine on constructed data", () => {
     expect(f.effectSd!).toBeLessThan(-0.4);
     expect(f.controlOk).toBe(true);
     expect(f.rank).toBeGreaterThanOrEqual(1);
+    expect(f.groups.high.values).toHaveLength(f.groups.high.n); // one point per day for the finding chart
   });
 
   // q ≤ 0.10 allows about 10 % of pure-noise datasets one false finding. A day-by-day shuffle gave 36/100 on

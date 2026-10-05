@@ -20,7 +20,7 @@ export function MoreLists({ noEffect, needsData }: { noEffect: FindingRow[]; nee
   };
   return (
     <section className="mt-6">
-      <button onClick={() => setOpen(!open)} className="flex w-full items-baseline justify-between border-b-2 border-foreground pb-1.5">
+      <button onClick={() => setOpen(!open)} aria-expanded={open} className="flex w-full items-baseline justify-between border-b-2 border-foreground pb-1.5">
         <span className="cond text-[22px] leading-none">{t("more")}</span>
         <ChevronDown className={cn("size-5 transition-transform", open && "rotate-180")} />
       </button>

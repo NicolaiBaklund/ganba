@@ -22,6 +22,8 @@ export interface RecoveryGroup {
   mean: number | null;
   /** Tertiles: the factor's cut (low ≤ bound, high ≥ bound). Binary: null. */
   bound: number | null;
+  /** Each day's outcome vs the person's normal, one decimal (for the point chart). Older rows may lack it. */
+  values?: number[];
 }
 
 export interface RecoveryResult {
@@ -76,7 +78,7 @@ function split(values: number[], transform: RecoveryQuestion["transform"], thres
 
 const groupOf = (labels: number[], ys: number[], which: 1 | -1, bound: number | null): RecoveryGroup => {
   const v = ys.filter((_, i) => labels[i] === which);
-  return { n: v.length, mean: v.length ? mean(v) : null, bound };
+  return { n: v.length, mean: v.length ? mean(v) : null, bound, values: v.map((x) => Math.round(x * 10) / 10) };
 };
 
 /** Runs every question on the rows (spec §5.4–§5.6). Deterministic. */

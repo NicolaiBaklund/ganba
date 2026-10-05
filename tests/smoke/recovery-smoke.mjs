@@ -34,7 +34,7 @@ try {
       sleep_score: 68 + ((i * 7) % 15), hrv_avg: 50 + ((i * 3) % 12), resting_hr: 47 + (i % 5), hrv_baseline_low: 48, hrv_baseline_high: 62,
     })),
   );
-  const g = (n, mean, bound) => ({ n, mean, bound });
+  const g = (n, mean, bound) => ({ n, mean, bound, values: Array.from({ length: n }, (_, i) => Math.round((mean + ((i * 37) % 11) - 5) * 10) / 10) });
   await admin.from("recovery_findings").insert([
     { user_id: uid, computed_at: new Date().toISOString(), question_id: "deficit-hrv", factor: "deficit", outcome: "hrv", lag: 1, kind: "finding", groups: { high: g(24, -4.1, 820), low: g(23, 2.2, 240), needed: 9 }, effect_sd: -0.9, q_value: 0.02, control_ok: true, rank: 1 },
     { user_id: uid, computed_at: new Date().toISOString(), question_id: "alcohol-sleep", factor: "alcohol", outcome: "sleepScore", lag: 1, kind: "finding", groups: { high: g(9, -6, null), low: g(60, 1, null), needed: 8 }, effect_sd: -0.8, q_value: 0.04, control_ok: true, rank: 2 },
@@ -62,13 +62,18 @@ try {
   await page.getByText("Deficit over 820 kcal").click();
   await page.getByText("days, first group").waitFor();
   await page.waitForTimeout(400); // sheet slide-in
+  check((await page.locator('[role="dialog"] svg circle').count()) >= 40, "finding chart: one dot per day");
   await shot("61-recovery-finding");
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "More" }).click();
   check(await page.getByText("No clear link").count(), "no-effect list");
   check(await page.getByText("4 of 8 days").count(), "progress line");
   await shot("62-recovery-more");
-  await page.locator(".recharts-surface").first().click({ position: { x: 300, y: 30 } });
+  // Day buttons reach the day sheet without hitting a chart point (keyboard, screen reader).
+  const dayButtons = page.getByRole("group", { name: "Pick a day" }).getByRole("button");
+  check((await dayButtons.count()) === 7, "7 day buttons");
+  await dayButtons.last().focus();
+  await page.keyboard.press("Enter");
   await page.getByText("The day before").waitFor();
   await page.waitForTimeout(400);
   check(await page.getByText("No food logged").count() + (await page.getByText(/of \d+ kcal/).count()) > 0, "day before: food or 'No food logged'");

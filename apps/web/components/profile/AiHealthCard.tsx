@@ -36,13 +36,14 @@ export function AiHealthCard({ enabled }: { enabled: boolean }) {
             <Sparkles className="size-4 text-primary" />
             <h2 className="cond text-lg leading-none">{t("title")}</h2>
           </div>
-          <p className="text-[13px] text-muted-foreground">{t("explain")}</p>
+          <p id="ai-health-explain" className="text-[13px] text-muted-foreground">{t("explain")}</p>
         </div>
         <button
           type="button"
           role="switch"
           aria-checked={on}
           aria-label={t("title")}
+          aria-describedby="ai-health-explain"
           disabled={busy}
           onClick={toggle}
           className={cn("relative mt-1 h-7 w-12 shrink-0 rounded-full transition-colors", on ? "bg-primary" : "bg-muted")}

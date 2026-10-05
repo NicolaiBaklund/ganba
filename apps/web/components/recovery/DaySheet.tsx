@@ -20,11 +20,20 @@ export function DaySheet({ date, onClose, whySlot }: { date: ISODate | null; onC
   const t = useTranslations("recovery");
   const format = useFormatter();
   const [day, setDay] = useState<RecoveryDay | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     setDay(null);
+    setFailed(false);
     if (!date) return;
-    fetch(`/api/recovery/day/${date}`).then((r) => (r.ok ? r.json() : null)).then(setDay).catch(() => setDay(null));
-  }, [date]);
+    // A later tap aborts this one, so the sheet never shows another day's numbers under this title.
+    const ctrl = new AbortController();
+    fetch(`/api/recovery/day/${date}`, { signal: ctrl.signal })
+      .then((r) => (r.ok ? (r.json() as Promise<RecoveryDay>) : Promise.reject(new Error(String(r.status)))))
+      .then((d) => d.date === date && setDay(d))
+      .catch((e) => !ctrl.signal.aborted && setFailed(!!e));
+    return () => ctrl.abort();
+  }, [date, attempt]);
 
   const title = date ? format.dateTime(new Date(`${date}T00:00:00Z`), { weekday: "long", day: "numeric", month: "short", timeZone: "UTC" }) : "";
   const n = day?.night;
@@ -34,8 +43,15 @@ export function DaySheet({ date, onClose, whySlot }: { date: ISODate | null; onC
 
   return (
     <BottomSheet open={!!date} onOpenChange={(o) => !o && onClose()} title={title}>
-      {!day ? (
-        <div className="mt-4 h-40 animate-pulse rounded-md bg-muted" />
+      {failed ? (
+        <p className="pt-4 text-[13px] text-muted-foreground">
+          {t("day.error")}{" "}
+          <button onClick={() => setAttempt((a) => a + 1)} className="font-semibold text-primary">
+            {t("day.retry")}
+          </button>
+        </p>
+      ) : !day ? (
+        <div className="mt-4 h-40 animate-pulse rounded-md bg-muted" role="status" />
       ) : (
         <div className="flex flex-col pt-2">
           {n ? (

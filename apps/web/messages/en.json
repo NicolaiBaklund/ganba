@@ -626,10 +626,12 @@
       "training": "Training",
       "rest": "Rest day",
       "noNight": "No sleep recorded this night.",
-      "nothingLogged": "No food logged"
+      "nothingLogged": "No food logged",
+      "error": "Couldn't load this day.",
+      "retry": "Try again"
     },
     "ai": {
-      "summary": "This week",
+      "summary": "Last week",
       "loading": "Writing your summary",
       "tips": "Next week",
       "nothing": "Nothing stood out with enough data behind it.",
@@ -639,9 +641,12 @@
       "off": "Turn on AI insights",
       "noKey": "Add your Anthropic key in Profile to get AI insights.",
       "error": "AI is unavailable right now.",
-      "notEnough": "Not enough data for this yet."
+      "notEnough": "Not enough data for this yet.",
+      "consentOff": "AI insights are turned off. Turn them on in Profile.",
+      "badKey": "Your Anthropic key didn't work. Check it in Profile."
     },
     "belowNormal": "Below your normal",
-    "aboveNormal": "Above your normal"
+    "aboveNormal": "Above your normal",
+    "pickDay": "Pick a day"
   }
 }

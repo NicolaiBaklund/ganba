@@ -97,7 +97,7 @@ try {
       sleep_score: 70 + ((i * 7) % 13), hrv_avg: 54 + ((i * 5) % 9) - (i % 6 === 2 ? 5 : 0), resting_hr: 46 + ((i * 3) % 5), hrv_baseline_low: 50, hrv_baseline_high: 62,
     })),
   ));
-  const grp = (n, mean, bound) => ({ n, mean, bound });
+  const grp = (n, mean, bound) => ({ n, mean, bound, values: Array.from({ length: n }, (_, i) => Math.round((mean + ((i * 37) % 11) - 5) * 10) / 10) });
   const found = (question_id, factor, outcome, lag, kind, groups, effect_sd, rank, reason = null) =>
     ({ user_id: uid, computed_at: new Date().toISOString(), question_id, factor, outcome, lag, kind, reason, groups, effect_sd, q_value: kind === "finding" ? 0.03 : null, control_ok: kind === "finding" ? true : null, rank });
   must(await admin.from("recovery_findings").insert([

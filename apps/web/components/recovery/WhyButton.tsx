@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Sparkles } from "lucide-react";
 import type { DayAnswer } from "@loop/core";
+import { aiErrorKey } from "./aiError";
 
 export function WhyButton({ date }: { date: string }) {
   const t = useTranslations("recovery.ai");
@@ -27,10 +28,10 @@ export function WhyButton({ date }: { date: string }) {
         <Sparkles className="size-4" /> {t("why")}
       </button>
     );
-  if ("error" in res) return <p className="text-[13px] text-muted-foreground">{res.error === "not_enough_data" ? t("notEnough") : res.error === "no_key" ? t("noKey") : t("error")}</p>;
+  if ("error" in res) return <p className="text-[13px] text-muted-foreground">{t(aiErrorKey(res.error))}</p>;
   return (
     <div>
-      {res.answer.sentences.length ? res.answer.sentences.map((s) => <p key={s.text} className="mt-1 text-[15px]">{s.text}</p>) : <p className="text-[13px] text-muted-foreground">{t("nothing")}</p>}
+      {res.answer.sentences.length ? res.answer.sentences.map((s, i) => <p key={i} className="mt-1 text-[15px]">{s.text}</p>) : <p className="text-[13px] text-muted-foreground">{t("nothing")}</p>}
       {res.stale && (
         <p className="mt-2 text-[13px] text-muted-foreground">
           {t("stale")}{" "}
