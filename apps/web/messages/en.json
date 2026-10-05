@@ -388,9 +388,6 @@
     },
     "end": "End plan",
     "endConfirm": "End this plan? Sessions are removed from your watch.",
-    "endYes": "Yes, end it",
-    "cancel": "Cancel",
-    "ended": "Plan ended",
     "paces": "Paces",
     "paceZones": {
       "easy": "Easy",
@@ -681,6 +678,8 @@
       "many_hard": "{after} hard days in the week of {week}",
       "no_rest": "No rest day for 7 days (to {date})"
     },
-    "invalid": "Can't be applied any more: {reason}."
+    "invalid": "Can't be applied any more: {reason}.",
+    "endExplain": "Ends the plan. Upcoming sessions are removed from your watch.",
+    "loadError": "Couldn't load the coach."
   }
 }

@@ -85,12 +85,14 @@ function stopReason(state: readonly PlanWorkout[], c: ProposalChange, ctx: PlanC
             : null;
   if (c.op === "repace") return Math.abs(c.vdot - ctx.vdot) > 3 ? "pace change too large" : null;
   if (c.op === "rescale") return c.fromDate < ctx.today ? "cannot change the past" : c.factor <= 0 || c.factor > 2 ? "volume factor out of range" : null;
-  if (c.op === "add") return !inRange(c.date) ? "date out of range" : stepsOk(c.steps, c.steps);
+  const raceDay = state.find((x) => x.type === "race" && x.status !== "removed")?.date;
+  if (c.op === "add") return !inRange(c.date) ? "date out of range" : c.date === raceDay ? "race day is for the race" : stepsOk(c.steps, c.steps);
   const w = state.find((x) => x.id === c.workoutId);
   if (!w || w.status === "removed" || w.status === "done") return "not a planned session";
   if (w.date < ctx.today && c.op !== "move") return "session is in the past";
   if (w.type === "race") return "race day cannot be changed here";
   if (c.op === "move" && !inRange(c.toDate)) return "date out of range";
+  if (c.op === "move" && c.toDate === raceDay) return "race day is for the race";
   if (c.op === "edit") return stepsOk(c.steps, c.steps);
   return null;
 }
@@ -114,7 +116,8 @@ export function warningsFor(list: readonly PlanWorkout[], ctx: PlanContext, opts
       out.push({ code: "quality_before_race", severity: "serious", date: w.date });
   for (const w of future.filter((x) => x.type !== "race" && !ctx.weekdays.includes(weekday(x.date)))) out.push({ code: "off_day", severity: "caution", date: w.date });
   const byWeek = new Map<ISODate, number>();
-  for (const d of hard) if (d >= ctx.today) byWeek.set(mondayOf(d), (byWeek.get(mondayOf(d)) ?? 0) + 1);
+  // Whole weeks from this one on, including hard days already done earlier this week.
+  for (const d of hard) if (mondayOf(d) >= mondayOf(ctx.today)) byWeek.set(mondayOf(d), (byWeek.get(mondayOf(d)) ?? 0) + 1);
   for (const [week, n] of byWeek) if (n > 3) out.push({ code: "many_hard", severity: "caution", week, after: n });
   const days = [...new Set(act.map((w) => w.date))].sort();
   let streak = 1;
@@ -141,7 +144,8 @@ export function checkChanges(all: PlanWorkout[], changes: ProposalChange[], ctx:
     valid.push(c);
     state = res.workouts;
   });
-  const key = (w: PlanWarning) => `${w.code}|${w.date ?? ""}|${w.week ?? ""}`;
+  // Size matters for these: a long run that was too long and gets longer is a new warning.
+  const key = (w: PlanWarning) => `${w.code}|${w.date ?? ""}|${w.week ?? ""}${w.code === "long_jump" || w.code === "many_hard" ? `|${w.after}` : ""}`;
   const had = new Set(warningsFor(all, ctx, opts).map(key));
   const warnings = warningsFor(state, ctx, opts).filter((w) => !had.has(key(w)));
   const weeks = [...touched].sort().map((monday) => ({ monday, before: weekKm(all, monday), after: weekKm(state, monday) }));

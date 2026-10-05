@@ -274,6 +274,7 @@ export type Database = {
           text: string
           thread_id: string
           updated_at: string
+          used_health: boolean
           user_id: string
         }
         Insert: {
@@ -291,6 +292,7 @@ export type Database = {
           text: string
           thread_id: string
           updated_at?: string
+          used_health?: boolean
           user_id: string
         }
         Update: {
@@ -308,6 +310,7 @@ export type Database = {
           text?: string
           thread_id?: string
           updated_at?: string
+          used_health?: boolean
           user_id?: string
         }
         Relationships: [
@@ -1361,7 +1364,16 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      save_plan_changes: {
+        Args: {
+          p_inserts: Json
+          p_plan: string
+          p_updates: Json
+          p_user: string
+          p_vdot: number
+        }
+        Returns: string[]
+      }
     }
     Enums: {
       checkin_status: "pending" | "accepted" | "kept" | "insufficient_data"

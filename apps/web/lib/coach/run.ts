@@ -15,10 +15,14 @@ export const MAX_OPTIONS = 3;
 const DEADLINE_MS = 240_000;
 const FINAL_NUDGE = "Final round: call reply now with what you have.";
 const GAVE_UP = "I couldn't finish working that out. Ask again, maybe a bit shorter.";
+const CUT_OFF = "(My answer was cut off. Ask again if something is missing.)";
 export type CoachError = "no_plan" | "no_key" | "busy" | "invalid_key" | "unavailable" | "refused" | "invalid_output";
 
 const CheckInput = z.object({ changes: z.array(CoachChangeSchema) });
-const NotesInput = z.object({ add: z.array(z.object({ text: z.string(), until: z.string().nullable().optional() })).default([]), remove: z.array(z.string()).default([]) });
+const NotesInput = z.object({
+  add: z.array(z.object({ text: z.string(), until: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "until must be YYYY-MM-DD").nullable().optional() })).default([]),
+  remove: z.array(z.string()).default([]),
+});
 const ReplyInput = z.object({
   message: z.string(),
   options: z.array(z.object({ title: z.string(), summary: z.string(), changes: z.array(CoachChangeSchema) })).default([]),
@@ -86,17 +90,21 @@ export async function runCoach(userId: string, input: { text: string; aboutWorko
   const thread = await activeThread(userId);
   if (!(await claimThread(thread.id))) return { ok: false as const, error: "busy" as CoachError };
   try {
-    const cc = await buildCoachContext(userId, thread.id, { aboutWorkoutId: input.aboutWorkoutId, message: input.text });
+    let cc = await buildCoachContext(userId, thread.id, { aboutWorkoutId: input.aboutWorkoutId, message: input.text });
     if (!cc) return { ok: false as const, error: "no_plan" as CoachError };
+    // A session id that is not in this plan (deleted, other plan) is ignored rather than failing.
+    const aboutWorkoutId = input.aboutWorkoutId && cc.refOf.has(input.aboutWorkoutId) ? input.aboutWorkoutId : null;
+    if (input.aboutWorkoutId && !aboutWorkoutId) cc = (await buildCoachContext(userId, thread.id, { message: input.text }))!;
     // A retry after a failed answer reuses the stored message instead of adding it again.
     const last = (await recentMessages(thread.id, 1))[0];
     if (!(last?.role === "user" && last.text === input.text))
-      await addMessage(userId, thread.id, { role: "user", text: input.text, aboutWorkoutId: input.aboutWorkoutId });
+      await addMessage(userId, thread.id, { role: "user", text: input.text, aboutWorkoutId });
     const started = Date.now();
 
     const ai = opts.ai ?? anthropicCoachAi;
     const usage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
-    const messages: Anthropic.MessageParam[] = [{ role: "user", content: cc.text }];
+    // The context is cached, so later rounds in this turn read it from cache.
+    const messages: Anthropic.MessageParam[] = [{ role: "user", content: [{ type: "text", text: cc.text, cache_control: { type: "ephemeral" } }] }];
     let reply: z.infer<typeof ReplyInput> | null = null;
     let fallbackText = "";
 
@@ -116,8 +124,11 @@ export async function runCoach(userId: string, input: { text: string; aboutWorko
       usage.cacheWrite += res.usage.cache_creation_input_tokens ?? 0;
       if (res.stop_reason === "refusal") return { ok: false as const, error: "refused" as CoachError };
       const uses = res.content.filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use");
-      if (!uses.length) {
-        fallbackText = res.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map((b) => b.text).join("\n").trim();
+      const cutOff = res.stop_reason === "max_tokens";
+      if (!uses.length || cutOff) {
+        // A cut-off turn may hold half a tool call: never run it; keep the text and say so.
+        const said = res.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map((b) => b.text).join("\n").trim();
+        fallbackText = cutOff ? [said, CUT_OFF].filter(Boolean).join("\n\n") : said;
         break;
       }
       messages.push({ role: "assistant", content: res.content });
@@ -127,19 +138,25 @@ export async function runCoach(userId: string, input: { text: string; aboutWorko
         if (u.name === "reply") {
           const p = ReplyInput.safeParse(u.input);
           if (p.success) reply = p.data;
-          out = p.success ? "ok" : { error: "invalid reply", issues: p.error.issues.slice(0, 3) };
+          out = p.success ? "ok" : { is_error: true, error: "invalid reply", issues: p.error.issues.slice(0, 3) };
         } else if (u.name === "check_plan_changes") {
           const p = CheckInput.safeParse(u.input);
-          out = p.success ? check(cc, p.data.changes) : { error: "invalid input", issues: p.error.issues.slice(0, 3) };
+          out = p.success ? check(cc, p.data.changes) : { is_error: true, error: "invalid input", issues: p.error.issues.slice(0, 3) };
         } else if (u.name === "update_notes") {
           const p = NotesInput.safeParse(u.input);
-          if (p.success) {
-            await removeNotes(userId, p.data.remove);
-            await addNotes(userId, p.data.add, "coach");
+          if (!p.success) out = { is_error: true, error: "invalid input", issues: p.error.issues.slice(0, 3) };
+          else {
+            try {
+              await removeNotes(userId, p.data.remove);
+              await addNotes(userId, p.data.add, "coach");
+              out = "saved";
+            } catch (e) {
+              out = { is_error: true, error: e instanceof Error ? e.message : "notes not saved" };
+            }
           }
-          out = p.success ? "saved" : { error: "invalid input" };
-        } else out = { error: `unknown tool ${u.name}` };
-        results.push({ type: "tool_result", tool_use_id: u.id, content: typeof out === "string" ? out : JSON.stringify(out) });
+        } else out = { is_error: true, error: `unknown tool ${u.name}` };
+        const isError = typeof out === "object" && out !== null && "is_error" in out;
+        results.push({ type: "tool_result", tool_use_id: u.id, content: typeof out === "string" ? out : JSON.stringify(out), ...(isError ? { is_error: true } : {}) });
       }
       if (reply) break;
       // Next call is the last one (by rounds or time): ask for the answer now.
@@ -150,6 +167,7 @@ export async function runCoach(userId: string, input: { text: string; aboutWorko
     if (!reply && !fallbackText) fallbackText = GAVE_UP;
     const options: CoachOption[] = [];
     const dropped: string[] = [];
+    const extra = Math.max(0, (reply?.options.length ?? 0) - MAX_OPTIONS);
     for (const o of (reply?.options ?? []).slice(0, MAX_OPTIONS)) {
       const { refErrors, res } = dryRun(cc, o.changes);
       if (refErrors.length || res.errors.length || !res.valid.length) {
@@ -166,11 +184,17 @@ export async function runCoach(userId: string, input: { text: string; aboutWorko
         status: "pending",
       });
     }
-    const text = [reply?.message ?? fallbackText, ...dropped.map((t) => `(One option was left out because the app can't apply it: ${t}.)`)].join("\n\n").trim();
+    const said = (reply?.message ?? fallbackText).trim() || (options.length ? "Here are some options." : GAVE_UP);
+    const text = [
+      said,
+      ...dropped.map((t) => `(One option was left out because the app can't apply it: ${t}.)`),
+      ...(extra ? [`(Only the first ${MAX_OPTIONS} options are shown.)`] : []),
+    ].join("\n\n");
     const message = await addMessage(userId, thread.id, {
       role: "coach",
       text,
       options,
+      usedHealth: cc.usedHealth,
       usage: { model: COACH_MODEL, input: usage.input + usage.cacheRead + usage.cacheWrite, output: usage.output, costUsd: costUsd(COACH_MODEL, usage), promptVersion: COACH_PROMPT_VERSION },
     });
     return { ok: true as const, message };

@@ -196,7 +196,11 @@ export function applyChanges(all: PlanWorkout[], changes: ProposalChange[], ctx:
     if (c.op === "add") {
       const blocks = blocksFromSteps(c.steps, build());
       const m = measure(blocks, build().paces);
-      const near = [...list].filter((x) => x.date <= c.date).sort((a, b) => (a.date < b.date ? -1 : 1)).at(-1) ?? list[0];
+      // Week and phase from a session in the same calendar week, else the nearest one before.
+      const near =
+        list.find((x) => x.status !== "removed" && mondayOf(x.date) === mondayOf(c.date)) ??
+        [...list].filter((x) => x.date <= c.date).sort((a, b) => (a.date < b.date ? -1 : 1)).at(-1) ??
+        list[0];
       const nw: PlanWorkout = {
         id: `new:${changed.size}:${c.date}`,
         date: c.date,

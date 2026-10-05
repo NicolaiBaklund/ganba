@@ -346,32 +346,28 @@ export async function refreshProposals(userId: string, today: ISODate): Promise<
 /** Applies a proposal's changes to the plan. Returns false if it is no longer pending. */
 /** Applies engine changes to the stored plan: updates changed sessions, inserts added ones, marks all for Garmin push. */
 export async function savePlanChanges(userId: string, plan: PlanRow, changes: ProposalChange[], today: ISODate): Promise<string[]> {
-  const d = db();
   const before = await planWorkoutsWithKm(plan);
   const result = applyChanges(before, changes, planContext(plan, today));
-  const ids: string[] = [];
-  for (const w of result.workouts.filter((x) => result.changedIds.has(x.id))) {
-    const fields = {
-      date: w.date,
-      status: w.status,
-      type: w.type,
-      title: w.title,
-      blocks: w.blocks as unknown as Json,
-      planned_km: w.plannedKm,
-      planned_duration_s: w.plannedDurationS,
-      garmin_push_status: "pending" as const,
-    };
-    if (w.id.startsWith("new:")) {
-      const { data, error } = await d.from("planned_workouts").insert({ ...workoutRow(userId, plan.id, w), ...fields }).select("id").single();
-      if (error) throw error;
-      ids.push(data.id);
-    } else {
-      await d.from("planned_workouts").update(fields).eq("id", w.id);
-      ids.push(w.id);
-    }
-  }
-  if (result.vdot !== Number(plan.vdot)) await d.from("training_plans").update({ vdot: result.vdot }).eq("id", plan.id);
-  return ids;
+  const changed = result.workouts.filter((x) => result.changedIds.has(x.id));
+  const fields = (w: PlanWorkout) => ({
+    date: w.date,
+    status: w.status,
+    type: w.type,
+    title: w.title,
+    blocks: w.blocks,
+    planned_km: w.plannedKm,
+    planned_duration_s: w.plannedDurationS,
+  });
+  // One transaction: either every session changes or none does.
+  const { data, error } = await db().rpc("save_plan_changes", {
+    p_user: userId,
+    p_plan: plan.id,
+    p_vdot: (result.vdot !== Number(plan.vdot) ? result.vdot : null) as number, // null = unchanged (generated types miss nullable args)
+    p_updates: changed.filter((w) => !w.id.startsWith("new:")).map((w) => ({ id: w.id, ...fields(w) })) as unknown as Json,
+    p_inserts: changed.filter((w) => w.id.startsWith("new:")).map((w) => ({ ...fields(w), week: w.week, phase: w.phase })) as unknown as Json,
+  });
+  if (error) throw error;
+  return (data ?? []) as unknown as string[];
 }
 
 export async function acceptProposal(userId: string, proposalId: string): Promise<boolean> {

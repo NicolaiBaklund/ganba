@@ -24,6 +24,8 @@ export interface CoachMessage {
   text: string;
   aboutWorkoutId: string | null;
   options: CoachOption[];
+  /** The reply was written with recovery data in its context. */
+  usedHealth: boolean;
   createdAt: string;
 }
 export interface CoachNote {
@@ -34,16 +36,17 @@ export interface CoachNote {
 }
 
 const db = () => createAdminSupabase();
-type Row = { id: string; role: string; text: string; about_workout_id: string | null; options: Json; created_at: string };
+type Row = { id: string; role: string; text: string; about_workout_id: string | null; options: Json; used_health: boolean; created_at: string };
 const toMessage = (r: Row): CoachMessage => ({
   id: r.id,
   role: r.role as CoachMessage["role"],
   text: r.text,
   aboutWorkoutId: r.about_workout_id,
   options: (r.options as unknown as CoachOption[]) ?? [],
+  usedHealth: r.used_health,
   createdAt: r.created_at,
 });
-const COLS = "id, role, text, about_workout_id, options, created_at";
+const COLS = "id, role, text, about_workout_id, options, used_health, created_at";
 
 export async function activeThread(userId: string): Promise<{ id: string }> {
   const { data } = await db().from("coach_threads").select("id").eq("user_id", userId).is("archived_at", null).maybeSingle();
@@ -57,8 +60,18 @@ export async function activeThread(userId: string): Promise<{ id: string }> {
   return created;
 }
 
-export async function archiveThread(userId: string): Promise<void> {
-  await db().from("coach_threads").update({ archived_at: new Date().toISOString() }).eq("user_id", userId).is("archived_at", null);
+/** Starts over; false while the coach is still answering in the active conversation. */
+export async function archiveThread(userId: string): Promise<boolean> {
+  const now = new Date().toISOString();
+  const { data: active } = await db().from("coach_threads").select("id").eq("user_id", userId).is("archived_at", null).maybeSingle();
+  if (!active) return true;
+  const { data } = await db()
+    .from("coach_threads")
+    .update({ archived_at: now })
+    .eq("id", active.id)
+    .or(`busy_until.is.null,busy_until.lt.${now}`)
+    .select("id");
+  return !!data?.length;
 }
 
 export async function archivedThreads(userId: string): Promise<{ id: string; createdAt: string }[]> {
@@ -79,7 +92,7 @@ export async function recentMessages(threadId: string, n: number): Promise<Coach
 export async function addMessage(
   userId: string,
   threadId: string,
-  m: { role: "user" | "coach"; text: string; aboutWorkoutId?: string | null; options?: CoachOption[]; usage?: { model: string; input: number; output: number; costUsd: number | null; promptVersion: number } },
+  m: { role: "user" | "coach"; text: string; aboutWorkoutId?: string | null; options?: CoachOption[]; usedHealth?: boolean; usage?: { model: string; input: number; output: number; costUsd: number | null; promptVersion: number } },
 ): Promise<CoachMessage> {
   const { data, error } = await db()
     .from("coach_messages")
@@ -90,6 +103,7 @@ export async function addMessage(
       text: m.text,
       about_workout_id: m.aboutWorkoutId ?? null,
       options: (m.options ?? []) as unknown as Json,
+      used_health: m.usedHealth ?? false,
       model: m.usage?.model ?? null,
       prompt_version: m.usage?.promptVersion ?? null,
       input_tokens: m.usage?.input ?? null,
@@ -147,7 +161,10 @@ export async function listNotes(userId: string, today: string): Promise<CoachNot
 export async function addNotes(userId: string, notes: { text: string; until?: string | null }[], source: "coach" | "user"): Promise<void> {
   if (!notes.length) return;
   const rows = notes.map((n) => ({ user_id: userId, text: n.text.trim().slice(0, 200), until: n.until ?? null, source })).filter((n) => n.text);
-  if (rows.length) await db().from("coach_notes").insert(rows);
+  if (rows.length) {
+    const { error } = await db().from("coach_notes").insert(rows);
+    if (error) throw new Error(`notes not saved: ${error.message}`);
+  }
   const { data } = await db().from("coach_notes").select("id, source, created_at").eq("user_id", userId).order("created_at");
   const all = data ?? [];
   const over = all.length - MAX_NOTES;
