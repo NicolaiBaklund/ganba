@@ -607,7 +607,7 @@
     "when": {
       "next": "the next morning",
       "same": "the same day",
-      "before": "the days before"
+      "later": "{days} days later"
     },
     "day": {
       "sleep": "Sleep",

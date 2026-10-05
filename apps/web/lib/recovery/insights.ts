@@ -102,19 +102,43 @@ const usageCols = (r: { usage: { input: number; output: number; cacheRead: numbe
   cost_usd: costUsd(r.model, r.usage),
 });
 
-/** A) Last full week (Monday–Sunday), made once the first time the tab opens after it ends. */
+const RETRY_FAILED_MS = 24 * 3600_000;
+const PENDING_MS = 2 * 60_000;
+type SummaryRow = WeeklySummary | { status: "pending" | "failed"; error?: AiError; at: string };
+
+/**
+ * A) Last full week (Monday–Sunday), made once the first time the tab opens after it ends.
+ * One attempt at a time per week (a pending row claims it); a failure waits 24 h before the next paid try.
+ */
 export async function weeklySummary(userId: string, opts: { ai?: RecoveryAi; today?: ISODate } = {}) {
   const g = await gate(userId);
   if (!g.ok) return g;
   const today = opts.today ?? g.today;
   const weekStart = addDays(weekStartOn(today, 1), -7);
   const { data: cached } = await db().from("recovery_summaries").select("content").eq("user_id", userId).eq("week_start", weekStart).maybeSingle();
-  if (cached) return { ok: true as const, summary: cached.content as unknown as WeeklySummary, weekStart };
+  const prev = cached?.content as unknown as SummaryRow | undefined;
+  if (prev && !("status" in prev)) return { ok: true as const, summary: prev, weekStart };
+  if (prev && "status" in prev) {
+    const age = Date.now() - Date.parse(prev.at);
+    if (prev.status === "pending" && age < PENDING_MS) return { ok: false as const, error: "unavailable" as const };
+    if (prev.status === "failed" && age < RETRY_FAILED_MS) return { ok: false as const, error: prev.error ?? ("unavailable" as const) };
+  }
 
   const days = await loadRecoveryDays(userId, today);
   const rows = new Map(buildRecoveryRows(days, addDays(today, -89), today).map((r) => [r.date, r]));
   const week = days.filter((d) => d.date >= weekStart && d.date <= addDays(weekStart, 6));
   if (week.filter((d) => d.sleepScore != null || d.hrv != null).length < MIN_WEEK_NIGHTS) return { ok: false as const, error: "not_enough_data" as const };
+
+  // Claim this week: replace a stale pending/failed row, or insert; whoever does not get the row backs off.
+  if (prev) await db().from("recovery_summaries").delete().eq("user_id", userId).eq("week_start", weekStart).eq("content->>at", (prev as { at: string }).at);
+  const { data: claimed } = await db()
+    .from("recovery_summaries")
+    .upsert({ user_id: userId, week_start: weekStart, content: { status: "pending", at: new Date().toISOString() } as unknown as Json }, { onConflict: "user_id,week_start", ignoreDuplicates: true })
+    .select("id");
+  if (!claimed?.length) return { ok: false as const, error: "unavailable" as const };
+  const save = (content: SummaryRow, extra: object = {}) =>
+    db().from("recovery_summaries").update({ content: content as unknown as Json, ...extra }).eq("user_id", userId).eq("week_start", weekStart);
+
   const table = week.map((d) => aiRow(d, rows.get(d.date)));
   const findings = await verifiedFindings(userId);
   const { data: next } = await db()
@@ -128,16 +152,17 @@ export async function weeklySummary(userId: string, opts: { ai?: RecoveryAi; tod
 
   const ai = opts.ai ?? anthropicRecoveryAi;
   const res = await ai.ask(g.apiKey, RECOVERY_SUMMARY_PROMPT, summaryMessage({ language: g.language, weekStart, days: table, findings, nextWeek: next ?? [] }), WeeklySummarySchema);
-  if (!res.ok) return { ok: false as const, error: res.error };
+  if (!res.ok) {
+    await save({ status: "failed", error: res.error, at: new Date().toISOString() }, usageCols(res));
+    return { ok: false as const, error: res.error };
+  }
   const allowed = new Set([...dayRefs(table), ...findingRefs(findings)]);
-  const summary: WeeklySummary = {
-    headline: res.value.headline.trim().slice(0, 80),
-    sentences: keepGrounded(res.value.sentences, allowed, 5),
-    tips: keepGrounded(res.value.tips, allowed, 2),
-  };
-  // Nothing grounded left → nothing shown (headline alone says nothing).
-  if (!summary.sentences.length && !summary.tips.length) summary.headline = "";
-  await db().from("recovery_summaries").upsert({ user_id: userId, week_start: weekStart, content: summary as unknown as Json, ...usageCols(res) }, { onConflict: "user_id,week_start" });
+  const sentences = keepGrounded(res.value.sentences, allowed, 5);
+  const tips = keepGrounded(res.value.tips, allowed, 2);
+  // Nothing grounded left → nothing shown; the headline also has to cite.
+  const headline = sentences.length || tips.length ? (keepGrounded([res.value.headline], allowed, 1)[0]?.text.slice(0, 80) ?? "") : "";
+  const summary: WeeklySummary = { headline, sentences, tips };
+  await save(summary, usageCols(res));
   return { ok: true as const, summary, weekStart };
 }
 
@@ -145,14 +170,15 @@ export async function weeklySummary(userId: string, opts: { ai?: RecoveryAi; tod
 export async function dayAnswer(userId: string, date: ISODate, opts: { ai?: RecoveryAi; refresh?: boolean } = {}) {
   const g = await gate(userId);
   if (!g.ok) return g;
-  const days = await loadRecoveryDays(userId, date);
+  const days = await loadRecoveryDays(userId, date, 32); // the day before, the day, and 28 nights for the normal
   const rows = new Map(buildRecoveryRows(days, addDays(date, -1), date).map((r) => [r.date, r]));
   const pick = [addDays(date, -1), date].map((d) => days.find((x) => x.date === d)).filter((d): d is RecoveryDayInput => !!d);
   const table = pick.map((d) => aiRow(d, rows.get(d.date)));
   if (!table.some((r) => r.sleepScore != null || r.hrv != null || r.restingHr != null)) return { ok: false as const, error: "not_enough_data" as const };
   const findings = await verifiedFindings(userId);
   const message = dayMessage({ language: g.language, date, days: table, findings });
-  const inputHash = createHash("sha256").update(`${RECOVERY_PROMPT_VERSION}\n${message}`).digest("hex");
+  // Stale means the day's own numbers changed; findings move with every sync and must not count.
+  const inputHash = createHash("sha256").update(`${RECOVERY_PROMPT_VERSION}\n${g.language}\n${JSON.stringify(table)}`).digest("hex");
 
   const { data: cached } = await db().from("recovery_day_answers").select("content, input_hash").eq("user_id", userId).eq("local_date", date).eq("question", "why").maybeSingle();
   if (cached && !opts.refresh) return { ok: true as const, answer: cached.content as unknown as DayAnswer, stale: cached.input_hash !== inputHash };
@@ -172,13 +198,22 @@ export async function proposeQuestions(userId: string, opts: { ai?: RecoveryAi; 
   const g = await gate(userId);
   if (!g.ok) return g;
   const today = opts.today ?? g.today;
-  const { data: recent } = await db().from("recovery_ai_questions").select("id, created_at, spec, status").eq("user_id", userId).order("created_at", { ascending: false });
-  const last = recent?.[0]?.created_at;
-  if (last && Date.now() - Date.parse(last) < QUESTIONS_EVERY_DAYS * 86_400_000) return { ok: false as const, error: "not_due" as const };
+  const { data: acct } = await db().from("garmin_accounts").select("recovery_questions_at").eq("user_id", userId).maybeSingle();
+  const dueBefore = new Date(Date.now() - QUESTIONS_EVERY_DAYS * 86_400_000).toISOString();
+  if (!acct || (acct.recovery_questions_at && acct.recovery_questions_at > dueBefore)) return { ok: false as const, error: "not_due" as const };
   const days = await loadRecoveryDays(userId, today);
   const rows = buildRecoveryRows(days, addDays(today, -89), today);
   const withData = days.filter((d) => d.sleepScore != null || d.hrv != null).length;
   if (withData < QUESTIONS_MIN_DAYS) return { ok: false as const, error: "not_enough_data" as const };
+  // Claim the month before the paid call, atomically: failures, empty answers and parallel opens all wait.
+  const { data: claimed } = await db()
+    .from("garmin_accounts")
+    .update({ recovery_questions_at: new Date().toISOString() })
+    .eq("user_id", userId)
+    .or(`recovery_questions_at.is.null,recovery_questions_at.lt.${dueBefore}`)
+    .select("user_id");
+  if (!claimed?.length) return { ok: false as const, error: "not_due" as const };
+  const { data: recent } = await db().from("recovery_ai_questions").select("id, created_at, spec, status").eq("user_id", userId).order("created_at", { ascending: false });
 
   const stat = (vals: number[]) => {
     if (!vals.length) return { mean: null, sd: null };

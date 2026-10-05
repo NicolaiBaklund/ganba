@@ -23,7 +23,7 @@ export function FindingsList({ findings }: { findings: FindingRow[] }) {
             key={f.questionId}
             onClick={() => setOpen(f)}
             title={`${t(`factor.${f.factor}.high`, { v: p.high })}: ${t(`outcome.${f.outcome}`, { diff: p.diff })}`}
-            sub={`${t(`when.${f.lag > 0 ? "next" : f.lag === 0 ? "same" : "before"}`)}, ${t("nights", { high: p.nHigh, low: p.nLow })}${f.source === "ai" ? `, ${t("fromAi").toLowerCase()}` : ""}`}
+            sub={`${f.lag > 1 ? t("when.later", { days: f.lag }) : t(`when.${f.lag === 1 ? "next" : "same"}`)}, ${t("nights", { high: p.nHigh, low: p.nLow })}${f.source === "ai" ? `, ${t("fromAi").toLowerCase()}` : ""}`}
             leading={<span aria-hidden className={p.better ? "h-8 w-1 bg-success" : "h-8 w-1 bg-primary"} />}
           />
         );

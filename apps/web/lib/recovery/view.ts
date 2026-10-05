@@ -56,9 +56,11 @@ export async function loadRecoveryView(userId: string): Promise<RecoveryView> {
   const [{ data: acct }, { data: rows }, days] = await Promise.all([
     db.from("garmin_accounts").select("recovery_backfilled_until").eq("user_id", userId).single(),
     db.from("recovery_findings").select("*").eq("user_id", userId),
-    loadRecoveryDays(userId, today),
+    // Curves: 30 days shown + 30 days of history for each day's normal band.
+    loadRecoveryDays(userId, today, CURVE_DAYS * 2),
   ]);
-  const all: FindingRow[] = (rows ?? []).map((r) => {
+  // AI-suggested findings are part of the AI layer: hidden while the switch is off (spec §7.1).
+  const all: FindingRow[] = (rows ?? []).filter((r) => consent || r.source !== "ai").map((r) => {
     const g = r.groups as unknown as Groups;
     return {
       questionId: r.question_id,

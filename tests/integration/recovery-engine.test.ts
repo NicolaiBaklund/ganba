@@ -150,11 +150,11 @@ describe("recovery engine on constructed data", () => {
     expect(a).toHaveLength(21);
   });
 
-  it("threshold questions and negative lags work (AI-proposed shapes)", () => {
+  it("threshold questions and delayed lags work (AI-proposed shapes)", () => {
     const rows = buildRecoveryRows(synth({ seed: 7, plant: true }), FROM, END);
     const qs: RecoveryQuestion[] = [
       { id: "t", factor: "deficit", transform: "threshold", threshold: 600, outcome: "hrv", lag: 1 },
-      { id: "n", factor: "carbs", transform: "tertile", outcome: "sleepScore", lag: -1 },
+      { id: "n", factor: "carbs", transform: "tertile", outcome: "sleepScore", lag: 2 },
       { id: "bad", factor: "deficit", transform: "threshold", outcome: "hrv", lag: 1 },
     ];
     const rs = analyzeRecovery(rows, qs, { maxQ: 0.05 });

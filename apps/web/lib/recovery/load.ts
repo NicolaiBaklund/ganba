@@ -67,9 +67,9 @@ async function foodEntries(userId: string, from: ISODate, today: ISODate) {
 }
 
 /** Everything the engine needs per day, from what the app already stores (spec §4.4–§4.5). */
-export async function loadRecoveryDays(userId: string, today: ISODate): Promise<RecoveryDayInput[]> {
+export async function loadRecoveryDays(userId: string, today: ISODate, days = RECOVERY_LOAD_DAYS): Promise<RecoveryDayInput[]> {
   const db = createAdminSupabase();
-  const from = addDays(today, -(RECOVERY_LOAD_DAYS - 1));
+  const from = addDays(today, -(days - 1));
   const early = addDays(from, -FALLBACK_DAYS);
   const [profile, nights, entries, weights, plans, goals, gdays, acts, planned, quality] = await Promise.all([
     db.from("profiles").select("sex, timezone").eq("user_id", userId).single().then(must),

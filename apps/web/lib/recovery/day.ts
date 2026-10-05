@@ -39,7 +39,7 @@ export async function loadRecoveryDay(userId: string, date: ISODate): Promise<Re
   const prev = addDays(date, -1);
   const [{ data: n }, days, snap, { data: acts }] = await Promise.all([
     db.from("recovery_days").select("*").eq("user_id", userId).eq("local_date", date).maybeSingle(),
-    loadRecoveryDays(userId, date),
+    loadRecoveryDays(userId, date, 30), // the normal band needs the 28 nights before
     getDaySnapshot(db, userId, prev),
     db.from("activities").select("type_key, distance_m, duration_s").eq("user_id", userId).eq("local_date", prev),
   ]);

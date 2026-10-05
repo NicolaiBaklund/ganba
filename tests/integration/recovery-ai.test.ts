@@ -36,7 +36,8 @@ describe("recovery AI: the ground rule and proposal checks", () => {
           { factor: "steps", transform: "binary", threshold: null, outcome: "sleepScore", lag: 1, rationale: "binary on numbers" },
           { factor: "carbs", transform: "threshold", threshold: null, outcome: "runForm", lag: 1, rationale: "no threshold" },
           { factor: "protein", transform: "tertile", threshold: null, outcome: "restingHr", lag: 1, rationale: "ok 1" },
-          { factor: "steps", transform: "threshold", threshold: 15000, outcome: "hrv", lag: 1, rationale: "ok 2" },
+          { factor: "hrv", transform: "tertile", threshold: null, outcome: "restingHr", lag: -1, rationale: "reverse direction" },
+          { factor: "steps", transform: "threshold", threshold: 15000, outcome: "hrv", lag: 2, rationale: "ok 2" },
           { factor: "late", transform: "binary", threshold: null, outcome: "hrv", lag: 1, rationale: "ok 3" },
           { factor: "alcohol", transform: "binary", threshold: null, outcome: "runForm", lag: 1, rationale: "4th" },
           { factor: "hrv", transform: "tertile", threshold: null, outcome: "sleepScore", lag: -4, rationale: "lag out of range" },
@@ -51,9 +52,12 @@ describe("recovery AI: the ground rule and proposal checks", () => {
 class FakeAi implements RecoveryAi {
   calls: { system: string; message: string }[] = [];
   next: unknown = null;
+  fail: "invalid_output" | "unavailable" | null = null;
   async ask<T>(_k: string, system: string, message: string) {
     this.calls.push({ system, message });
-    return { ok: true as const, value: this.next as T, usage: { input: 10, output: 5, cacheRead: 0, cacheWrite: 0 }, model: "claude-sonnet-5" };
+    const usage = { input: 10, output: 5, cacheRead: 0, cacheWrite: 0 };
+    if (this.fail) return { ok: false as const, error: this.fail, usage, model: "claude-sonnet-5" };
+    return { ok: true as const, value: this.next as T, usage, model: "claude-sonnet-5" };
   }
 }
 
@@ -90,7 +94,7 @@ describe("recovery AI: consent, grounding, caching", () => {
   it("weekly summary: sentences with made-up references are removed; stored once per week", async () => {
     const weekStart = addDays(weekStartOn(today, 1), -7);
     ai.next = {
-      headline: "Steady week",
+      headline: { text: "Steady week", refs: [`day:${addDays(weekStart, 2)}:hrv`] },
       sentences: [
         { text: "HRV held up.", refs: [`day:${addDays(weekStart, 2)}:hrv`] },
         { text: "Invented.", refs: ["finding:made-up"] },
@@ -103,6 +107,7 @@ describe("recovery AI: consent, grounding, caching", () => {
     if (!r.ok) return;
     expect(r.summary.sentences.map((s) => s.text)).toEqual(["HRV held up."]);
     expect(r.summary.tips).toHaveLength(1);
+    expect(r.summary.headline).toBe("Steady week");
     expect(ai.calls).toHaveLength(1);
     expect(ai.calls[0]!.message).toContain("Day table");
     await weeklySummary(u.id, { ai });
@@ -111,9 +116,42 @@ describe("recovery AI: consent, grounding, caching", () => {
 
   it("nothing grounded left → nothing shown", async () => {
     await admin().from("recovery_summaries").delete().eq("user_id", u.id);
-    ai.next = { headline: "Wow", sentences: [{ text: "Made up.", refs: ["finding:x"] }], tips: [] };
+    ai.next = { headline: { text: "Wow", refs: [] }, sentences: [{ text: "Made up.", refs: ["finding:x"] }], tips: [] };
     const r = await weeklySummary(u.id, { ai });
     expect(r.ok && r.summary).toEqual({ headline: "", sentences: [], tips: [] });
+  });
+
+  it("the headline follows the ground rule too", async () => {
+    await admin().from("recovery_summaries").delete().eq("user_id", u.id);
+    const weekStart = addDays(weekStartOn(today, 1), -7);
+    ai.next = {
+      headline: { text: "Alcohol wrecked your week", refs: ["finding:made-up"] },
+      sentences: [{ text: "HRV held up.", refs: [`day:${addDays(weekStart, 2)}:hrv`] }],
+      tips: [],
+    };
+    const r = await weeklySummary(u.id, { ai });
+    expect(r.ok && r.summary.headline).toBe("");
+    expect(r.ok && r.summary.sentences).toHaveLength(1);
+  });
+
+  it("a failed summary is not retried on every open (24 h pause), then tried again", async () => {
+    await admin().from("recovery_summaries").delete().eq("user_id", u.id);
+    ai.fail = "invalid_output";
+    expect(await weeklySummary(u.id, { ai })).toEqual({ ok: false, error: "invalid_output" });
+    const n = ai.calls.length;
+    expect(await weeklySummary(u.id, { ai })).toEqual({ ok: false, error: "invalid_output" });
+    expect(ai.calls.length).toBe(n);
+    const weekStart = addDays(weekStartOn(today, 1), -7);
+    await admin()
+      .from("recovery_summaries")
+      .update({ content: { status: "failed", error: "invalid_output", at: new Date(Date.now() - 25 * 3600_000).toISOString() } })
+      .eq("user_id", u.id)
+      .eq("week_start", weekStart);
+    ai.fail = null;
+    ai.next = { headline: { text: "Fine", refs: [] }, sentences: [{ text: "HRV held up.", refs: [`day:${addDays(weekStart, 2)}:hrv`] }], tips: [] };
+    const r = await weeklySummary(u.id, { ai });
+    expect(r.ok).toBe(true);
+    expect(ai.calls.length).toBe(n + 1);
   });
 
   it("Why?: cached per day, marked stale when the day's food changes, refreshed only on request", async () => {
@@ -142,6 +180,26 @@ describe("recovery AI: consent, grounding, caching", () => {
     expect(ai.calls.length).toBe(calls + 1);
   });
 
+  it("Why? does not go stale when only the findings change (they move with every sync)", async () => {
+    await admin().from("recovery_findings").insert({
+      user_id: u.id, computed_at: new Date().toISOString(), question_id: "carbs-hrv", factor: "carbs", outcome: "hrv", lag: 1, kind: "finding",
+      groups: { high: { n: 20, mean: 3, bound: 5 }, low: { n: 20, mean: -2, bound: 3 }, needed: 8 }, effect_sd: 0.6, rank: 1,
+    });
+    const r = await dayAnswer(u.id, today, { ai });
+    expect(r.ok && r.stale).toBe(false);
+    await admin().from("recovery_findings").delete().eq("user_id", u.id).eq("question_id", "carbs-hrv");
+  });
+
+  it("AI questions: a failed attempt still waits a month (no paid call on every open)", async () => {
+    ai.fail = "unavailable";
+    expect(await proposeQuestions(u.id, { ai })).toEqual({ ok: false, error: "unavailable" });
+    const n = ai.calls.length;
+    expect(await proposeQuestions(u.id, { ai })).toEqual({ ok: false, error: "not_due" });
+    expect(ai.calls.length).toBe(n);
+    ai.fail = null;
+    await admin().from("garmin_accounts").update({ recovery_questions_at: null }).eq("user_id", u.id);
+  });
+
   it("AI questions: the catalogue has no factor–outcome numbers; valid ones are stored and tested with q ≤ 0.05", async () => {
     ai.next = {
       proposals: [
@@ -162,10 +220,13 @@ describe("recovery AI: consent, grounding, caching", () => {
     expect(rows![0]!.ai_question_id).not.toBeNull();
   });
 
-  it("switching consent off again stops everything", async () => {
+  it("switching consent off again stops everything, including testing AI questions", async () => {
     await setAiHealthConsent(u.id, false);
     const n = ai.calls.length;
     expect((await dayAnswer(u.id, today, { ai, refresh: true })).ok).toBe(false);
     expect(ai.calls.length).toBe(n);
+    await computeRecovery(u.id, today, { force: true });
+    const { data: rows } = await admin().from("recovery_findings").select("question_id").eq("user_id", u.id).eq("source", "ai");
+    expect(rows).toEqual([]);
   });
 });

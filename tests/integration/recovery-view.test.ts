@@ -4,6 +4,7 @@ import { saveTokens } from "@/lib/garmin/accounts";
 import { computeRecovery } from "@/lib/recovery/compute";
 import { loadRecoveryDay } from "@/lib/recovery/day";
 import { loadRecoveryView } from "@/lib/recovery/view";
+import { loadRecoveryDays } from "@/lib/recovery/load";
 import { getAiHealthConsent, setAiHealthConsent } from "@/lib/recovery/consent";
 // @ts-expect-error — plain JS helper shared with the smoke scripts
 import { seedUser } from "../smoke/seed.mjs";
@@ -86,6 +87,8 @@ describe("recovery: tab and day sheet data", () => {
     expect(v.curves.hrv.at(-1)!.low).not.toBeNull();
     expect(v.findings.length).toBeLessThanOrEqual(5);
     expect(v.needsData.every((f) => f.kind === "needs_data" && f.source === "engine")).toBe(true);
+
+    expect(await loadRecoveryDays(u.id, today, 30)).toHaveLength(30); // the tab and sheet load only what they show
 
     const d = await loadRecoveryDay(u.id, today);
     expect(d.night!.sleepS).toBe(27000);

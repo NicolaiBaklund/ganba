@@ -3,6 +3,7 @@ import { addDays, analyzeRecovery, buildRecoveryRows, type ISODate, type Recover
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import type { Json } from "@/lib/db/types";
 import { loadRecoveryDays } from "./load";
+import { getAiHealthConsent } from "./consent";
 
 export const RECOVERY_WINDOW_DAYS = 90;
 export const RECOMPUTE_AFTER_MS = 6 * 3600_000;
@@ -30,7 +31,9 @@ export async function computeRecovery(userId: string, today: ISODate, opts: { fo
   const rows = buildRecoveryRows(days, addDays(today, -(RECOVERY_WINDOW_DAYS - 1)), today);
   const results = analyzeRecovery(rows);
   // AI-suggested questions: tested on the same rows, but stricter (q ≤ 0.05 within the AI family, spec §7.4).
-  const { data: aiQs } = await db.from("recovery_ai_questions").select("id, spec").eq("user_id", userId).in("status", ["testing", "accepted"]);
+  const { data: aiQs } = (await getAiHealthConsent(userId))
+    ? await db.from("recovery_ai_questions").select("id, spec").eq("user_id", userId).in("status", ["testing", "accepted"])
+    : { data: [] };
   const aiQuestions: RecoveryQuestion[] = (aiQs ?? []).map((q) => ({ ...(q.spec as unknown as Omit<RecoveryQuestion, "id">), id: `ai-${q.id.slice(0, 8)}` }));
   const aiResults = aiQuestions.length ? analyzeRecovery(rows, aiQuestions, { maxQ: 0.05 }) : [];
   const aiIdOf = new Map((aiQs ?? []).map((q) => [`ai-${q.id.slice(0, 8)}`, q.id]));

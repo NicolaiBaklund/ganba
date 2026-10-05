@@ -8,7 +8,7 @@ export interface RecoveryQuestion {
   /** For "threshold": factor ≥ threshold is the high group. */
   threshold?: number;
   outcome: RecoveryOutcome;
-  /** Outcome date − factor date, −3..+1 (night outcomes: +1 = the next morning). */
+  /** Outcome date − factor date, 0..3 (night outcomes: 1 = the next morning). */
   lag: number;
 }
 
