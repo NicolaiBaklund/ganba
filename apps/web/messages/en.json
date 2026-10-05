@@ -668,7 +668,7 @@
         "load": "training load",
         "energy": "energy",
         "carbs": "carbs",
-        "rest": "rest days"
+        "lastHard": "a recent hard session"
       },
       "part": {
         "hrv": "HRV last night",
@@ -678,7 +678,7 @@
         "load": "Training load",
         "energy": "Energy last 3 days",
         "carbs": "Carbs yesterday",
-        "rest": "Rest before hard sessions"
+        "lastHard": "Last hard session"
       },
       "detail": {
         "hrv": "{hrv} ms, normal {low} to {high}",
@@ -690,7 +690,9 @@
         "energyUnder": "{kcal} kcal a day under what you burn",
         "energyOver": "{kcal} kcal a day over what you burn",
         "carbs": "{v} g/kg before a hard session",
-        "rest": "{days} days since a hard day"
+        "lastHard": "{days, plural, =1 {Yesterday} other {# days ago}}, load {load} (usual {typical})",
+        "lastHardNoTypical": "{days, plural, =1 {Yesterday} other {# days ago}}",
+        "lastHardNone": "None in the last 2 days"
       },
       "missing": {
         "hrv": "No HRV last night",
@@ -699,8 +701,7 @@
         "sleepDebt": "Needs 4 nights with sleep need",
         "load": "Needs 3 weeks of watch data",
         "energy": "Log food 3 days in a row",
-        "carbs": "Not logged yesterday",
-        "rest": "No data"
+        "carbs": "Not logged yesterday"
       },
       "selfCheck": "On days with Form over 70 your runs went {diff} SD {dir, select, better {better} other {worse}} than on days under 40 ({high} vs {low} runs).",
       "action": "Make today easier",
