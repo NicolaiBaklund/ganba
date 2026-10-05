@@ -35,14 +35,19 @@ A training plan, nutrition and weight tracking in one mobile web app, driven by 
 - The whole plan as a line map to race day, with weekly kilometres.
 - Changes come as suggestions you accept: a missed session, new paces, a lighter week. You can also ask for changes in plain words.
 
+### Recovery
+- What affects your sleep, HRV and resting heart rate, and how your runs go: links found in your own data, each with the numbers behind it.
+- Strict statistics first; links that only come from hard training days are filtered out.
+- Optional AI on top (off by default): a weekly summary and "Why?" for a single day, citing only verified numbers.
+
 ### Garmin
-- Steps and workouts sync automatically. Your daily target builds up through the day as you move.
+- Steps, workouts, sleep and HRV sync automatically. Your daily target builds up through the day as you move.
 
 ## Screenshots
 
-| Today | Training | Session | Log food | Body | New plan |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| <img src="docs/screenshots/today.png" width="150"> | <img src="docs/screenshots/training.png" width="150"> | <img src="docs/screenshots/workout.png" width="150"> | <img src="docs/screenshots/food-ai.png" width="150"> | <img src="docs/screenshots/body.png" width="150"> | <img src="docs/screenshots/wizard.png" width="150"> |
+| Today | Training | Session | Recovery | Log food | Body | New plan |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| <img src="docs/screenshots/today.png" width="150"> | <img src="docs/screenshots/training.png" width="150"> | <img src="docs/screenshots/workout.png" width="150"> | <img src="docs/screenshots/recovery.png" width="150"> | <img src="docs/screenshots/food-ai.png" width="150"> | <img src="docs/screenshots/body.png" width="150"> | <img src="docs/screenshots/wizard.png" width="150"> |
 
 ## Plan
 
@@ -51,6 +56,6 @@ A training plan, nutrition and weight tracking in one mobile web app, driven by 
 | 1 | Nutrition, food logging from photos, weight trend, weekly check-in | Done |
 | 2 | Garmin sync, activity-based daily target, training plan on the watch | Testing |
 | 2 | New design ("Tasuki"), new logo, light and dark mode | Done |
-| Next | Recovery tab (sleep, HRV, readiness) | Planned |
+| 2 | Recovery tab: links between food, training and sleep, optional AI | Done |
 | Next | Weekly volume adapted to what you actually ran | Planned |
 | Later | Strength and cycling in the plan, native app | Ideas |

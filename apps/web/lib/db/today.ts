@@ -33,6 +33,7 @@ export interface FoodItemRow {
 export interface FoodEntryWithItems {
   id: string;
   logged_at: string;
+  local_date: string;
   meal_type: MealType;
   source: "ai" | "quick";
   items: FoodItemRow[];
@@ -83,7 +84,7 @@ export async function getDaySnapshot(supabase: DB, userId: string, dateArg?: ISO
     rowForDate(supabase, "activity_baselines", userId, date),
     supabase
       .from("food_entries")
-      .select("id, logged_at, meal_type, source, items:food_items(id, name, grams, kcal, protein_g, carbs_g, fat_g, alcohol_g, confidence), photos(id, storage_path)")
+      .select("id, logged_at, local_date, meal_type, source, items:food_items(id, name, grams, kcal, protein_g, carbs_g, fat_g, alcohol_g, confidence), photos(id, storage_path)")
       .eq("user_id", userId)
       .eq("local_date", date)
       .order("logged_at"),

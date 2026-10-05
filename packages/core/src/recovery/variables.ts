@@ -40,7 +40,7 @@ function seriesOf(days: readonly RecoveryDayInput[], pick: (d: RecoveryDayInput)
 }
 
 /** Run form per day: each measure against its own recent median, scaled by its own spread, higher = better; then averaged. */
-function runForm(days: readonly RecoveryDayInput[]): Map<ISODate, number> {
+export function recoveryRunForm(days: readonly RecoveryDayInput[]): Map<ISODate, number> {
   const parts = [
     { s: seriesOf(days, (d) => d.easyMetersPerBeat), sign: 1 },
     { s: seriesOf(days, (d) => d.qualityPaceRatio), sign: -1 },
@@ -66,7 +66,7 @@ export function buildRecoveryRows(days: readonly RecoveryDayInput[], from: ISODa
   const sleep = seriesOf(days, (d) => d.sleepScore);
   const hrv = seriesOf(days, (d) => d.hrv);
   const rhr = seriesOf(days, (d) => d.restingHr);
-  const form = runForm(days);
+  const form = recoveryRunForm(days);
   const D = RECOVERY_DETREND;
 
   const rows: RecoveryRow[] = [];
@@ -107,3 +107,7 @@ export function buildRecoveryRows(days: readonly RecoveryDayInput[], from: ISODa
   }
   return rows;
 }
+
+/** Raw nightly values (morning of each date) for one night metric. */
+export const nightSeries = (days: readonly RecoveryDayInput[], key: "sleepScore" | "hrv" | "restingHr"): Map<ISODate, number> =>
+  seriesOf(days, (d) => d[key]);

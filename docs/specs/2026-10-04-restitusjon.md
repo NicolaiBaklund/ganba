@@ -1,6 +1,6 @@
 # Restitusjon — sammenhenger i egne data
 
-Dato: 2026-10-04. Status: **godkjent**; del 1 under arbeid (plan: `docs/plans/2026-10-04-restitusjon-del1-plan.md`).
+Dato: 2026-10-04. Status: **godkjent; del 1 og 2 levert** (planer: `docs/plans/2026-10-04-restitusjon-del1-plan.md`, `docs/plans/2026-10-05-restitusjon-del2-plan.md`).
 Beslutninger: `docs/02-decisions.md`, rader 2026-10-04 om restitusjonsfanen.
 
 ## 1. Mål
@@ -174,7 +174,7 @@ Hver test havner i nøyaktig én liste:
 ### 7.4 C) AI foreslår spørsmål
 - Én gang i måneden, når det finnes ≥ 60 dager data.
 - AI ser **variabelkatalogen** med navn, enhet og statistikk **per variabel** (snitt, SD, antall dager), og eksisterende spørsmål. Den får **aldri** tall for faktor mot utfall (korrelasjoner, gruppesnitt): da ville den valgt spørsmål ut fra de samme dataene som testes, og testen blir skjev.
-- Foreslår maks 3 nye i fast format: faktor (fra katalogen), transformasjon (tredjedel/ja-nei/terskel), utfall, forskyvning (−3..+1 dag), begrunnelse. Forslag som er like et eksisterende spørsmål (samme faktor, utfall og forskyvning) avvises.
+- Foreslår maks 3 nye i fast format: faktor (fra katalogen), transformasjon (tredjedel/ja-nei/terskel), utfall, forskyvning 0..+3 dager (utfall-dag minus faktor-dag: samme dag, neste morgen/dag eller forsinket effekt; aldri utfall før faktor), begrunnelse. Forslag som er like et eksisterende spørsmål (samme faktor, utfall og forskyvning) avvises.
 - Motoren tester dem med §5.5 **pluss strengere korreksjon** (BH q ≤ 0,05 innen AI-forslagene). Bare de som består blir funn, merket «suggested by AI».
 
 ## 8. Skjermen

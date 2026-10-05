@@ -4,12 +4,15 @@ import type { RecoveryFactor, RecoveryOutcome } from "./variables";
 export interface RecoveryQuestion {
   id: string;
   factor: RecoveryFactor;
-  transform: "tertile" | "binary";
+  transform: "tertile" | "binary" | "threshold";
+  /** For "threshold": factor ≥ threshold is the high group. */
+  threshold?: number;
   outcome: RecoveryOutcome;
-  lag: 0 | 1;
+  /** Outcome date − factor date, 0..3 (night outcomes: 1 = the next morning). */
+  lag: number;
 }
 
-const q = (id: string, factor: RecoveryFactor, transform: RecoveryQuestion["transform"], outcome: RecoveryOutcome, lag: 0 | 1): RecoveryQuestion => ({
+const q = (id: string, factor: RecoveryFactor, transform: RecoveryQuestion["transform"], outcome: RecoveryOutcome, lag: number): RecoveryQuestion => ({
   id,
   factor,
   transform,

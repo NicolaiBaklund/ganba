@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { CalendarDays, Footprints, Scale, Utensils } from "lucide-react";
+import { CalendarDays, Footprints, HeartPulse, Scale } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PlusMenu } from "./PlusMenu";
 
@@ -13,7 +13,7 @@ const LEFT = [
   { href: "/training", key: "training", Icon: Footprints },
 ] as const;
 const RIGHT = [
-  { href: "/food", key: "food", Icon: Utensils },
+  { href: "/recovery", key: "recovery", Icon: HeartPulse },
   { href: "/body", key: "body", Icon: Scale },
 ] as const;
 

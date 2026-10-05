@@ -22,6 +22,8 @@ export interface RecoveryGroup {
   mean: number | null;
   /** Tertiles: the factor's cut (low ≤ bound, high ≥ bound). Binary: null. */
   bound: number | null;
+  /** Each day's outcome vs the person's normal, one decimal (for the point chart). Older rows may lack it. */
+  values?: number[];
 }
 
 export interface RecoveryResult {
@@ -48,7 +50,11 @@ interface Split {
   high: number | null;
 }
 
-function split(values: number[], transform: RecoveryQuestion["transform"]): Split | null {
+function split(values: number[], transform: RecoveryQuestion["transform"], threshold?: number): Split | null {
+  if (transform === "threshold") {
+    if (threshold == null || !Number.isFinite(threshold)) return null;
+    return { labels: values.map((v) => (v >= threshold ? 1 : -1)), low: threshold, high: threshold };
+  }
   if (transform === "binary") return { labels: values.map((v) => (v === 1 ? 1 : -1)), low: null, high: null };
   const s = [...values].sort((a, b) => a - b);
   const k = Math.floor(s.length / 3);
@@ -72,7 +78,7 @@ function split(values: number[], transform: RecoveryQuestion["transform"]): Spli
 
 const groupOf = (labels: number[], ys: number[], which: 1 | -1, bound: number | null): RecoveryGroup => {
   const v = ys.filter((_, i) => labels[i] === which);
-  return { n: v.length, mean: v.length ? mean(v) : null, bound };
+  return { n: v.length, mean: v.length ? mean(v) : null, bound, values: v.map((x) => Math.round(x * 10) / 10) };
 };
 
 /** Runs every question on the rows (spec §5.4–§5.6). Deterministic. */
@@ -91,7 +97,7 @@ export function analyzeRecovery(rows: readonly RecoveryRow[], questions: readonl
       const y = byDate.get(addDays(r.date, q.lag))?.outcomes[q.outcome];
       return x == null || y == null ? [] : [{ row: r, x, y }];
     });
-    const s = split(pairs.map((p) => p.x), q.transform);
+    const s = split(pairs.map((p) => p.x), q.transform, q.threshold);
     const ys = pairs.map((p) => p.y);
     const high: RecoveryGroup = s ? groupOf(s.labels, ys, 1, s.high) : { n: 0, mean: null, bound: null };
     const low: RecoveryGroup = s ? groupOf(s.labels, ys, -1, s.low) : { n: 0, mean: null, bound: null };

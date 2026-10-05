@@ -23,3 +23,5 @@ export * from "./recovery/types";
 export * from "./recovery/variables";
 export * from "./recovery/questions";
 export * from "./recovery/analyze";
+export * from "./recovery/curves";
+export * from "./recovery/ai";
