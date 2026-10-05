@@ -4,6 +4,7 @@ import { apiUser } from "@/lib/api/user";
 import { resolveAnthropicKey } from "@/lib/ai/keys";
 import { suggestFuel } from "@/lib/ai/fuel";
 import { costUsd } from "@/lib/ai/pricing";
+import { languageOf } from "@/lib/ai/language";
 import { getDaySnapshot } from "@/lib/db/today";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import type { Json } from "@/lib/db/types";
@@ -12,7 +13,6 @@ import { todayFor } from "@/lib/training/service";
 export const maxDuration = 60;
 
 const STATUS = { invalid_key: 401, unavailable: 503, refused: 422, invalid_output: 422 } as const;
-const LANGUAGE: Record<string, string> = { nb: "Norwegian (bokmål)", nn: "Norwegian (nynorsk)", en: "English" };
 
 /** AI food ideas for one upcoming session, saved on the session so it is asked only once. */
 export async function POST(_req: Request, ctx: RouteContext<"/api/training/workout/[id]/fuel">) {
@@ -49,7 +49,7 @@ export async function POST(_req: Request, ctx: RouteContext<"/api/training/worko
       carbsG: Math.max(0, Math.round(snap.macrosTarget.carbsG - snap.intake.carbsG)),
       fatG: Math.max(0, Math.round(snap.macrosTarget.fatG - snap.intake.fatG)),
     },
-    language: LANGUAGE[profile?.locale ?? "en"] ?? "English",
+    language: languageOf(profile?.locale),
   });
 
   const out = await suggestFuel(apiKey, message);
