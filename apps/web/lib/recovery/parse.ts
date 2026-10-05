@@ -12,6 +12,8 @@ interface SleepDto {
   sleepStartTimestampGMT?: number | null;
   sleepEndTimestampGMT?: number | null;
   sleepScores?: { overall?: { value?: number | null } | null } | null;
+  /** Minutes Garmin says this night needed. */
+  sleepNeed?: { actual?: number | null } | null;
 }
 interface SleepRaw {
   dailySleepDTO?: SleepDto | null;
@@ -45,6 +47,7 @@ export function toRecoveryRow(userId: string, n: GarminNightRaw) {
     rem_s: int(dto.remSleepSeconds),
     awake_s: int(dto.awakeSleepSeconds),
     sleep_score: int(dto.sleepScores?.overall?.value),
+    sleep_need_s: typeof dto.sleepNeed?.actual === "number" ? Math.round(dto.sleepNeed.actual * 60) : null,
     sleep_start: iso(dto.sleepStartTimestampGMT),
     sleep_end: iso(dto.sleepEndTimestampGMT),
     hrv_avg: int(h?.lastNightAvg ?? s.avgOvernightHrv),

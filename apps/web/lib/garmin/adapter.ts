@@ -31,6 +31,7 @@ export interface GarminActivityRaw {
   calories?: number | null;
   aerobicTrainingEffect?: number | null;
   anaerobicTrainingEffect?: number | null;
+  activityTrainingLoad?: number | null;
   [k: string]: unknown;
 }
 

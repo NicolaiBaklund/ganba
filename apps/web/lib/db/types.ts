@@ -60,6 +60,7 @@ export type Database = {
           steps: number | null
           te_aerobic: number | null
           te_anaerobic: number | null
+          training_load: number | null
           type_key: string
           updated_at: string
           user_id: string
@@ -84,6 +85,7 @@ export type Database = {
           steps?: number | null
           te_aerobic?: number | null
           te_anaerobic?: number | null
+          training_load?: number | null
           type_key: string
           updated_at?: string
           user_id: string
@@ -108,6 +110,7 @@ export type Database = {
           steps?: number | null
           te_aerobic?: number | null
           te_anaerobic?: number | null
+          training_load?: number | null
           type_key?: string
           updated_at?: string
           user_id?: string
@@ -525,6 +528,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      form_days: {
+        Row: {
+          band: string | null
+          created_at: string
+          id: string
+          local_date: string
+          parts: Json
+          score: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          band?: string | null
+          created_at?: string
+          id?: string
+          local_date: string
+          parts?: Json
+          score?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          band?: string | null
+          created_at?: string
+          id?: string
+          local_date?: string
+          parts?: Json
+          score?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       garmin_accounts: {
         Row: {
@@ -1031,6 +1067,7 @@ export type Database = {
           rem_s: number | null
           resting_hr: number | null
           sleep_end: string | null
+          sleep_need_s: number | null
           sleep_s: number | null
           sleep_score: number | null
           sleep_start: string | null
@@ -1053,6 +1090,7 @@ export type Database = {
           rem_s?: number | null
           resting_hr?: number | null
           sleep_end?: string | null
+          sleep_need_s?: number | null
           sleep_s?: number | null
           sleep_score?: number | null
           sleep_start?: string | null
@@ -1075,6 +1113,7 @@ export type Database = {
           rem_s?: number | null
           resting_hr?: number | null
           sleep_end?: string | null
+          sleep_need_s?: number | null
           sleep_s?: number | null
           sleep_score?: number | null
           sleep_start?: string | null

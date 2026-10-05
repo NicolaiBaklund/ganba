@@ -18,4 +18,12 @@ export interface RecoveryDayInput {
   easyMetersPerBeat: number | null;
   /** Quality sessions: actual / planned pace of the hard parts (> 1 = slower). */
   qualityPaceRatio: number | null;
+  /** For Form (optional so older callers still build inputs): night sleep and Garmin's need for it, seconds. */
+  sleepS?: number | null;
+  sleepNeedS?: number | null;
+  /** Garmin's HRV normal range for that morning. */
+  hrvLow?: number | null;
+  hrvHigh?: number | null;
+  /** Sum of Garmin training load for the day's activities: 0 = no activities, null = no watch data. */
+  load?: number | null;
 }

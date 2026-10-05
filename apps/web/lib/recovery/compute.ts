@@ -1,5 +1,6 @@
 import "server-only";
 import { addDays, analyzeRecovery, buildRecoveryRows, type ISODate, type RecoveryQuestion, type RecoveryResult } from "@loop/core";
+import { saveForm } from "./form-store";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import type { Json } from "@/lib/db/types";
 import { loadRecoveryDays } from "./load";
@@ -68,6 +69,7 @@ export async function computeRecovery(userId: string, today: ISODate, opts: { fo
   for (const r of aiResults) {
     await db.from("recovery_ai_questions").update({ status: r.kind === "finding" ? "accepted" : "testing" }).eq("id", aiIdOf.get(r.questionId)!);
   }
+  await saveForm(userId, days, results, addDays(today, -(RECOVERY_WINDOW_DAYS - 1)), today);
   await db.from("garmin_accounts").update({ recovery_computed_at: computedAt }).eq("user_id", userId);
   return "computed";
 }
