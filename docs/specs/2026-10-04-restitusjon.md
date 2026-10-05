@@ -18,7 +18,7 @@ En ny fane, **Recovery**, som viser **sammenhenger over tid** i brukerens egne d
 
 ## 2. Utenfor scope
 
-- Dagsform/beredskapsscore (klokka viser den).
+- Dagsform/beredskapsscore (klokka viser den). *Endret 2026-10-05: Form, eget dagstall med mat og plan, se `docs/specs/2026-10-05-form.md`.*
 - Automatiske endringer i treningsplanen ut fra restitusjon (mulig senere via forslag).
 - Vekt/energi-sammenhenger (dekkes av ukentlig innsjekk).
 - Nye loggefelt (koffein, stress-dagbok o.l.).
