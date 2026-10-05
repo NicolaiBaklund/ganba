@@ -4,6 +4,7 @@ import { RECOVERY_FACTORS, RECOVERY_OUTCOMES, type RecoveryFactor, type Recovery
 import type { RecoveryQuestion } from "./questions";
 
 export const RECOVERY_PROMPT_VERSION = 1;
+export const FORM_PROMPT_VERSION = 1;
 
 export const GroundedSentenceSchema = z.object({ text: z.string(), refs: z.array(z.string()) });
 export type GroundedSentence = z.infer<typeof GroundedSentenceSchema>;
@@ -85,7 +86,21 @@ Propose at most 3 new questions: factor (from the catalogue), transform ("tertil
 Do not repeat existing questions. Prefer questions a runner would find useful.
 Answer in the language given (the rationale only).`;
 
+export const RECOVERY_FORM_PROMPT = `You write the one line under a runner's daily Form number (0–100, 50 = an ordinary day).
+You get today's score, the parts that make it up (each with its points from 50 and the numbers behind it), today's planned session (or none) and verified findings from the person's own data.
+Return 1–2 short sentences: what today's number means for today's session, and the one or two parts that matter most. Use findings only when they explain a part.
+Cite parts as "part:<id>". A finding is cited as "finding:<id>".
+${RULES}`;
+
 const table = (rows: readonly object[]) => JSON.stringify(rows);
+
+export function formMessage(i: { language: string; date: ISODate; score: number; parts: object[]; workout: { type: string; title: string } | null; findings: AiFinding[] }): string {
+  return `Language: ${i.language}
+Form for ${i.date}: ${i.score}
+Parts: ${table(i.parts)}
+Today's session: ${i.workout ? table([i.workout]) : "none (rest day)"}
+Findings: ${table(i.findings)}`;
+}
 
 export function summaryMessage(i: { language: string; weekStart: ISODate; days: AiDayRow[]; findings: AiFinding[]; nextWeek: { date: ISODate; title: string }[] }): string {
   return `Language: ${i.language}

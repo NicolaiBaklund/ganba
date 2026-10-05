@@ -30,7 +30,7 @@ export default async function RecoveryPage() {
       <h1 className="cond text-[34px] leading-none">{t("title")}</h1>
       {v.historyDays < RECOVERY_HISTORY_DAYS && <p className="mt-2 text-[13px] text-muted-foreground">{t("fetching", { days: v.historyDays })}</p>}
       {!v.consent && <AiOff />}
-      <RecoveryScreen view={v} top={v.consent ? <WeeklySummary /> : null} ai={v.consent} />
+      <RecoveryScreen view={v} more={v.consent ? <WeeklySummary /> : null} ai={v.consent} />
     </main>
   );
 }

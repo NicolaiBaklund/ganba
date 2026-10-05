@@ -1,4 +1,4 @@
-import { dailyTarget, KCAL_PER_KG } from "@loop/core";
+import { dailyTarget, KCAL_PER_KG, type FormBand } from "@loop/core";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { requireUser } from "@/lib/supabase/server";
@@ -8,6 +8,7 @@ import { ensureWeeklyCheckin, type CheckinRow } from "@/lib/db/checkin";
 import { currentRow, getProfile, toEnergyPlan, type DB } from "@/lib/db/current";
 import { nextWorkout, todaysWorkout } from "@/lib/training/view";
 import { WeekStrip } from "@/components/today/WeekStrip";
+import { FormRing } from "@/components/recovery/FormRing";
 import { TodayBib } from "@/components/today/TodayBib";
 import { KcalBlock } from "@/components/today/KcalBlock";
 import { MealsList } from "@/components/today/MealsList";
@@ -18,13 +19,16 @@ export default async function TodayPage({ searchParams }: PageProps<"/today">) {
   const { date } = await searchParams;
   const { supabase, user } = await requireUser();
   const snap = await getDaySnapshot(supabase, user.id, typeof date === "string" ? date : undefined);
-  const [checkinView, session, week, t] = await Promise.all([
+  const [checkinView, session, week, t, formRow] = await Promise.all([
     snap.date === snap.today
       ? ensureWeeklyCheckin(supabase, user.id).then((c) => (c ? toCheckinView(supabase, user.id, c, snap) : null))
       : null,
     snap.garmin ? todaysWorkout(user.id, snap.date) : { plan: false, workout: null },
     loadWeekStrip(supabase, user.id, snap.date),
     getTranslations("today"),
+    snap.garmin
+      ? supabase.from("form_days").select("score, band").eq("user_id", user.id).eq("local_date", snap.date).maybeSingle().then((r) => r.data)
+      : null,
   ]);
   const next = session.plan && !session.workout ? await nextWorkout(user.id, snap.date) : null;
   const activity = snap.activity && !snap.manualTarget && !snap.target.floored ? snap.activity.total : null;
@@ -32,7 +36,20 @@ export default async function TodayPage({ searchParams }: PageProps<"/today">) {
 
   return (
     <main className="flex flex-col px-[18px] pb-4">
-      <WeekStrip days={week} date={snap.date} today={snap.today} basePath="/today" profileLink />
+      <WeekStrip
+        days={week}
+        date={snap.date}
+        today={snap.today}
+        basePath="/today"
+        profileLink
+        form={
+          formRow?.score != null && (
+            <Link href="/recovery" aria-label={t("form", { score: formRow.score })} className="block">
+              <FormRing score={formRow.score} band={formRow.band as FormBand} size={34} />
+            </Link>
+          )
+        }
+      />
       {snap.garmin?.status === "reauth_required" && (
         <Link href="/profile#garmin" className="mt-4 flex items-center justify-between gap-3 rounded-md border border-warning/50 bg-warning/10 px-4 py-3 text-sm">
           <span>{t("garminReauth")}</span>
