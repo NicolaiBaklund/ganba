@@ -13,6 +13,8 @@ export interface EditableItem {
   protein_g: number;
   carbs_g: number;
   fat_g: number;
+  /** Grams of alcohol (from the AI estimate); not shown, but saved with the item. */
+  alcohol_g?: number;
   confidence: "low" | "medium" | "high" | null;
   assumptions?: string;
 }
@@ -30,6 +32,7 @@ export function scaleItem(item: EditableItem, grams: number): EditableItem {
     protein_g: round1(item.protein_g * f),
     carbs_g: round1(item.carbs_g * f),
     fat_g: round1(item.fat_g * f),
+    ...(item.alcohol_g != null ? { alcohol_g: round1(item.alcohol_g * f) } : {}),
   };
 }
 

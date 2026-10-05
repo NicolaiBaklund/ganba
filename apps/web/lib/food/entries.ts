@@ -15,7 +15,7 @@ export class EntryError extends Error {
 
 const nameKey = (s: string) => s.trim().toLowerCase();
 
-/** Alcohol per item name from the AI estimate the entry was saved from (the form does not send it). */
+/** Fallback for clients that do not send alcohol_g: alcohol per item name from the AI estimate the entry was saved from. */
 async function alcoholFromEstimate(supabase: DB, estimateId: string): Promise<Map<string, number>> {
   const { data } = await supabase.from("ai_estimates").select("response").eq("id", estimateId).maybeSingle();
   const items = (data?.response as { items?: { name?: string; alcohol_g?: number }[] } | null)?.items ?? [];
@@ -59,7 +59,7 @@ export async function createFoodEntry(supabase: DB, userId: string, b: z.output<
   return entry.id;
 }
 
-/** Edits keep each item's alcohol (matched by name) unless the edit sends a new value. */
+/** The edit sheet sends each item's alcohol; older clients that do not keep it matched by name. */
 export async function updateFoodEntry(supabase: DB, userId: string, id: string, b: z.output<typeof UpdateEntry>): Promise<void> {
   const { data: entry } = await supabase.from("food_entries").select("id, local_date").eq("id", id).maybeSingle();
   if (!entry) throw new EntryError("not_found", 404);

@@ -133,13 +133,14 @@ export function FoodLogger({ hasKey, mode, date }: { hasKey: boolean; mode: "pho
         source: "ai",
         mealType: meal,
         loggedAt: new Date().toISOString(),
-        items: items.map(({ name, grams, kcal, protein_g, carbs_g, fat_g, confidence }) => ({
+        items: items.map(({ name, grams, kcal, protein_g, carbs_g, fat_g, alcohol_g, confidence }) => ({
           name: name.trim() || t("unnamed"),
           grams,
           kcal,
           protein_g,
           carbs_g,
           fat_g,
+          alcohol_g,
           confidence,
         })),
         estimateId: estimateId ?? undefined,

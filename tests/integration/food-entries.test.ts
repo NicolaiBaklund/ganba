@@ -60,6 +60,12 @@ describe("food entries: alcohol and meal time", () => {
     expect(Number(items!.find((i) => i.name === "Beer")!.kcal)).toBe(250);
   });
 
+  it("alcohol sent by the form wins over name matching (renamed or rescaled items keep it)", async () => {
+    await updateFoodEntry(u.client, u.id, entryId, UpdateEntry.parse({ items: [{ name: "Pilsner 0.33", kcal: 140, alcohol_g: 13 }, { name: "Pizza", kcal: 700 }] }));
+    const { data: items } = await u.client.from("food_items").select("name, alcohol_g").eq("food_entry_id", entryId);
+    expect(Number(items!.find((i) => i.name === "Pilsner 0.33")!.alcohol_g)).toBe(13);
+  });
+
   it("the meal time can be set on the entry's own date", async () => {
     await updateFoodEntry(u.client, u.id, entryId, UpdateEntry.parse({ time: "21:30" }));
     const { data: e } = await u.client.from("food_entries").select("logged_at, local_date").eq("id", entryId).single();
