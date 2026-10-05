@@ -16,11 +16,11 @@ export interface CoachResponse {
 }
 /** One model call of the coach's tool loop. Tests pass a scripted fake. */
 export interface CoachAi {
-  create(apiKey: string, p: CoachParams): Promise<CoachResponse>;
+  create(apiKey: string, p: CoachParams, opts?: { timeoutMs?: number }): Promise<CoachResponse>;
 }
 
 export const anthropicCoachAi: CoachAi = {
-  async create(apiKey, p) {
+  async create(apiKey, p, opts) {
     const client = new Anthropic({ apiKey, maxRetries: 2 });
     return client.messages.create({
       model: COACH_MODEL,
@@ -29,6 +29,6 @@ export const anthropicCoachAi: CoachAi = {
       tools: p.tools,
       messages: p.messages,
       output_config: { effort: EFFORT },
-    });
+    }, opts?.timeoutMs ? { timeout: opts.timeoutMs } : undefined);
   },
 };

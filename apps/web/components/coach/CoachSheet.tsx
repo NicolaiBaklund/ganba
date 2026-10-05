@@ -25,29 +25,37 @@ export function CoachSheet({ aboutWorkoutId, onClose }: { aboutWorkoutId?: strin
   const [menu, setMenu] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState(false);
   const [reading, setReading] = useState<CoachMessage[] | null>(null);
+  // "Ask the coach" from a session: only the first message is about that session.
+  const [aboutUsed, setAboutUsed] = useState(false);
   const end = useRef<HTMLDivElement>(null);
 
   const load = () => fetch("/api/coach").then((r) => r.json()).then(setData).catch(() => setFailed("load"));
   useEffect(() => void load(), []);
   useEffect(() => end.current?.scrollIntoView({ block: "end" }), [data?.messages.length, busy]);
 
-  async function send(body = text) {
+  async function send(body = text, retry = false) {
     const msg = body.trim();
     if (!msg || busy || !data) return;
     setBusy(true);
     setFailed(null);
     setText("");
-    const optimistic: CoachMessage = { id: `local-${Date.now()}`, role: "user", text: msg, aboutWorkoutId: aboutWorkoutId ?? null, options: [], createdAt: new Date().toISOString() };
-    setData({ ...data, messages: [...data.messages, optimistic] });
+    const about = aboutUsed ? null : (aboutWorkoutId ?? null);
+    const optimistic: CoachMessage = { id: `local-${Date.now()}`, role: "user", text: msg, aboutWorkoutId: about, options: [], createdAt: new Date().toISOString() };
+    // A retry reuses the message already shown (and stored).
+    if (!retry) setData({ ...data, messages: [...data.messages, optimistic] });
     const res = await fetch("/api/coach/messages", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ text: msg, aboutWorkoutId: aboutWorkoutId ?? null }),
+      body: JSON.stringify({ text: msg, aboutWorkoutId: about }),
     }).catch(() => null);
     const out = await res?.json().catch(() => null);
     setBusy(false);
+    setAboutUsed(true);
     if (!res?.ok) {
-      setFailed(out?.error === "busy" ? "busy" : msg);
+      if (out?.error === "busy") {
+        setData((d) => (d ? { ...d, messages: d.messages.filter((x) => x.id !== optimistic.id) } : d));
+        setFailed("busy");
+      } else setFailed(msg);
       return;
     }
     await load();
@@ -110,6 +118,7 @@ export function CoachSheet({ aboutWorkoutId, onClose }: { aboutWorkoutId?: strin
                   key={o.id}
                   messageId={m.id}
                   option={o}
+                  readOnly={!!reading}
                   onChange={(next) =>
                     data &&
                     setData({
@@ -128,7 +137,7 @@ export function CoachSheet({ aboutWorkoutId, onClose }: { aboutWorkoutId?: strin
             <p className="text-[13px] text-muted-foreground">
               {failed === "busy" ? t("busy") : t("error")}{" "}
               {failed !== "busy" && failed !== "load" && (
-                <button onClick={() => send(failed)} className="font-semibold text-primary">{t("retry")}</button>
+                <button onClick={() => send(failed, true)} className="font-semibold text-primary">{t("retry")}</button>
               )}
             </p>
           )}

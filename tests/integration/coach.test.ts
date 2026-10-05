@@ -7,7 +7,7 @@ import { syncGarmin } from "@/lib/garmin/sync";
 import { setAiHealthConsent } from "@/lib/recovery/consent";
 import { runCoach } from "@/lib/coach/run";
 import { applyOption } from "@/lib/coach/apply";
-import { activeThread, addMessage, listNotes } from "@/lib/coach/store";
+import { activeThread, addMessage, archiveThread, listNotes } from "@/lib/coach/store";
 import { activePlan, createPlan, planWorkouts } from "@/lib/training/service";
 // @ts-expect-error — plain JS helper shared with the smoke scripts
 import { seedUser } from "../smoke/seed.mjs";
@@ -120,6 +120,35 @@ describe("coach: tool loop, options, memory, consent", () => {
     await admin().from("coach_threads").update({ busy_until: null }).eq("id", thread.id);
   });
 
+  it("a session far ahead can be asked about (it is always in the coach's view)", async () => {
+    const plan = await activePlan(u.id);
+    const far = (await planWorkouts(plan!.id)).find((w) => w.date > addDays(today, 40) && w.status === "planned")!;
+    ai.script = [() => tool("reply", { message: "ok", options: [] })];
+    await runCoach(u.id, { text: "make this one shorter", aboutWorkoutId: far.id }, { ai });
+    const ctxText = String((ai.calls.at(-1)!.messages[0] as { content: string }).content);
+    const ref = ctxText.match(/asking about session (s\d+)/)?.[1];
+    expect(ref).toBeTruthy();
+    expect(ctxText).toMatch(new RegExp(`^${ref} \\| ${far.date} `, "m"));
+  });
+
+  it("too many rounds: the last one asks for a reply, and the runner still gets an answer", async () => {
+    ai.script = Array.from({ length: 6 }, () => () => tool("check_plan_changes", { changes: [] }));
+    const r = await runCoach(u.id, { text: "think hard" }, { ai });
+    expect(r.ok).toBe(true);
+    expect(r.ok && r.message.text.length).toBeGreaterThan(0);
+    const last = ai.calls.at(-1)!.messages.at(-1) as { content: { type: string; text?: string }[] };
+    expect(last.content.some((b) => b.type === "text" && /final round/i.test(b.text ?? ""))).toBe(true);
+  });
+
+  it("retry after a failure does not store the message twice", async () => {
+    ai.script = [];
+    expect((await runCoach(u.id, { text: "same question" }, { ai })).ok).toBe(false);
+    ai.script = [() => tool("reply", { message: "answer", options: [] })];
+    expect((await runCoach(u.id, { text: "same question" }, { ai })).ok).toBe(true);
+    const { data } = await admin().from("coach_messages").select("id").eq("user_id", u.id).eq("text", "same question");
+    expect(data).toHaveLength(1);
+  });
+
   it("an AI failure keeps the conversation usable", async () => {
     ai.script = [];
     expect((await runCoach(u.id, { text: "hello?" }, { ai })).ok).toBe(false);
@@ -162,6 +191,8 @@ describe("coach: applying options", () => {
       { title: "Longer easy", summary: "", changes: [{ op: "edit", session: refFor(p, "easy"), steps: [{ kind: "run", km: 10 }] }] },
       { title: "Extra run", summary: "", changes: [{ op: "add", date: addDays(today, 2), type: "easy", steps: [{ kind: "run", km: 5 }] }] },
     ]);
+    expect(m.options[0]!.lines.join(" ")).toMatch(/km → .*km/);
+    expect(m.options[1]!.lines.join(" ")).toMatch(/^New: /);
     expect(await applyOption(u.id, m.id, m.options[1]!.id)).toEqual({ ok: true });
     const plan = await activePlan(u.id);
     const ws = await planWorkouts(plan!.id);
@@ -183,6 +214,59 @@ describe("coach: applying options", () => {
     expect(!first.ok && first.error).toBe("changed");
     expect(!first.ok && first.warnings!.some((w) => w.code === "hard_back_to_back")).toBe(true);
     expect(await applyOption(u.id, m.id, m.options[0]!.id, { confirm: true })).toEqual({ ok: true });
+  });
+
+  it("all or nothing: an option where a change no longer applies is never applied in part", async () => {
+    const m = await askFor((p) => [
+      {
+        title: "Two changes",
+        summary: "",
+        changes: [
+          { op: "edit", session: refFor(p, "easy"), steps: [{ kind: "run", km: 7 }] },
+          { op: "add", date: addDays(today, 3), type: "easy", steps: [{ kind: "run", km: 4 }] },
+        ],
+      },
+    ]);
+    const easyId = (m.options[0]!.changes[0] as { workoutId: string }).workoutId;
+    await admin().from("planned_workouts").update({ status: "done" }).eq("id", easyId);
+    const r1 = await applyOption(u.id, m.id, m.options[0]!.id);
+    expect(!r1.ok && r1.error).toBe("invalid");
+    const r2 = await applyOption(u.id, m.id, m.options[0]!.id, { confirm: true });
+    expect(r2.ok).toBe(false);
+    const plan = await activePlan(u.id);
+    expect((await planWorkouts(plan!.id)).some((w) => w.date === addDays(today, 3) && Number(w.planned_km) === 4)).toBe(false);
+    await admin().from("planned_workouts").update({ status: "planned" }).eq("id", easyId);
+  });
+
+  it("confirm only applies what was shown: a second change in between asks again", async () => {
+    const m = await askFor((p) => [{ title: "Long run sooner", summary: "", changes: [{ op: "move", session: refFor(p, "long"), toDate: addDays(today, 4) }] }]);
+    const plan = await activePlan(u.id);
+    const ws = await planWorkouts(plan!.id);
+    const easy = ws.find((w) => w.type === "easy" && w.status === "planned" && w.date > today)!;
+    await admin().from("planned_workouts").update({ date: addDays(today, 3), type: "threshold" }).eq("id", easy.id);
+    const first = await applyOption(u.id, m.id, m.options[0]!.id);
+    expect(!first.ok && first.error).toBe("changed");
+    await admin().from("planned_workouts").update({ date: addDays(today, 5), type: "intervals" }).eq("id", easy.id);
+    const second = await applyOption(u.id, m.id, m.options[0]!.id, { confirm: true });
+    expect(!second.ok && second.error).toBe("changed");
+  });
+
+  it("two taps at once: only one option is applied", async () => {
+    const m = await askFor((p) => [
+      { title: "A", summary: "", changes: [{ op: "add", date: addDays(today, 6), type: "easy", steps: [{ kind: "run", km: 3.3 }] }] },
+      { title: "B", summary: "", changes: [{ op: "add", date: addDays(today, 6), type: "easy", steps: [{ kind: "run", km: 3.7 }] }] },
+    ]);
+    const rs = await Promise.all([applyOption(u.id, m.id, m.options[0]!.id), applyOption(u.id, m.id, m.options[1]!.id)]);
+    expect(rs.filter((r) => r.ok)).toHaveLength(1);
+    const plan = await activePlan(u.id);
+    expect((await planWorkouts(plan!.id)).filter((w) => w.date === addDays(today, 6) && [3.3, 3.7].includes(Number(w.planned_km)))).toHaveLength(1);
+  });
+
+  it("options in an archived conversation cannot be applied", async () => {
+    const m = await askFor((p) => [{ title: "Old", summary: "", changes: [{ op: "edit", session: refFor(p, "easy"), steps: [{ kind: "run", km: 9 }] }] }]);
+    await archiveThread(u.id);
+    const r = await applyOption(u.id, m.id, m.options[0]!.id);
+    expect(!r.ok && r.error).toBe("archived");
   });
 
   it("an applied option cannot be applied twice", async () => {

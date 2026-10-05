@@ -261,6 +261,7 @@ export type Database = {
       coach_messages: {
         Row: {
           about_workout_id: string | null
+          applying_until: string | null
           cost_usd: number | null
           created_at: string
           id: string
@@ -277,6 +278,7 @@ export type Database = {
         }
         Insert: {
           about_workout_id?: string | null
+          applying_until?: string | null
           cost_usd?: number | null
           created_at?: string
           id?: string
@@ -293,6 +295,7 @@ export type Database = {
         }
         Update: {
           about_workout_id?: string | null
+          applying_until?: string | null
           cost_usd?: number | null
           created_at?: string
           id?: string

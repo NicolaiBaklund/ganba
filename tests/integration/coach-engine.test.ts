@@ -79,11 +79,13 @@ describe("coach engine: free edits, dry-run and warnings", () => {
         { op: "add", date: "2026-10-09", type: "easy", steps: [{ kind: "run", km: 70 }] },
         { op: "add", date: "2027-02-01", type: "easy", steps: [{ kind: "run", km: 5 }] },
         { op: "edit", workoutId: "t2", steps: [{ repeat: 40, steps: [{ kind: "run", km: 0.2 }] }] },
+        { op: "edit", workoutId: "e1", steps: [{ kind: "run", km: 6 }, { repeat: 0, steps: [{ kind: "run", km: 1 }] }] },
+        { op: "edit", workoutId: "l2", steps: [{ kind: "run", km: 12 }, { repeat: 3, steps: [] }] },
       ],
       ctx,
       opts,
     );
     expect(r.valid).toEqual([]);
-    expect(r.errors.map((e) => e.index)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(r.errors.map((e) => e.index)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
   });
 });

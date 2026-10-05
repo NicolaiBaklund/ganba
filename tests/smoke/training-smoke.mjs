@@ -76,7 +76,7 @@ try {
     { thread_id: thread.id, user_id: uid, role: "user", text: "Make my next easy run 2 km longer", options: [] },
     {
       thread_id: thread.id, user_id: uid, role: "coach", text: "Sure. It stays easy, so the load is fine.",
-      options: [{ id: "opt1", title: "Easy run +2 km", summary: `${easy.planned_km} to ${longer} km`, status: "pending", warnings: [],
+      options: [{ id: "opt1", title: "Easy run +2 km", summary: `${easy.planned_km} to ${longer} km`, status: "pending", warnings: [], lines: [`${easy.planned_km} km → ${longer} km`],
         changes: [{ op: "edit", workoutId: easy.id, steps: [{ kind: "run", km: longer }] }] }],
     },
   ]);

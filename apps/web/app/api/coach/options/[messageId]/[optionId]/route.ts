@@ -14,7 +14,11 @@ export async function POST(req: Request, ctx: RouteContext<"/api/coach/options/[
   const body = Body.safeParse((await req.json().catch(() => ({}))) ?? {});
   if (!body.success) return NextResponse.json({ error: "invalid_input" }, { status: 400 });
   const r = await applyOption(u.user.id, messageId, optionId, body.data);
-  if (!r.ok) return NextResponse.json({ error: r.error, warnings: r.warnings ?? [] }, { status: r.error === "not_found" ? 404 : 409 });
+  if (!r.ok)
+    return NextResponse.json(
+      { error: r.error, warnings: "warnings" in r ? r.warnings : [], reason: "reason" in r ? r.reason : undefined },
+      { status: r.error === "not_found" ? 404 : 409 },
+    );
   const today = await todayFor(u.user.id);
   after(() => pushToGarmin(u.user.id, today));
   return NextResponse.json({ ok: true });

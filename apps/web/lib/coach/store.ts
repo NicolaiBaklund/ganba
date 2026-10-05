@@ -11,8 +11,12 @@ export interface CoachOption {
   title: string;
   summary: string;
   changes: ProposalChange[];
+  /** What the option does, one line per change ("Tue 10-06 easy 6.4 km → 8.4 km"). */
+  lines: string[];
   warnings: PlanWarning[];
-  status: "pending" | "applied" | "not_used" | "stale";
+  status: "pending" | "applied" | "not_used" | "stale" | "invalid";
+  /** Why an option can no longer be applied. */
+  reason?: string;
 }
 export interface CoachMessage {
   id: string;
@@ -115,6 +119,21 @@ export async function claimThread(threadId: string): Promise<boolean> {
 }
 export async function releaseThread(threadId: string): Promise<void> {
   await db().from("coach_threads").update({ busy_until: null }).eq("id", threadId);
+}
+
+/** One option applied at a time per message. */
+export async function claimMessage(messageId: string): Promise<boolean> {
+  const now = new Date();
+  const { data } = await db()
+    .from("coach_messages")
+    .update({ applying_until: new Date(now.getTime() + 60_000).toISOString() })
+    .eq("id", messageId)
+    .or(`applying_until.is.null,applying_until.lt.${now.toISOString()}`)
+    .select("id");
+  return !!data?.length;
+}
+export async function releaseMessage(messageId: string): Promise<void> {
+  await db().from("coach_messages").update({ applying_until: null }).eq("id", messageId);
 }
 
 /** Notes for the coach; expired ones are deleted first. */

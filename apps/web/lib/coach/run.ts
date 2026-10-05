@@ -2,15 +2,19 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type Anthropic from "@anthropic-ai/sdk";
-import { checkChanges, COACH_PROMPT_VERSION, COACH_SYSTEM_PROMPT, CoachChangeSchema, toProposalChange, type ProposalChange } from "@loop/core";
+import { checkChanges, COACH_PROMPT_VERSION, COACH_SYSTEM_PROMPT, CoachChangeSchema, describeChanges, toProposalChange, type ProposalChange } from "@loop/core";
 import { resolveAnthropicKey } from "@/lib/ai/keys";
 import { costUsd } from "@/lib/ai/pricing";
 import { anthropicCoachAi, COACH_MODEL, type CoachAi } from "@/lib/ai/coach";
 import { buildCoachContext, type CoachContext } from "./context";
-import { activeThread, addMessage, addNotes, claimThread, releaseThread, removeNotes, type CoachMessage, type CoachOption } from "./store";
+import { activeThread, addMessage, addNotes, claimThread, recentMessages, releaseThread, removeNotes, type CoachMessage, type CoachOption } from "./store";
 
 export const MAX_ROUNDS = 6;
 export const MAX_OPTIONS = 3;
+/** Whole turn, well inside the route's 300 s; the last call gets what is left. */
+const DEADLINE_MS = 240_000;
+const FINAL_NUDGE = "Final round: call reply now with what you have.";
+const GAVE_UP = "I couldn't finish working that out. Ask again, maybe a bit shorter.";
 export type CoachError = "no_plan" | "no_key" | "busy" | "invalid_key" | "unavailable" | "refused" | "invalid_output";
 
 const CheckInput = z.object({ changes: z.array(CoachChangeSchema) });
@@ -51,9 +55,14 @@ function resolve(cc: CoachContext, changes: z.infer<typeof CoachChangeSchema>[])
   return { ok, errors };
 }
 
-function check(cc: CoachContext, changes: z.infer<typeof CoachChangeSchema>[]) {
+function dryRun(cc: CoachContext, changes: z.infer<typeof CoachChangeSchema>[]) {
   const r = resolve(cc, changes);
-  const res = checkChanges(cc.workouts, r.ok, cc.ctx, { recentLongestKm: cc.recentLongestKm });
+  return { refErrors: r.errors, res: checkChanges(cc.workouts, r.ok, cc.ctx, { recentLongestKm: cc.recentLongestKm }) };
+}
+
+function check(cc: CoachContext, changes: z.infer<typeof CoachChangeSchema>[]) {
+  const { refErrors, res } = dryRun(cc, changes);
+  const r = { errors: refErrors };
   return {
     valid: res.valid,
     errors: [...r.errors, ...res.errors.map((e) => e.reason)],
@@ -79,7 +88,11 @@ export async function runCoach(userId: string, input: { text: string; aboutWorko
   try {
     const cc = await buildCoachContext(userId, thread.id, { aboutWorkoutId: input.aboutWorkoutId, message: input.text });
     if (!cc) return { ok: false as const, error: "no_plan" as CoachError };
-    await addMessage(userId, thread.id, { role: "user", text: input.text, aboutWorkoutId: input.aboutWorkoutId });
+    // A retry after a failed answer reuses the stored message instead of adding it again.
+    const last = (await recentMessages(thread.id, 1))[0];
+    if (!(last?.role === "user" && last.text === input.text))
+      await addMessage(userId, thread.id, { role: "user", text: input.text, aboutWorkoutId: input.aboutWorkoutId });
+    const started = Date.now();
 
     const ai = opts.ai ?? anthropicCoachAi;
     const usage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
@@ -88,9 +101,11 @@ export async function runCoach(userId: string, input: { text: string; aboutWorko
     let fallbackText = "";
 
     for (let round = 0; round < MAX_ROUNDS && !reply; round++) {
+      const left = DEADLINE_MS - (Date.now() - started);
+      if (left < 15_000) break;
       let res;
       try {
-        res = await ai.create(apiKey, { system: COACH_SYSTEM_PROMPT, tools: COACH_TOOLS, messages });
+        res = await ai.create(apiKey, { system: COACH_SYSTEM_PROMPT, tools: COACH_TOOLS, messages }, { timeoutMs: left });
       } catch (e) {
         const status = (e as { status?: number }).status;
         return { ok: false as const, error: (status === 401 || status === 403 ? "invalid_key" : "unavailable") as CoachError };
@@ -127,19 +142,29 @@ export async function runCoach(userId: string, input: { text: string; aboutWorko
         results.push({ type: "tool_result", tool_use_id: u.id, content: typeof out === "string" ? out : JSON.stringify(out) });
       }
       if (reply) break;
-      messages.push({ role: "user", content: results });
+      // Next call is the last one (by rounds or time): ask for the answer now.
+      const finalNext = round === MAX_ROUNDS - 2 || DEADLINE_MS - (Date.now() - started) < 60_000;
+      messages.push({ role: "user", content: finalNext ? [...results, { type: "text", text: FINAL_NUDGE }] : results });
     }
 
-    if (!reply && !fallbackText) return { ok: false as const, error: "invalid_output" as CoachError };
+    if (!reply && !fallbackText) fallbackText = GAVE_UP;
     const options: CoachOption[] = [];
     const dropped: string[] = [];
     for (const o of (reply?.options ?? []).slice(0, MAX_OPTIONS)) {
-      const r = check(cc, o.changes);
-      if (r.errors.length || !r.valid.length) {
+      const { refErrors, res } = dryRun(cc, o.changes);
+      if (refErrors.length || res.errors.length || !res.valid.length) {
         dropped.push(o.title);
         continue;
       }
-      options.push({ id: randomUUID().slice(0, 8), title: o.title.slice(0, 80), summary: o.summary.slice(0, 400), changes: r.valid, warnings: r.warnings, status: "pending" });
+      options.push({
+        id: randomUUID().slice(0, 8),
+        title: o.title.slice(0, 80),
+        summary: o.summary.slice(0, 400),
+        changes: res.valid,
+        lines: describeChanges(cc.workouts, res.after, res.valid),
+        warnings: res.warnings,
+        status: "pending",
+      });
     }
     const text = [reply?.message ?? fallbackText, ...dropped.map((t) => `(One option was left out because the app can't apply it: ${t}.)`)].join("\n\n").trim();
     const message = await addMessage(userId, thread.id, {

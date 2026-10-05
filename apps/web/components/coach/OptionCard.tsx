@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import type { CoachOption } from "@/lib/coach/store";
 import { cn } from "@/lib/utils";
 
-export function OptionCard({ messageId, option, onChange }: { messageId: string; option: CoachOption; onChange: (o: CoachOption) => void }) {
+export function OptionCard({ messageId, option, onChange, readOnly = false }: { messageId: string; option: CoachOption; onChange: (o: CoachOption) => void; readOnly?: boolean }) {
   const t = useTranslations("coach");
   const format = useFormatter();
   const router = useRouter();
@@ -35,14 +35,24 @@ export function OptionCard({ messageId, option, onChange }: { messageId: string;
       onChange({ ...option, status: "stale", warnings: body.warnings ?? [] });
       return toast(t("changed"));
     }
+    if (res?.status === 409 && body?.error === "invalid") return onChange({ ...option, status: "invalid", reason: body.reason });
+    if (res?.status === 409 && body?.error === "not_pending") return onChange({ ...option, status: "applied" });
+    if (res?.status === 409 && body?.error === "busy") return;
     toast.error(t("error"));
   }
 
-  const done = option.status === "applied" || option.status === "not_used";
+  const done = option.status === "applied" || option.status === "not_used" || option.status === "invalid";
   return (
     <section className={cn("mt-2 rounded-md border border-border bg-card p-3", done && "opacity-70")}>
       <p className="font-bold">{option.title}</p>
       {option.summary && <p className="mt-0.5 text-[13px] text-muted-foreground">{option.summary}</p>}
+      {!!option.lines?.length && (
+        <ul className="mt-1.5">
+          {option.lines.map((l, i) => (
+            <li key={i} className="num text-[13px]">{l}</li>
+          ))}
+        </ul>
+      )}
       {option.warnings.map((w, i) => (
         <p key={i} className={cn("mt-1.5 text-[13px] font-semibold", w.severity === "serious" ? "text-destructive" : "text-warning")}>
           {text(w)}
@@ -50,11 +60,13 @@ export function OptionCard({ messageId, option, onChange }: { messageId: string;
       ))}
       {option.status === "stale" && <p className="mt-1.5 text-[13px] text-muted-foreground">{t("changed")}</p>}
       <div className="mt-2.5">
-        {option.status === "applied" ? (
+        {option.status === "invalid" ? (
+          <span className="text-[13px] text-muted-foreground">{t("invalid", { reason: option.reason ?? "" })}</span>
+        ) : option.status === "applied" ? (
           <span className="text-[13px] font-semibold text-success">{t("applied")}</span>
         ) : option.status === "not_used" ? (
           <span className="text-[13px] text-muted-foreground">{t("notUsed")}</span>
-        ) : (
+        ) : readOnly ? null : (
           <Button className="h-10 px-5" disabled={busy} onClick={apply}>
             {option.status === "stale" ? t("applyAnyway") : t("apply")}
           </Button>

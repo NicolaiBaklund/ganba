@@ -680,6 +680,7 @@
       "off_day": "{date} is not one of your running days",
       "many_hard": "{after} hard days in the week of {week}",
       "no_rest": "No rest day for 7 days (to {date})"
-    }
+    },
+    "invalid": "Can't be applied any more: {reason}."
   }
 }

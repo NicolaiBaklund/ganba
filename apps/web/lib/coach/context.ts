@@ -31,13 +31,16 @@ export async function buildCoachContext(userId: string, threadId: string, opts: 
     planWorkoutsWithKm(plan),
     recentRuns(userId, today),
     listNotes(userId, today),
-    recentMessages(threadId, CONTEXT_MESSAGES),
+    recentMessages(threadId, CONTEXT_MESSAGES + 1),
     getAiHealthConsent(userId),
   ]);
+  // A retry: the same message is already the last one stored; it goes in once, as the new message.
+  if (history.at(-1)?.role === "user" && history.at(-1)?.text === opts.message) history.pop();
+  if (history.length > CONTEXT_MESSAGES) history.shift();
   const ctx = planContext(plan, today);
   const paces = pacesFor(Number(plan.vdot));
   const upcoming = workouts
-    .filter((w) => w.status !== "removed" && w.date >= addDays(today, -1) && w.date <= addDays(today, AHEAD_DAYS))
+    .filter((w) => w.status !== "removed" && ((w.date >= addDays(today, -1) && w.date <= addDays(today, AHEAD_DAYS)) || w.id === opts.aboutWorkoutId))
     .sort((a, b) => (a.date < b.date ? -1 : 1));
   const refs = new Map<string, string>();
   const refOf = new Map<string, string>();
