@@ -746,6 +746,8 @@ export type Database = {
       }
       profiles: {
         Row: {
+          ai_health_consent: boolean
+          ai_health_consent_at: string | null
           birth_date: string
           checkin_weekday: number
           created_at: string
@@ -758,6 +760,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_health_consent?: boolean
+          ai_health_consent_at?: string | null
           birth_date: string
           checkin_weekday?: number
           created_at?: string
@@ -770,6 +774,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_health_consent?: boolean
+          ai_health_consent_at?: string | null
           birth_date?: string
           checkin_weekday?: number
           created_at?: string
@@ -778,6 +784,99 @@ export type Database = {
           onboarded_at?: string | null
           sex?: Database["public"]["Enums"]["sex"]
           timezone?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      recovery_ai_questions: {
+        Row: {
+          cost_usd: number | null
+          created_at: string
+          id: string
+          input_tokens: number | null
+          model: string | null
+          output_tokens: number | null
+          prompt_version: number | null
+          rationale: string
+          spec: Json
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cost_usd?: number | null
+          created_at?: string
+          id?: string
+          input_tokens?: number | null
+          model?: string | null
+          output_tokens?: number | null
+          prompt_version?: number | null
+          rationale: string
+          spec: Json
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cost_usd?: number | null
+          created_at?: string
+          id?: string
+          input_tokens?: number | null
+          model?: string | null
+          output_tokens?: number | null
+          prompt_version?: number | null
+          rationale?: string
+          spec?: Json
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      recovery_day_answers: {
+        Row: {
+          content: Json
+          cost_usd: number | null
+          created_at: string
+          id: string
+          input_hash: string
+          input_tokens: number | null
+          local_date: string
+          model: string | null
+          output_tokens: number | null
+          prompt_version: number | null
+          question: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: Json
+          cost_usd?: number | null
+          created_at?: string
+          id?: string
+          input_hash: string
+          input_tokens?: number | null
+          local_date: string
+          model?: string | null
+          output_tokens?: number | null
+          prompt_version?: number | null
+          question?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: Json
+          cost_usd?: number | null
+          created_at?: string
+          id?: string
+          input_hash?: string
+          input_tokens?: number | null
+          local_date?: string
+          model?: string | null
+          output_tokens?: number | null
+          prompt_version?: number | null
+          question?: string
           updated_at?: string
           user_id?: string
         }
@@ -854,6 +953,7 @@ export type Database = {
       }
       recovery_findings: {
         Row: {
+          ai_question_id: string | null
           computed_at: string
           control_ok: boolean | null
           created_at: string
@@ -874,6 +974,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_question_id?: string | null
           computed_at: string
           control_ok?: boolean | null
           created_at?: string
@@ -894,6 +995,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_question_id?: string | null
           computed_at?: string
           control_ok?: boolean | null
           created_at?: string
@@ -912,6 +1014,56 @@ export type Database = {
           source?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recovery_findings_ai_question_id_fkey"
+            columns: ["ai_question_id"]
+            isOneToOne: false
+            referencedRelation: "recovery_ai_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recovery_summaries: {
+        Row: {
+          content: Json
+          cost_usd: number | null
+          created_at: string
+          id: string
+          input_tokens: number | null
+          model: string | null
+          output_tokens: number | null
+          prompt_version: number | null
+          updated_at: string
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          content: Json
+          cost_usd?: number | null
+          created_at?: string
+          id?: string
+          input_tokens?: number | null
+          model?: string | null
+          output_tokens?: number | null
+          prompt_version?: number | null
+          updated_at?: string
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          content?: Json
+          cost_usd?: number | null
+          created_at?: string
+          id?: string
+          input_tokens?: number | null
+          model?: string | null
+          output_tokens?: number | null
+          prompt_version?: number | null
+          updated_at?: string
+          user_id?: string
+          week_start?: string
         }
         Relationships: []
       }

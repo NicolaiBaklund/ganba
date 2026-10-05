@@ -7,6 +7,8 @@ import { ApiKeyCard } from "@/components/profile/ApiKeyCard";
 import { GarminCard } from "@/components/profile/GarminCard";
 import { getGarminStatus } from "@/lib/garmin/accounts";
 import { ProfileCards } from "@/components/profile/ProfileCards";
+import { AiHealthCard } from "@/components/profile/AiHealthCard";
+import { getAiHealthConsent } from "@/lib/recovery/consent";
 
 export default async function ProfilePage() {
   const t = await getTranslations("profile");
@@ -14,7 +16,7 @@ export default async function ProfilePage() {
   const profile = await getProfile(supabase, user.id);
   const today = localDate(profile.timezone);
 
-  const [keyStatus, garmin, goal, baseline, plan, lastWeight] = await Promise.all([
+  const [keyStatus, garmin, goal, baseline, plan, lastWeight, consent] = await Promise.all([
     getApiKeyStatus(user.id),
     getGarminStatus(user.id),
     currentRow(supabase, "goals", user.id, today),
@@ -27,6 +29,7 @@ export default async function ProfilePage() {
       .order("measured_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    getAiHealthConsent(user.id),
   ]);
 
   const kg = Number(lastWeight.data?.weight_kg ?? 70);
@@ -36,6 +39,7 @@ export default async function ProfilePage() {
       <h1 className="cond text-[34px] leading-none">{t("title")}</h1>
       <GarminCard status={garmin ? { status: garmin.status, lastSyncedAt: garmin.lastSyncedAt } : null} />
       <ApiKeyCard status={keyStatus} />
+      <AiHealthCard enabled={consent} />
       <ProfileCards
         v={{
           targetWeightKg: Number(goal?.target_weight_kg ?? kg),
