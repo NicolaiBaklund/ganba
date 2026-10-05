@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, analyzeRecovery, buildRecoveryRows, type RecoveryDayInput, type RecoveryResult } from "@loop/core";
+import { addDays, analyzeRecovery, buildRecoveryRows, recoveryCurve, type RecoveryDayInput, type RecoveryQuestion, type RecoveryResult } from "@loop/core";
 
 const END = "2026-09-30";
 const DAYS = 120;
@@ -148,5 +148,30 @@ describe("recovery engine on constructed data", () => {
     const a = run({ seed: 4, drinkShare: 0.25 });
     expect(a).toEqual(run({ seed: 4, drinkShare: 0.25 }));
     expect(a).toHaveLength(21);
+  });
+
+  it("threshold questions and negative lags work (AI-proposed shapes)", () => {
+    const rows = buildRecoveryRows(synth({ seed: 7, plant: true }), FROM, END);
+    const qs: RecoveryQuestion[] = [
+      { id: "t", factor: "deficit", transform: "threshold", threshold: 600, outcome: "hrv", lag: 1 },
+      { id: "n", factor: "carbs", transform: "tertile", outcome: "sleepScore", lag: -1 },
+      { id: "bad", factor: "deficit", transform: "threshold", outcome: "hrv", lag: 1 },
+    ];
+    const rs = analyzeRecovery(rows, qs, { maxQ: 0.05 });
+    expect(byId(rs, "t")!.kind).toBe("finding");
+    expect(byId(rs, "t")!.groups.high.bound).toBe(600);
+    expect(byId(rs, "n")!.groups.high.n).toBeGreaterThan(0);
+    expect(byId(rs, "bad")!.reason).toBe("few_days"); // no threshold → nothing to compare
+  });
+
+  it("curves: a band from each day's own history, none before 14 earlier values", () => {
+    const s = new Map(Array.from({ length: 40 }, (_, i) => [addDays(END, i - 39), 50 + (i % 10)] as const));
+    const pts = recoveryCurve(s, addDays(END, -39), END);
+    expect(pts).toHaveLength(40);
+    expect(pts[5]!.low).toBeNull();
+    const last = pts.at(-1)!;
+    expect(last.low).toBeGreaterThanOrEqual(50);
+    expect(last.high).toBeLessThanOrEqual(59);
+    expect(last.low!).toBeLessThan(last.high!);
   });
 });
