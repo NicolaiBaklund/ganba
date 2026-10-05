@@ -29,6 +29,15 @@ export interface Repeat {
 
 export type Block = Step | Repeat;
 
+/** Compact step the coach writes; the engine turns it into a Step with paces from the runner's VDOT. */
+export interface CoachStep {
+  kind: "warmup" | "run" | "recover" | "cooldown";
+  km?: number | null;
+  minutes?: number | null;
+  zone?: PaceZone | "none" | null;
+}
+export type CoachBlock = CoachStep | { repeat: number; steps: CoachStep[] };
+
 export interface WorkoutSpec {
   date: ISODate;
   type: WorkoutType;
@@ -85,4 +94,6 @@ export type ProposalChange =
   | { op: "drop"; workoutId: string }
   | { op: "replace"; workoutId: string; type: WorkoutType; km: number }
   | { op: "rescale"; fromDate: ISODate; factor: number }
-  | { op: "repace"; vdot: number };
+  | { op: "repace"; vdot: number }
+  | { op: "edit"; workoutId: string; type?: WorkoutType; title?: string; steps: CoachBlock[] }
+  | { op: "add"; date: ISODate; type: WorkoutType; title?: string; steps: CoachBlock[] };

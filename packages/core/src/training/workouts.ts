@@ -1,4 +1,4 @@
-import type { Block, PaceZone, Paces, RaceDistance, Step, Target, WorkoutType } from "./types";
+import type { Block, CoachBlock, CoachStep, PaceZone, Paces, RaceDistance, Step, Target, WorkoutType } from "./types";
 
 export interface BuiltWorkout {
   type: WorkoutType;
@@ -262,4 +262,40 @@ export function rescaleBlocks(blocks: Block[], factor: number): Block[] {
       ? { ...b, duration: { kind: "distance", m: Math.max(1000, Math.round((b.duration.m * factor) / 100) * 100) } }
       : b,
   );
+}
+
+const TYPE_LABEL: Record<WorkoutType, string> = {
+  easy: "Easy run",
+  long: "Long run",
+  intervals: "Intervals",
+  threshold: "Threshold",
+  tempo: "Tempo",
+  strides: "Easy run with strides",
+  race: "Race",
+};
+export const defaultTitle = (type: WorkoutType, km: number) => `${TYPE_LABEL[type]} ${r1(km)} km`;
+
+/** Coach steps → blocks. No zone: easy (recover: no target). km wins over minutes; neither = lap button. */
+export function blocksFromSteps(steps: readonly CoachBlock[], ctx: BuildContext): Block[] {
+  const one = (s: CoachStep): Step => {
+    const zone = s.zone ?? (s.kind === "recover" ? "none" : "easy");
+    const target: Target = zone === "none" ? { kind: "none" } : targetFor(zone, ctx.paces, ctx.racePaceS);
+    const duration: Step["duration"] =
+      s.km != null && s.km > 0 ? dist(s.km) : s.minutes != null && s.minutes > 0 ? time(Math.round(s.minutes * 60)) : { kind: "open" };
+    return step(s.kind, duration, target);
+  };
+  return steps.map((b) => ("repeat" in b ? { kind: "repeat" as const, times: Math.round(b.repeat), steps: b.steps.map(one) } : one(b)));
+}
+
+/** Steps after expanding repeats (the limit is on what the watch has to show). */
+export const stepCount = (steps: readonly CoachBlock[]): number =>
+  steps.reduce((n, b) => n + ("repeat" in b ? Math.max(0, Math.round(b.repeat)) * b.steps.length : 1), 0);
+
+/** One line the coach can read and edit: "warmup 2 km easy; 5× (run 1 km interval, recover 2 min); cooldown 1.5 km easy". */
+export function describeBlocks(blocks: readonly Block[]): string {
+  const one = (s: Step) => {
+    const d = s.duration.kind === "distance" ? `${r1(s.duration.m / 1000)} km` : s.duration.kind === "time" ? `${r1(s.duration.s / 60)} min` : "open";
+    return `${s.kind} ${d}${s.target.kind === "pace" ? ` ${s.target.zone}` : ""}`;
+  };
+  return blocks.map((b) => (b.kind === "repeat" ? `${b.times}× (${b.steps.map(one).join(", ")})` : one(b))).join("; ");
 }

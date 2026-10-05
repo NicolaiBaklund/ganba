@@ -25,3 +25,4 @@ export * from "./recovery/questions";
 export * from "./recovery/analyze";
 export * from "./recovery/curves";
 export * from "./recovery/ai";
+export * from "./training/coach";

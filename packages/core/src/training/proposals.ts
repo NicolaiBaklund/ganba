@@ -1,7 +1,7 @@
 import { addDays, daysBetween, weekday, type ISODate } from "../dates";
 import { mondayOf } from "./generate";
 import { pacesFor, vo2AtSpeed } from "./vdot";
-import { buildByType, measure, repaceBlocks, rescaleBlocks, resizeQuality, type BuildContext } from "./workouts";
+import { blocksFromSteps, buildByType, defaultTitle, measure, repaceBlocks, rescaleBlocks, resizeQuality, type BuildContext } from "./workouts";
 import { HARD_TYPES, KEY_TYPES, type PlanWorkout, type ProposalChange, type RaceDistance, type WorkoutType } from "./types";
 
 export interface PlanContext {
@@ -193,6 +193,27 @@ export function applyChanges(all: PlanWorkout[], changes: ProposalChange[], ctx:
         }
       continue;
     }
+    if (c.op === "add") {
+      const blocks = blocksFromSteps(c.steps, build());
+      const m = measure(blocks, build().paces);
+      const near = [...list].filter((x) => x.date <= c.date).sort((a, b) => (a.date < b.date ? -1 : 1)).at(-1) ?? list[0];
+      const nw: PlanWorkout = {
+        id: `new:${changed.size}:${c.date}`,
+        date: c.date,
+        type: c.type,
+        title: c.title?.trim() || defaultTitle(c.type, m.km),
+        blocks,
+        plannedKm: m.km,
+        plannedDurationS: m.s,
+        week: near?.week ?? 1,
+        phase: near?.phase ?? "build",
+        status: "planned",
+      };
+      list.push(nw);
+      byId.set(nw.id, nw);
+      changed.add(nw.id);
+      continue;
+    }
     const w = byId.get(c.workoutId);
     if (!w) continue;
     if (c.op === "move") {
@@ -212,6 +233,11 @@ export function applyChanges(all: PlanWorkout[], changes: ProposalChange[], ctx:
         const b = buildByType(c.type, c.km, ctx.distance ?? "10k", 2, build());
         Object.assign(w, { type: b.type, title: b.title, blocks: b.blocks, plannedKm: b.plannedKm, plannedDurationS: b.plannedDurationS });
       }
+    } else if (c.op === "edit") {
+      const blocks = blocksFromSteps(c.steps, build());
+      const m = measure(blocks, build().paces);
+      const type = c.type ?? w.type;
+      Object.assign(w, { type, title: c.title?.trim() || defaultTitle(type, m.km), blocks, plannedKm: m.km, plannedDurationS: m.s });
     }
     changed.add(w.id);
   }
@@ -256,6 +282,9 @@ export function validateChanges(
         reject("cannot change the past");
         continue;
       }
+    } else if (c.op === "add" || c.op === "edit") {
+      reject("not supported here");
+      continue;
     } else {
       const w = state.find((x) => x.id === c.workoutId);
       if (!w || w.status === "removed" || w.status === "done" || w.date < ctx.today && c.op !== "move") {
