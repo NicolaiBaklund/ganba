@@ -52,6 +52,8 @@ try {
       { id: "sleepDebt", points: 0, status: "ok", learned: false, values: { hours: -2.5, nights: 7 } },
       { id: "load", points: 0, status: "missing", learned: false, values: {} },
       { id: "energy", points: 0, status: "missing", learned: false, values: {} },
+      { id: "lastHard", points: -5.4, status: "ok", learned: false, values: { days: 1, load: 180, typical: 200 } },
+      { id: "rest", points: 3, status: "ok", learned: true, values: { days: 1 } }, // written by an older engine: must not show
     ],
   });
 
@@ -70,12 +72,14 @@ try {
   await page.goto(`${BASE}/recovery`);
   await page.getByText("Learned about you").waitFor();
   await shot("60-recovery");
-  check(await page.getByText("Held back by HRV and sleep.").count(), "template sentence from the parts");
+  check(await page.getByText("Held back by HRV and a recent hard session.").count(), "template sentence from the parts");
   await page.getByRole("button", { name: "Form 35, see what counts" }).click();
   await page.getByText("HRV last night").waitFor();
   await page.waitForTimeout(400);
   check(await page.getByText("Learned", { exact: true }).count(), "learned part marked");
   check(await page.getByText("Log food 3 days in a row").count(), "missing part says why");
+  check(await page.getByText("Yesterday, load 180 (usual 200)").count(), "last hard session row");
+  check(!(await page.getByText(/recovery\.form\./).count()), "no raw message keys (old part ids dropped)");
   await shot("60b-recovery-form");
   await page.keyboard.press("Escape");
   check(await page.getByText("Deficit over 820 kcal").count(), "finding line with the real bound");

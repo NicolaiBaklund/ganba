@@ -1,6 +1,7 @@
 import "server-only";
 import {
   addDays,
+  FORM_PART_IDS,
   formSelfCheck,
   HARD_TYPES,
   localDate,
@@ -71,6 +72,10 @@ export interface RecoveryView {
 
 export const FORM_LOW_ACTION = 40;
 
+const PART_IDS = new Set<string>(FORM_PART_IDS);
+/** Stored parts, minus any id an older engine wrote that this version no longer knows (e.g. "rest"). */
+export const knownParts = (parts: unknown): FormPart[] => ((parts ?? []) as FormPart[]).filter((p) => PART_IDS.has(p.id));
+
 type Groups = { high: RecoveryGroup; low: RecoveryGroup; needed: number };
 
 export async function loadRecoveryView(userId: string): Promise<RecoveryView> {
@@ -119,7 +124,7 @@ export async function loadRecoveryView(userId: string): Promise<RecoveryView> {
   const scores = new Map((formRows ?? []).flatMap((r) => (r.score == null ? [] : [[r.local_date, r.score] as const])));
   const w = session.workout;
   const form: FormView = {
-    today: todayRow?.score != null ? { score: todayRow.score, band: todayRow.band as FormBand, parts: todayRow.parts as unknown as FormPart[] } : null,
+    today: todayRow?.score != null ? { score: todayRow.score, band: todayRow.band as FormBand, parts: knownParts(todayRow.parts) } : null,
     workout: w ? { id: w.id, type: w.type, title: w.title, status: w.status } : null,
     action: todayRow?.score != null && todayRow.score < FORM_LOW_ACTION && !!w && w.status === "planned" && HARD_TYPES.has(w.type),
     week: weekBalance(days, today),

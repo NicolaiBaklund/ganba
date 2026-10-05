@@ -68,9 +68,11 @@ export const FORM_RULES = {
   /** Last hard session: full minus the day after a usual-sized one, half the day after that. */
   lastHardMinus: 6,
   lastHardDay2: 0.5,
-  /** A session's size vs the person's usual hard session counts from half to full. */
+  /** A session's size vs the person's usual hard session counts from half to full; unknown size counts in between. */
   lastHardMinRatio: 0.5,
-  typicalHardDays: 60,
+  lastHardUnknownRatio: 0.75,
+  /** "Usual" = median of hard days in the 28 days before the two being sized (fits the 120 loaded days). */
+  typicalHardDays: 28,
   minTypicalHard: 3,
 } as const;
 
@@ -124,9 +126,9 @@ function deficit3Before(ix: Index, date: ISODate): number | null {
   return ds.every((x) => x != null) ? mean(ds as number[]) : null;
 }
 
-/** Median training load of the person's hard days before `date` (null with fewer than 3). */
+/** Median training load of the person's hard days D−3 and back (null with fewer than 3): the sessions being sized never set their own scale. */
 function typicalHardLoad(ix: Index, date: ISODate): number | null {
-  const loads = previous(ix, date, R.typicalHardDays, (x) => (x.hard && x.load ? x.load : null));
+  const loads = previous(ix, addDays(date, -2), R.typicalHardDays, (x) => (x.hard && x.load ? x.load : null));
   return loads.length >= R.minTypicalHard ? median(loads) : null;
 }
 
@@ -207,13 +209,14 @@ function carbsPart(ix: Index, date: ISODate): FormPart {
  * Sized by its load against the person's usual hard session; two in a row add up to the cap.
  */
 function lastHardPart(ix: Index, date: ISODate): FormPart {
-  const typical = typicalHardLoad(ix, date);
+  let typical: number | null | undefined; // worked out only when there is a hard day to size
   let points = 0;
   let last: { days: number; load: number | null } | null = null;
   for (const [back, weight] of [[1, 1], [2, R.lastHardDay2]] as const) {
     const x = ix.get(addDays(date, -back));
     if (!x?.hard) continue;
-    const ratio = typical && x.load ? clamp(x.load / typical, R.lastHardMinRatio, 1) : 1;
+    if (typical === undefined) typical = typicalHardLoad(ix, date);
+    const ratio = !x.load ? R.lastHardUnknownRatio : typical ? clamp(x.load / typical, R.lastHardMinRatio, 1) : 1;
     points -= R.lastHardMinus * weight * ratio;
     last ??= { days: back, load: x.load ?? null };
   }
@@ -245,6 +248,8 @@ export function computeForm(days: readonly RecoveryDayInput[] | Index, date: ISO
     const boost = BOOSTS[f.factor];
     if (!boost) continue;
     const p = parts.find((x) => x.id === boost.part);
+    // Rest finding: only when the last hard day is in the group the finding says runs worse (≤ its low cut).
+    if (f.factor === "daysSinceHard" && f.lowBound != null && (p?.values.days ?? Infinity) > f.lowBound) continue;
     if (p?.status === "ok" && Math.sign(f.effectSd) === boost.sign && p.points !== 0) {
       p.learned = true;
       extras.set(p.id, (extras.get(p.id) ?? 0) + p.points * (R.learnedBoost - 1));

@@ -701,8 +701,7 @@
         "sleepDebt": "Needs 4 nights with sleep need",
         "load": "Needs 3 weeks of watch data",
         "energy": "Log food 3 days in a row",
-        "carbs": "Not logged yesterday",
-        "lastHard": "No data"
+        "carbs": "Not logged yesterday"
       },
       "selfCheck": "On days with Form over 70 your runs went {diff} SD {dir, select, better {better} other {worse}} than on days under 40 ({high} vs {low} runs).",
       "action": "Make today easier",
