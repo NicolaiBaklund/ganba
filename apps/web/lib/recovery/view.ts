@@ -90,9 +90,11 @@ export async function loadRecoveryView(userId: string): Promise<RecoveryView> {
     db.from("recovery_findings").select("*").eq("user_id", userId),
     // Curves need 30 days shown + 30 for the normal band; the self-check needs the whole window plus run-form history.
     loadRecoveryDays(userId, today),
-    db.from("form_days").select("local_date, score, band, parts").eq("user_id", userId).gte("local_date", addDays(today, -89)).order("local_date"),
+    db.from("form_days").select("local_date, score").eq("user_id", userId).gte("local_date", addDays(today, -89)).order("local_date"),
     todaysWorkout(userId, today),
   ]);
+  // The parts are only needed for today.
+  const { data: todayRow } = await db.from("form_days").select("score, band, parts").eq("user_id", userId).eq("local_date", today).maybeSingle();
   // AI-suggested findings are part of the AI layer: hidden while the switch is off (spec §7.1).
   const all: FindingRow[] = (rows ?? []).filter((r) => consent || r.source !== "ai").map((r) => {
     const g = r.groups as unknown as Groups;
@@ -115,12 +117,11 @@ export async function loadRecoveryView(userId: string): Promise<RecoveryView> {
   });
   const from = addDays(today, -(CURVE_DAYS - 1));
   const scores = new Map((formRows ?? []).flatMap((r) => (r.score == null ? [] : [[r.local_date, r.score] as const])));
-  const todayRow = (formRows ?? []).find((r) => r.local_date === today && r.score != null);
   const w = session.workout;
   const form: FormView = {
-    today: todayRow ? { score: todayRow.score!, band: todayRow.band as FormBand, parts: todayRow.parts as unknown as FormPart[] } : null,
+    today: todayRow?.score != null ? { score: todayRow.score, band: todayRow.band as FormBand, parts: todayRow.parts as unknown as FormPart[] } : null,
     workout: w ? { id: w.id, type: w.type, title: w.title, status: w.status } : null,
-    action: !!todayRow && todayRow.score! < FORM_LOW_ACTION && !!w && w.status === "planned" && HARD_TYPES.has(w.type),
+    action: todayRow?.score != null && todayRow.score < FORM_LOW_ACTION && !!w && w.status === "planned" && HARD_TYPES.has(w.type),
     week: weekBalance(days, today),
     curve: recoveryCurve(scores, from, today, 28, 14),
     selfCheck: formSelfCheck(scores, recoveryRunForm(days)),

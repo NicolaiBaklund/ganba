@@ -108,7 +108,8 @@ export function loadRatio(ix: Index, date: ISODate): number | null {
     if (i <= 7) acute += l;
   }
   if (known < R.minLoadDays || chronic <= 0) return null;
-  return acute / (chronic / 4);
+  // Weekly average over the days with data: days without the watch must not shrink "usual" and inflate the ratio.
+  return acute / ((chronic / known) * 7);
 }
 
 /** Mean deficit of the three days before `date`, when all three are logged food days. */
@@ -177,7 +178,7 @@ function loadPart(ix: Index, date: ISODate): FormPart {
   const r = loadRatio(ix, date);
   if (r == null) return missing("load");
   const points = r > 1.3 ? -R.loadMinus * Math.min((r - 1.3) / 0.2, 1) : r < 0.8 ? R.loadPlus * Math.min((0.8 - r) / 0.3, 1) : 0;
-  return ok("load", points, { ratio: Math.round(r * 100) / 100 });
+  return ok("load", points, { ratio: r });
 }
 
 function energyPart(ix: Index, date: ISODate): FormPart {
@@ -289,11 +290,8 @@ export function weekBalance(days: readonly RecoveryDayInput[], today: ISODate): 
     nights: debt.values.nights ?? 0,
     hardDayDeficit: hard.length >= 2 ? Math.round(mean(hard)) : null,
     hardDays: hard.length,
-    // Same window as the Form part (the 7 days before today), so the tile and the sheet agree.
-    loadRatio: (() => {
-      const r = loadRatio(ix, today);
-      return r == null ? null : Math.round(r * 10) / 10;
-    })(),
+    // Same window and precision as the Form part (the 7 days before today), so the tile and the sheet agree.
+    loadRatio: loadRatio(ix, today),
     runTrendPct: recent.length >= 3 && before.length >= 3 ? Math.round((median(recent) / median(before) - 1) * 100) : null,
   };
 }

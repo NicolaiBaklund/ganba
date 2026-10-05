@@ -3,13 +3,13 @@
 import { useTranslations } from "next-intl";
 import { FORM_RULES, type FormPart } from "@loop/core";
 import { BottomSheet } from "@/components/common/BottomSheet";
+import { signed } from "@/lib/recovery/text";
 import type { FormView } from "@/lib/recovery/view";
 import { cn } from "@/lib/utils";
 import { partDetail } from "./formText";
 
 /** Widest a part can reach, for the bar (the HRV cap is the largest). */
 const BAR_MAX = FORM_RULES.hrvMax;
-const sign = (x: number) => (x > 0 ? `+${x}` : x < 0 ? `−${Math.abs(x)}` : "0");
 
 /** "What counts": every part with its points from 50, learned parts marked, missing ones grey. */
 export function FormSheet({ form, open, onClose }: { form: FormView; open: boolean; onClose: () => void }) {
@@ -37,7 +37,7 @@ export function FormSheet({ form, open, onClose }: { form: FormView; open: boole
                   {p.learned && <span className="ml-2 rounded-full bg-warning px-2 py-0.5 align-[2px] text-[11px] font-bold text-black">{t("learned")}</span>}
                 </p>
                 <p className="num text-[20px] font-extrabold" style={{ color: p.status === "ok" ? color(p) : undefined }}>
-                  {p.status === "ok" ? sign(pts) : "–"}
+                  {p.status === "ok" ? signed(pts) : "–"}
                 </p>
               </div>
               <p className="text-[13px] text-muted-foreground">{partDetail(p, t)}</p>

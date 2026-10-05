@@ -13,16 +13,18 @@ export function formFindings(results: readonly Pick<RecoveryResult, "kind" | "ou
 /** Form for every day in the window, stored per day (spec §4). Days without a night get no row. */
 export async function saveForm(userId: string, days: readonly RecoveryDayInput[], results: readonly RecoveryResult[], from: ISODate, to: ISODate) {
   const db = createAdminSupabase();
+  // Hard sessions that count: those still in the active plan, and those actually done in any plan.
+  // A cancelled or replaced plan leaves its future sessions "planned"; they must not move Form.
   const { data: planned, error: pErr } = await db
     .from("planned_workouts")
-    .select("date, type")
+    .select("date, status, plan:training_plans!inner(status)")
     .eq("user_id", userId)
     .gte("date", from)
     .lte("date", to)
     .neq("status", "removed")
     .in("type", [...HARD_TYPES]);
   if (pErr) throw pErr;
-  const hard = new Set((planned ?? []).map((p) => p.date));
+  const hard = new Set((planned ?? []).filter((p) => p.status === "done" || p.plan.status === "active").map((p) => p.date));
   const findings = formFindings(results);
   const series = formSeries(days, from, to, (date) => ({ findings, hardPlanned: hard.has(date) }));
   const rows = [...series.values()].map((r) => ({ user_id: userId, local_date: r.date, score: r.score, band: r.band, parts: r.parts as unknown as Json }));

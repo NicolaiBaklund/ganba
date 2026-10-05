@@ -3,9 +3,9 @@
 import { useTranslations } from "next-intl";
 import type { WeekBalance } from "@loop/core";
 import { SectionHead } from "@/components/tasuki/SectionHead";
+import { signed } from "@/lib/recovery/text";
 import { cn } from "@/lib/utils";
 
-const signed = (x: number, d = 0) => `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x).toLocaleString("en", { maximumFractionDigits: d })}`;
 
 function Tile({ big, label, tone, fill }: { big: string; label: string; tone?: "good" | "warn" | "bad"; fill: number | null }) {
   const color = tone === "good" ? "var(--success)" : tone === "warn" ? "var(--warning)" : tone === "bad" ? "var(--primary)" : "var(--foreground)";
@@ -53,7 +53,7 @@ export function WeekTiles({ week }: { week: WeekBalance }) {
           big={w.runTrendPct == null ? "–" : `${signed(w.runTrendPct)} %`}
           label={w.runTrendPct == null ? t("tile.none") : t("tile.run")}
           tone={w.runTrendPct == null ? undefined : w.runTrendPct > 0 ? "good" : w.runTrendPct < 0 ? "bad" : undefined}
-          fill={w.runTrendPct == null ? null : Math.min(1, 0.5 + w.runTrendPct / 20)}
+          fill={w.runTrendPct == null ? null : Math.min(1, Math.max(0, 0.5 + w.runTrendPct / 20))}
         />
       </div>
     </section>

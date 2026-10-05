@@ -37,6 +37,6 @@ export async function formNote(userId: string, opts: { ai?: RecoveryAi; today?: 
   const answer: DayAnswer = { sentences: keepGrounded(res.value.sentences, allowed, MAX_SENTENCES) };
   await db
     .from("recovery_day_answers")
-    .upsert({ user_id: userId, local_date: date, question: "form", content: answer as unknown as Json, input_hash: inputHash, ...usageCols(res) }, { onConflict: "user_id,local_date,question" });
+    .upsert({ user_id: userId, local_date: date, question: "form", content: answer as unknown as Json, input_hash: inputHash, ...usageCols(res, FORM_PROMPT_VERSION) }, { onConflict: "user_id,local_date,question" });
   return { ok: true as const, answer };
 }

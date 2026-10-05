@@ -651,7 +651,7 @@
         "low": "Recover"
       },
       "lead": {
-        "workout": "{band, select, ready {Ready for {workout}.} steady {Take {workout} steady.} other {{workout} will feel hard today.}}",
+        "workout": "{band, select, ready {Ready for {workout}.} steady {Take {workout} steady.} other {Today's {workout} will feel hard.}}",
         "rest": "{band, select, ready {A good day to train.} steady {An ordinary day.} other {Take it easy today.}}"
       },
       "drivers": {

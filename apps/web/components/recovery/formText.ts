@@ -1,4 +1,5 @@
 import type { FormBand, FormPart } from "@loop/core";
+import { signed } from "@/lib/recovery/text";
 
 type T = (key: string, values?: Record<string, string | number>) => string;
 
@@ -37,7 +38,7 @@ export function partDetail(p: FormPart, t: T): string {
     case "rhr":
       return t("detail.rhr", { rhr: n(v.rhr), normal: n(v.normal) });
     case "sleepDebt":
-      return t("detail.sleepDebt", { hours: `${(v.hours ?? 0) > 0 ? "+" : (v.hours ?? 0) < 0 ? "−" : ""}${n(Math.abs(v.hours ?? 0), 1)}` });
+      return t("detail.sleepDebt", { hours: signed(v.hours ?? 0, 1) });
     case "load":
       return t("detail.load", { ratio: n(v.ratio, 1) });
     case "energy":

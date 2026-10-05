@@ -94,9 +94,9 @@ export async function verifiedFindings(userId: string): Promise<AiFinding[]> {
   });
 }
 
-export const usageCols = (r: { usage: { input: number; output: number; cacheRead: number; cacheWrite: number }; model: string }) => ({
+export const usageCols = (r: { usage: { input: number; output: number; cacheRead: number; cacheWrite: number }; model: string }, promptVersion = RECOVERY_PROMPT_VERSION) => ({
   model: r.model,
-  prompt_version: RECOVERY_PROMPT_VERSION,
+  prompt_version: promptVersion,
   input_tokens: r.usage.input + r.usage.cacheRead + r.usage.cacheWrite,
   output_tokens: r.usage.output,
   cost_usd: costUsd(r.model, r.usage),
