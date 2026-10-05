@@ -524,6 +524,108 @@
     "error": "Couldn’t save. Try again."
   },
   "recovery": {
-    "title": "Recovery"
+    "title": "Recovery",
+    "findings": "What affects you",
+    "noFindings": "No clear links yet. Keep logging food and wearing your watch at night.",
+    "curves": "Last 30 days",
+    "more": "More",
+    "noEffect": "No clear link",
+    "needsData": "Needs more data",
+    "progress": "{have} of {needed} days",
+    "unclear": "Not clear yet",
+    "training": "Likely training",
+    "fromAi": "Suggested by AI",
+    "controlled": "Holds without hard training days",
+    "nights": "{high} vs {low} days",
+    "daysHigh": "days, first group",
+    "daysLow": "days, second group",
+    "noGarmin": "Connect Garmin to see how food, training and sleep affect each other.",
+    "connect": "Connect Garmin",
+    "fetching": "Fetching sleep data: {days} of 90 days",
+    "metric": {
+      "sleepScore": "Sleep score",
+      "hrv": "HRV",
+      "restingHr": "Resting HR",
+      "runForm": "Run form"
+    },
+    "factor": {
+      "deficit": {
+        "high": "Deficit over {v}",
+        "low": "under {v}"
+      },
+      "deficit3": {
+        "high": "3-day deficit over {v}",
+        "low": "under {v}"
+      },
+      "carbs": {
+        "high": "Carbs over {v}",
+        "low": "under {v}"
+      },
+      "protein": {
+        "high": "Protein over {v}",
+        "low": "under {v}"
+      },
+      "steps": {
+        "high": "Over {v}",
+        "low": "under {v}"
+      },
+      "sleepScore": {
+        "high": "Sleep score over {v}",
+        "low": "under {v}"
+      },
+      "hrv": {
+        "high": "HRV over {v}",
+        "low": "under {v}"
+      },
+      "daysSinceHard": {
+        "high": "{v} or more since a hard day",
+        "low": "{v} or fewer"
+      },
+      "alcohol": {
+        "high": "Days with alcohol",
+        "low": "days without"
+      },
+      "late": {
+        "high": "Late meals (300+ kcal after 8 pm)",
+        "low": "days without"
+      },
+      "hard": {
+        "high": "Hard training days",
+        "low": "other days"
+      },
+      "long": {
+        "high": "Long runs",
+        "low": "other days"
+      }
+    },
+    "outcome": {
+      "sleepScore": "sleep score {diff}",
+      "hrv": "HRV {diff}",
+      "restingHr": "resting HR {diff}",
+      "runForm": "run form {diff}"
+    },
+    "when": {
+      "next": "the next morning",
+      "same": "the same day",
+      "before": "the days before"
+    },
+    "day": {
+      "sleep": "Sleep",
+      "deep": "Deep",
+      "light": "Light",
+      "rem": "REM",
+      "awake": "Awake",
+      "normal": "normal {low}–{high}",
+      "dayBefore": "The day before",
+      "kcal": "{kcal} of {target} kcal",
+      "carbs": "Carbs",
+      "protein": "Protein",
+      "alcohol": "Alcohol",
+      "late": "After 8 pm",
+      "lateUnknown": "time not set",
+      "training": "Training",
+      "rest": "Rest day",
+      "noNight": "No sleep recorded this night."
+    }
   }
 }
