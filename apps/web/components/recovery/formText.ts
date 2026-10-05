@@ -45,7 +45,8 @@ export function partDetail(p: FormPart, t: T): string {
       return (v.deficit ?? 0) >= 0 ? t("detail.energyUnder", { kcal: n(v.deficit) }) : t("detail.energyOver", { kcal: n(-(v.deficit ?? 0)) });
     case "carbs":
       return t("detail.carbs", { v: n(v.carbsPerKg, 1) });
-    case "rest":
-      return t("detail.rest", { days: n(v.days) });
+    case "lastHard":
+      if (v.days == null) return t("detail.lastHardNone");
+      return v.load != null && v.typical != null ? t("detail.lastHard", { days: v.days, load: n(v.load), typical: n(v.typical) }) : t("detail.lastHardNoTypical", { days: v.days });
   }
 }

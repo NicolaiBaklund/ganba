@@ -44,7 +44,7 @@ describe("Form engine", () => {
     const r = computeForm(history(40), D, none)!;
     expect(r.score).toBe(50);
     expect(r.band).toBe("steady");
-    for (const id of ["hrv", "sleep", "rhr", "sleepDebt", "load"]) expect(part(r, id)).toMatchObject({ status: "ok", points: 0 });
+    for (const id of ["hrv", "sleep", "rhr", "sleepDebt", "load", "lastHard"]) expect(part(r, id)).toMatchObject({ status: "ok", points: 0 });
     expect(part(r, "energy")!.status).toBe("missing"); // no food logged: counts 0, never a penalty
     expect(part(r, "carbs")).toBeUndefined(); // only with a hard session planned
   });
@@ -113,8 +113,19 @@ describe("Form engine", () => {
     expect(part(gap, "energy")!.status).toBe("missing"); // one of the three days not logged
   });
 
-  it("learned: an agreeing run-form finding strengthens its part; a rest finding adds a part; all within ±8", () => {
-    const days = history(40, (_, back) => (back === 0 ? { hrv: 70 } : back === 5 ? { hard: true } : {}));
+  it("last hard session: any hard day yesterday or the day before, sized against the usual hard session", () => {
+    // Usual hard session: load 200 (three of them 10–30 days back).
+    const usual = (back: number) => (back === 10 || back === 20 || back === 30 ? { hard: true, load: 200 } : {});
+    const at = (edit: (back: number) => Partial<RecoveryDayInput>) => part(computeForm(history(40, (_, b) => ({ ...usual(b), ...edit(b) })), D, none), "lastHard")!;
+    expect(at(() => ({})).points).toBe(0);
+    expect(at((b) => (b === 1 ? { hard: true, load: 200 } : {}))).toMatchObject({ points: -FORM_RULES.lastHardMinus, values: { days: 1, load: 200, typical: 200 } });
+    expect(at((b) => (b === 2 ? { hard: true, load: 200 } : {})).points).toBe(-FORM_RULES.lastHardMinus * FORM_RULES.lastHardDay2);
+    expect(at((b) => (b === 1 ? { hard: true, load: 60 } : {})).points).toBe(-FORM_RULES.lastHardMinus * FORM_RULES.lastHardMinRatio); // small session: half
+    expect(at((b) => (b === 1 || b === 2 ? { hard: true, load: 400 } : {})).points).toBe(-FORM_RULES.lastHardMinus); // two in a row: capped
+  });
+
+  it("learned: an agreeing run-form finding strengthens its part; all within ±8", () => {
+    const days = history(40, (_, back) => (back === 0 ? { hrv: 70 } : back === 1 ? { hard: true } : {}));
     const plain = computeForm(days, D, none)!;
     const hrvFinding: FormFinding = { factor: "hrv", lag: 0, effectSd: 0.6, highBound: 65, lowBound: 50 };
     const boosted = computeForm(days, D, { findings: [hrvFinding], hardPlanned: false })!;
@@ -124,12 +135,19 @@ describe("Form engine", () => {
     const against = computeForm(days, D, { findings: [{ ...hrvFinding, effectSd: -0.6 }], hardPlanned: false })!;
     expect(part(against, "hrv")).toMatchObject({ learned: false, points: part(plain, "hrv")!.points });
 
+    // Rest finding (more days since hard → better runs) makes the last-hard-session minus personal.
     const rest = computeForm(days, D, { findings: [{ factor: "daysSinceHard", lag: 0, effectSd: 0.5, highBound: 4, lowBound: 1 }], hardPlanned: false })!;
-    expect(part(rest, "rest")).toMatchObject({ learned: true, points: 5, values: { days: 5 } });
+    expect(part(rest, "lastHard")).toMatchObject({ learned: true, points: -FORM_RULES.lastHardMinus * FORM_RULES.learnedBoost });
 
-    const huge = computeForm(days, D, { findings: [hrvFinding, { factor: "daysSinceHard", lag: 0, effectSd: 3, highBound: 4, lowBound: 1 }], hardPlanned: false })!;
-    const extra = part(huge, "rest")!.points + (part(huge, "hrv")!.points - part(plain, "hrv")!.points);
-    expect(extra).toBeLessThanOrEqual(FORM_RULES.learnedMax + 0.1);
+    const both = computeForm(days, D, { findings: [hrvFinding, { factor: "daysSinceHard", lag: 0, effectSd: 3, highBound: 4, lowBound: 1 }], hardPlanned: false })!;
+    // The cap is on what findings add to the score in total.
+    const sameSign = history(40, (_, back) => (back === 0 ? { hrv: 90, sleepScore: 100 } : {}));
+    const base = computeForm(sameSign, D, none)!;
+    const boosted2 = computeForm(sameSign, D, { findings: [hrvFinding, { factor: "sleepScore", lag: 0, effectSd: 0.9, highBound: 80, lowBound: 60 }], hardPlanned: false })!;
+    const added = boosted2.parts.reduce((s, p) => s + p.points, 0) - base.parts.reduce((s, p) => s + p.points, 0);
+    expect(added).toBeGreaterThan(0);
+    expect(added).toBeLessThanOrEqual(FORM_RULES.learnedMax + 0.1);
+    expect(part(both, "lastHard")!.learned && part(both, "hrv")!.learned).toBe(true);
   });
 
   it("self-check needs 8 runs on each side", () => {

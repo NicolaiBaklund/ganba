@@ -7,7 +7,7 @@ import type { RecoveryFactor } from "./variables";
  * Form: one 0–100 number per morning (spec docs/specs/2026-10-05-form.md §3).
  * 50 + points from each part against the person's own normal; parts without data count 0.
  */
-export const FORM_PART_IDS = ["hrv", "sleep", "rhr", "sleepDebt", "load", "energy", "carbs", "rest"] as const;
+export const FORM_PART_IDS = ["hrv", "sleep", "rhr", "sleepDebt", "load", "energy", "carbs", "lastHard"] as const;
 export type FormPartId = (typeof FORM_PART_IDS)[number];
 export type FormBand = "ready" | "steady" | "low";
 export const FORM_BANDS = { ready: 70, steady: 40 } as const;
@@ -65,7 +65,13 @@ export const FORM_RULES = {
   minNormal: 14,
   minDebtNights: 4,
   minLoadDays: 21,
-  restCapDays: 14,
+  /** Last hard session: full minus the day after a usual-sized one, half the day after that. */
+  lastHardMinus: 6,
+  lastHardDay2: 0.5,
+  /** A session's size vs the person's usual hard session counts from half to full. */
+  lastHardMinRatio: 0.5,
+  typicalHardDays: 60,
+  minTypicalHard: 3,
 } as const;
 
 const R = FORM_RULES;
@@ -118,9 +124,10 @@ function deficit3Before(ix: Index, date: ISODate): number | null {
   return ds.every((x) => x != null) ? mean(ds as number[]) : null;
 }
 
-function daysSinceHard(ix: Index, date: ISODate): number {
-  for (let i = 1; i < R.restCapDays; i++) if (ix.get(addDays(date, -i))?.hard) return i;
-  return R.restCapDays;
+/** Median training load of the person's hard days before `date` (null with fewer than 3). */
+function typicalHardLoad(ix: Index, date: ISODate): number | null {
+  const loads = previous(ix, date, R.typicalHardDays, (x) => (x.hard && x.load ? x.load : null));
+  return loads.length >= R.minTypicalHard ? median(loads) : null;
 }
 
 function hrvPart(ix: Index, d: RecoveryDayInput): FormPart {
@@ -195,12 +202,32 @@ function carbsPart(ix: Index, date: ISODate): FormPart {
   return ok("carbs", points, { carbsPerKg: round1(c) });
 }
 
+/**
+ * A hard day (any activity, planned or not) yesterday or the day before: legs carry it even when HRV bounces back.
+ * Sized by its load against the person's usual hard session; two in a row add up to the cap.
+ */
+function lastHardPart(ix: Index, date: ISODate): FormPart {
+  const typical = typicalHardLoad(ix, date);
+  let points = 0;
+  let last: { days: number; load: number | null } | null = null;
+  for (const [back, weight] of [[1, 1], [2, R.lastHardDay2]] as const) {
+    const x = ix.get(addDays(date, -back));
+    if (!x?.hard) continue;
+    const ratio = typical && x.load ? clamp(x.load / typical, R.lastHardMinRatio, 1) : 1;
+    points -= R.lastHardMinus * weight * ratio;
+    last ??= { days: back, load: x.load ?? null };
+  }
+  return ok("lastHard", Math.max(points, -R.lastHardMinus), { days: last?.days ?? null, load: last?.load != null ? Math.round(last.load) : null, typical: typical != null ? Math.round(typical) : null });
+}
+
 /** Parts a run-form finding can strengthen; the sign says which way the part already points for a higher factor. */
 const BOOSTS: Partial<Record<RecoveryFactor, { part: FormPartId; sign: 1 | -1 }>> = {
   sleepScore: { part: "sleep", sign: 1 },
   hrv: { part: "hrv", sign: 1 },
   carbs: { part: "carbs", sign: 1 },
   deficit3: { part: "energy", sign: -1 },
+  // More days since a hard day → better runs: the last-hard-session minus is real for this person.
+  daysSinceHard: { part: "lastHard", sign: 1 },
 };
 
 /** Form for one morning, or null without a night (no sleep score and no HRV). */
@@ -209,24 +236,18 @@ export function computeForm(days: readonly RecoveryDayInput[] | Index, date: ISO
   const d = ix.get(date);
   if (!d || (d.sleepScore == null && d.hrv == null)) return null;
 
-  const parts: FormPart[] = [hrvPart(ix, d), sleepPart(d), rhrPart(ix, d), sleepDebtPart(ix, date), loadPart(ix, date), energyPart(ix, date)];
+  const parts: FormPart[] = [hrvPart(ix, d), sleepPart(d), rhrPart(ix, d), sleepDebtPart(ix, date), loadPart(ix, date), energyPart(ix, date), lastHardPart(ix, date)];
   if (ctx.hardPlanned) parts.push(carbsPart(ix, date));
 
-  // Learned: a run-form finding that agrees with a part strengthens it; days since hard is its own part.
+  // Learned: a run-form finding that agrees with a part strengthens it (×1.5).
   const extras = new Map<FormPartId, number>();
   for (const f of ctx.findings) {
     const boost = BOOSTS[f.factor];
-    if (boost) {
-      const p = parts.find((x) => x.id === boost.part);
-      if (p?.status === "ok" && Math.sign(f.effectSd) === boost.sign && p.points !== 0) {
-        p.learned = true;
-        extras.set(p.id, (extras.get(p.id) ?? 0) + p.points * (R.learnedBoost - 1));
-      }
-    } else if (f.factor === "daysSinceHard") {
-      const v = daysSinceHard(ix, date);
-      const g = f.highBound != null && v >= f.highBound ? 1 : f.lowBound != null && v <= f.lowBound ? -1 : 0;
-      parts.push({ id: "rest", points: 0, status: "ok", learned: true, values: { days: v } });
-      extras.set("rest", clamp(g * f.effectSd * 10, -R.learnedMax, R.learnedMax));
+    if (!boost) continue;
+    const p = parts.find((x) => x.id === boost.part);
+    if (p?.status === "ok" && Math.sign(f.effectSd) === boost.sign && p.points !== 0) {
+      p.learned = true;
+      extras.set(p.id, (extras.get(p.id) ?? 0) + p.points * (R.learnedBoost - 1));
     }
   }
   const extraSum = [...extras.values()].reduce((s, x) => s + x, 0);
