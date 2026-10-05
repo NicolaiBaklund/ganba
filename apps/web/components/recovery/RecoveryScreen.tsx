@@ -7,8 +7,9 @@ import { FindingsList } from "./FindingsList";
 import { RecoveryCurves } from "./RecoveryCurves";
 import { MoreLists } from "./MoreLists";
 import { DaySheet } from "./DaySheet";
+import { WhyButton } from "./WhyButton";
 
-export function RecoveryScreen({ view, top, whySlot }: { view: RecoveryView; top?: React.ReactNode; whySlot?: (date: ISODate) => React.ReactNode }) {
+export function RecoveryScreen({ view, top, ai }: { view: RecoveryView; top?: React.ReactNode; ai: boolean }) {
   const [day, setDay] = useState<ISODate | null>(null);
   return (
     <>
@@ -16,7 +17,7 @@ export function RecoveryScreen({ view, top, whySlot }: { view: RecoveryView; top
       <FindingsList findings={view.findings} />
       <RecoveryCurves curves={view.curves} onPick={setDay} />
       <MoreLists noEffect={view.noEffect} needsData={view.needsData} />
-      <DaySheet date={day} onClose={() => setDay(null)} whySlot={whySlot} />
+      <DaySheet date={day} onClose={() => setDay(null)} whySlot={ai ? (d) => <WhyButton date={d} /> : undefined} />
     </>
   );
 }

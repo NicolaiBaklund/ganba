@@ -626,6 +626,19 @@
       "training": "Training",
       "rest": "Rest day",
       "noNight": "No sleep recorded this night."
+    },
+    "ai": {
+      "summary": "This week",
+      "loading": "Writing your summary",
+      "tips": "Next week",
+      "nothing": "Nothing stood out with enough data behind it.",
+      "why": "Why?",
+      "stale": "Data changed since this answer.",
+      "ask": "Ask again",
+      "off": "Turn on AI insights",
+      "noKey": "Add your Anthropic key in Profile to get AI insights.",
+      "error": "AI is unavailable right now.",
+      "notEnough": "Not enough data for this yet."
     }
   }
 }
