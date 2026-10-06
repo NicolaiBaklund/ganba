@@ -8,7 +8,6 @@ import {
   Line,
   ReferenceLine,
   ResponsiveContainer,
-  Scatter,
   Tooltip,
   XAxis,
   YAxis,
@@ -19,6 +18,8 @@ import { Chip } from "@/components/common/Chip";
 type Range = "1m" | "3m" | "all";
 const DAY_MS = 86_400_000;
 const ts = (d: string) => new Date(`${d}T00:00:00Z`).getTime();
+type Row = { x: number; weight: number | null; trend: number | null; forecast: number | null };
+const ORDER = ["weight", "trend", "forecast"] as const;
 
 export function WeightChart({
   trend,
@@ -35,25 +36,24 @@ export function WeightChart({
   const [range, setRange] = useState<Range>("1m");
   const format = useFormatter();
 
-  const { points, forecast, domain, xDomain, xTicks } = useMemo(() => {
+  const { points, rows, hasForecast, domain, xDomain, xTicks } = useMemo(() => {
     const from = range === "all" ? null : addDays(today, range === "1m" ? -30 : -90);
     const pts = trend.filter((p) => !from || p.date >= from).map((p) => ({ x: ts(p.date), weight: p.weightKg, trend: p.trendKg }));
     const last = pts.at(-1);
-    // Show forecast only if the goal is reached within ~a year.
-    const fc =
-      last && etaDate && ts(etaDate) - last.x < 400 * DAY_MS
-        ? [
-            { x: last.x, forecast: last.trend },
-            { x: ts(etaDate), forecast: goalKg },
-          ]
-        : [];
+    // Show forecast only if the goal is reached after the last weigh-in and within ~a year.
+    const eta = last && etaDate && ts(etaDate) > last.x && ts(etaDate) - last.x < 400 * DAY_MS ? ts(etaDate) : null;
     const ys = [...pts.flatMap((p) => [p.weight, p.trend]), goalKg];
-    const xs = [...pts.map((p) => p.x), ...fc.map((p) => p.x)];
+    const xs = [...pts.map((p) => p.x), ...(eta != null ? [eta] : [])];
     // Pad a single-day range so the axis doesn't collapse into duplicate ticks.
     const xPad = Math.max(...xs) === Math.min(...xs) ? 3 * DAY_MS : 0;
+    // One row per day on the chart itself, so a tap shows that day's weigh-in and trend together. The forecast line
+    // starts at the last row (its value is that day's trend, so the tooltip leaves it out there) and ends at the goal.
+    const rows: Row[] = pts.map((p, i) => ({ ...p, forecast: eta != null && i === pts.length - 1 ? p.trend : null }));
+    if (eta != null) rows.push({ x: eta, weight: null, trend: null, forecast: goalKg });
     return {
       points: pts,
-      forecast: fc,
+      rows,
+      hasForecast: eta != null,
       xDomain: [Math.min(...xs) - xPad, Math.max(...xs) + xPad] as [number, number],
       // Explicit, de-duplicated day ticks (series share x values, so auto ticks can repeat).
       xTicks: [...new Set([0, 1, 2, 3].map((i) => {
@@ -72,7 +72,7 @@ export function WeightChart({
     <div>
       <div className="h-56 w-full">
         <ResponsiveContainer>
-          <ComposedChart margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
+          <ComposedChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
             <CartesianGrid stroke="var(--border)" vertical={false} />
             <XAxis
               dataKey="x"
@@ -88,15 +88,29 @@ export function WeightChart({
             />
             <YAxis domain={domain} stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
             <Tooltip
-              contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 12 }}
-              labelFormatter={(x) => fmt(Number(x))}
-              formatter={(v) => `${Number(v).toFixed(1)} kg`}
+              content={({ active, payload, label }) => {
+                const row = payload?.[0]?.payload as Row | undefined;
+                if (!active || !row) return null;
+                // The forecast's first point is the trend repeated: only show it where there is no trend.
+                const items = ORDER.filter((k) => row[k] != null && !(k === "forecast" && row.trend != null));
+                return (
+                  <div className="rounded-xl border border-border bg-popover px-3 py-2 text-[13px]">
+                    <p className="font-semibold">{fmt(Number(label))}</p>
+                    {items.map((k) => (
+                      <p key={k} className={k === "forecast" ? "text-primary" : k === "weight" ? "text-muted-foreground" : ""}>
+                        {t(k)}: {row[k]!.toFixed(1)} kg
+                      </p>
+                    ))}
+                  </div>
+                );
+              }}
             />
             <ReferenceLine y={goalKg} stroke="var(--success)" strokeDasharray="4 4" />
-            <Scatter data={points} dataKey="weight" fill="var(--muted-foreground)" fillOpacity={0.4} name={t("weight")} />
-            <Line data={points} dataKey="trend" stroke="var(--foreground)" strokeWidth={2.5} dot={false} type="monotone" name={t("trend")} />
-            {forecast.length > 0 && (
-              <Line data={forecast} dataKey="forecast" stroke="var(--primary)" strokeDasharray="5 5" dot={false} name={t("forecast")} />
+            {/* Weigh-ins as dots on a stroke-less line: same row as the trend, and no "x" entry in the tooltip. */}
+            <Line dataKey="weight" stroke="none" dot={{ r: 4, fill: "var(--muted-foreground)", fillOpacity: 0.4, stroke: "none" }} activeDot={{ r: 5 }} isAnimationActive={false} name={t("weight")} />
+            <Line dataKey="trend" stroke="var(--foreground)" strokeWidth={2.5} dot={false} type="monotone" name={t("trend")} />
+            {hasForecast && (
+              <Line dataKey="forecast" stroke="var(--primary)" strokeDasharray="5 5" dot={false} name={t("forecast")} />
             )}
           </ComposedChart>
         </ResponsiveContainer>

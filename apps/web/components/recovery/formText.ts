@@ -17,9 +17,11 @@ export function drivers(parts: readonly FormPart[], t: T) {
   return { up: list(up), down: list(down) };
 }
 
-/** The sentence without AI: band (with today's session), then what lifted and held back. */
-export function formTemplate(score: { band: FormBand; parts: readonly FormPart[] }, workout: string | null, t: T): string {
-  const lead = workout ? t("lead.workout", { band: score.band, workout }) : t("lead.rest", { band: score.band });
+/** The sentence without AI: band (with today's session, still to do or done), then what lifted and held back. */
+export function formTemplate(score: { band: FormBand; parts: readonly FormPart[] }, workout: { name: string; done: boolean } | null, t: T): string {
+  const lead = !workout
+    ? t("lead.rest", { band: score.band })
+    : t(workout.done ? "lead.done" : "lead.workout", { band: score.band, workout: workout.name });
   const { up, down } = drivers(score.parts, t);
   const tail = up && down ? t("drivers.both", { up, down }) : up ? t("drivers.up", { up }) : down ? t("drivers.down", { down }) : "";
   return tail ? `${lead} ${tail}` : lead;

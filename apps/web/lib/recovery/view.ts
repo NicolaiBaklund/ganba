@@ -18,7 +18,7 @@ import {
   type RecoveryOutcome,
   type WeekBalance,
 } from "@loop/core";
-import { todaysWorkout, type WorkoutListItem } from "@/lib/training/view";
+import { formSession, type FormSession } from "./form-session";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { getApiKeyStatus } from "@/lib/ai/keys";
 import { getGarminStatus } from "@/lib/garmin/accounts";
@@ -49,7 +49,7 @@ export interface FindingRow {
 export interface FormView {
   /** Today's Form, null without a night. */
   today: { score: number; band: FormBand; parts: FormPart[] } | null;
-  workout: Pick<WorkoutListItem, "id" | "type" | "title" | "status"> | null;
+  workout: FormSession | null;
   /** Low Form with a hard session still to do today: offer the coach. */
   action: boolean;
   week: WeekBalance;
@@ -96,7 +96,7 @@ export async function loadRecoveryView(userId: string): Promise<RecoveryView> {
     // Curves need 30 days shown + 30 for the normal band; the self-check needs the whole window plus run-form history.
     loadRecoveryDays(userId, today),
     db.from("form_days").select("local_date, score").eq("user_id", userId).gte("local_date", addDays(today, -89)).order("local_date"),
-    todaysWorkout(userId, today),
+    formSession(userId, today),
   ]);
   // The parts are only needed for today.
   const { data: todayRow } = await db.from("form_days").select("score, band, parts").eq("user_id", userId).eq("local_date", today).maybeSingle();
@@ -122,11 +122,11 @@ export async function loadRecoveryView(userId: string): Promise<RecoveryView> {
   });
   const from = addDays(today, -(CURVE_DAYS - 1));
   const scores = new Map((formRows ?? []).flatMap((r) => (r.score == null ? [] : [[r.local_date, r.score] as const])));
-  const w = session.workout;
+  const w = session;
   const form: FormView = {
     today: todayRow?.score != null ? { score: todayRow.score, band: todayRow.band as FormBand, parts: knownParts(todayRow.parts) } : null,
-    workout: w ? { id: w.id, type: w.type, title: w.title, status: w.status } : null,
-    action: todayRow?.score != null && todayRow.score < FORM_LOW_ACTION && !!w && w.status === "planned" && HARD_TYPES.has(w.type),
+    workout: w,
+    action: todayRow?.score != null && todayRow.score < FORM_LOW_ACTION && !!w?.id && w.status === "planned" && !!w.type && HARD_TYPES.has(w.type),
     week: weekBalance(days, today),
     curve: recoveryCurve(scores, from, today, 28, 14),
     selfCheck: formSelfCheck(scores, recoveryRunForm(days)),

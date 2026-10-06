@@ -16,7 +16,8 @@ export function FormHero({ form, ai }: { form: FormView; ai: boolean }) {
   const [coach, setCoach] = useState(false);
   const [aiText, setAiText] = useState<string | null>(null);
   const f = form.today;
-  const workout = form.workout && form.workout.status === "planned" ? tw(form.workout.type).toLowerCase() : null;
+  const w = form.workout;
+  const workout = w ? { name: w.type ? tw(w.type).toLowerCase() : t("session"), done: w.status === "done" } : null;
 
   useEffect(() => {
     if (!ai || !f) return;
@@ -37,7 +38,7 @@ export function FormHero({ form, ai }: { form: FormView; ai: boolean }) {
     );
   }
   const sentence = aiText ?? formTemplate(f, workout, t);
-  const draft = form.action && workout ? t("draft", { score: f.score, reasons: drivers(f.parts, t).down || t(`band.${f.band}`).toLowerCase(), workout }) : "";
+  const draft = form.action && workout ? t("draft", { score: f.score, reasons: drivers(f.parts, t).down || t(`band.${f.band}`).toLowerCase(), workout: workout.name }) : "";
   return (
     <section className="mt-5 flex flex-col items-center">
       <button type="button" onClick={() => setSheet(true)} aria-label={t("aria", { score: f.score })} className="rounded-full">
@@ -45,7 +46,7 @@ export function FormHero({ form, ai }: { form: FormView; ai: boolean }) {
       </button>
       <p className="mt-3 max-w-[22rem] text-center text-[15px] leading-snug">{sentence}</p>
       <div className="mt-3 flex items-center gap-5 text-[14px] font-semibold">
-        {form.action && form.workout && (
+        {form.action && (
           <button type="button" onClick={() => setCoach(true)} className="rounded-md bg-foreground px-4 py-2.5 text-background">
             {t("action")}
           </button>
@@ -55,7 +56,7 @@ export function FormHero({ form, ai }: { form: FormView; ai: boolean }) {
         </button>
       </div>
       <FormSheet form={form} open={sheet} onClose={() => setSheet(false)} />
-      {coach && form.workout && <CoachSheet aboutWorkoutId={form.workout.id} draft={draft} onClose={() => setCoach(false)} />}
+      {coach && w?.id && <CoachSheet aboutWorkoutId={w.id} draft={draft} onClose={() => setCoach(false)} />}
     </section>
   );
 }
