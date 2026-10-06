@@ -8,7 +8,6 @@ import {
   Line,
   ReferenceLine,
   ResponsiveContainer,
-  Scatter,
   Tooltip,
   XAxis,
   YAxis,
@@ -35,9 +34,9 @@ export function WeightChart({
   const [range, setRange] = useState<Range>("1m");
   const format = useFormatter();
 
-  const { points, forecast, domain, xDomain, xTicks } = useMemo(() => {
+  const { points, rows, forecast, domain, xDomain, xTicks } = useMemo(() => {
     const from = range === "all" ? null : addDays(today, range === "1m" ? -30 : -90);
-    const pts = trend.filter((p) => !from || p.date >= from).map((p) => ({ x: ts(p.date), weight: p.weightKg, trend: p.trendKg }));
+    const pts = trend.filter((p) => !from || p.date >= from).map((p) => ({ x: ts(p.date), weight: p.weightKg as number | null, trend: p.trendKg as number | null, forecast: null as number | null }));
     const last = pts.at(-1);
     // Show forecast only if the goal is reached within ~a year.
     const fc =
@@ -47,12 +46,17 @@ export function WeightChart({
             { x: ts(etaDate), forecast: goalKg },
           ]
         : [];
-    const ys = [...pts.flatMap((p) => [p.weight, p.trend]), goalKg];
+    const ys = [...pts.flatMap((p) => [p.weight!, p.trend!]), goalKg];
     const xs = [...pts.map((p) => p.x), ...fc.map((p) => p.x)];
     // Pad a single-day range so the axis doesn't collapse into duplicate ticks.
     const xPad = Math.max(...xs) === Math.min(...xs) ? 3 * DAY_MS : 0;
+    // One row per day on the chart itself: a tap shows the weigh-in, the trend and (on the last day) the forecast together.
+    const rows = fc.length
+      ? [...pts.slice(0, -1), { ...pts.at(-1)!, forecast: fc[0]!.forecast }, { x: fc[1]!.x, weight: null, trend: null, forecast: fc[1]!.forecast }]
+      : pts;
     return {
       points: pts,
+      rows,
       forecast: fc,
       xDomain: [Math.min(...xs) - xPad, Math.max(...xs) + xPad] as [number, number],
       // Explicit, de-duplicated day ticks (series share x values, so auto ticks can repeat).
@@ -72,7 +76,7 @@ export function WeightChart({
     <div>
       <div className="h-56 w-full">
         <ResponsiveContainer>
-          <ComposedChart margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
+          <ComposedChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
             <CartesianGrid stroke="var(--border)" vertical={false} />
             <XAxis
               dataKey="x"
@@ -90,13 +94,15 @@ export function WeightChart({
             <Tooltip
               contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 12 }}
               labelFormatter={(x) => fmt(Number(x))}
-              formatter={(v) => `${Number(v).toFixed(1)} kg`}
+              formatter={(v) => (v == null ? null : `${Number(v).toFixed(1)} kg`)}
+              itemSorter={(i) => ["weight", "trend", "forecast"].indexOf(String(i.dataKey))}
             />
             <ReferenceLine y={goalKg} stroke="var(--success)" strokeDasharray="4 4" />
-            <Scatter data={points} dataKey="weight" fill="var(--muted-foreground)" fillOpacity={0.4} name={t("weight")} />
-            <Line data={points} dataKey="trend" stroke="var(--foreground)" strokeWidth={2.5} dot={false} type="monotone" name={t("trend")} />
+            {/* Weigh-ins as dots on a stroke-less line: same row as the trend, and no "x" entry in the tooltip. */}
+            <Line dataKey="weight" stroke="none" dot={{ r: 4, fill: "var(--muted-foreground)", fillOpacity: 0.4, stroke: "none" }} activeDot={{ r: 5 }} isAnimationActive={false} name={t("weight")} />
+            <Line dataKey="trend" stroke="var(--foreground)" strokeWidth={2.5} dot={false} type="monotone" name={t("trend")} />
             {forecast.length > 0 && (
-              <Line data={forecast} dataKey="forecast" stroke="var(--primary)" strokeDasharray="5 5" dot={false} name={t("forecast")} />
+              <Line dataKey="forecast" stroke="var(--primary)" strokeDasharray="5 5" dot={false} connectNulls name={t("forecast")} />
             )}
           </ComposedChart>
         </ResponsiveContainer>

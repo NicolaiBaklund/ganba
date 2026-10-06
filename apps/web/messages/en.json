@@ -726,7 +726,9 @@
       "learnedTitle": "Learned about you",
       "progress": "{found} found, {almost} almost there, {need} need more data",
       "aiNote": "Written by AI from the numbers above"
-    }
+    },
+    "openDay": "Open day",
+    "scrubHint": "Drag along the curve to see each day."
   },
   "coach": {
     "open": "Coach",
