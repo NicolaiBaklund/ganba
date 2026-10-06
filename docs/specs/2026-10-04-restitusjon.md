@@ -184,7 +184,7 @@ Følger Tasuki-redesignet (smale tall, linjer framfor kort, karmosinrød kun for
 Rekkefølge:
 1. **Ukas oppsummering** (AI, sammenfoldbar; kun med bryter på).
 2. **Funn** (maks 5): én linje med tall og n. Trykk → ark med to-gruppe-graf (punkt for punkt), hva som er kontrollert for, ev. «suggested by AI».
-3. **Kurver:** søvnscore, HRV, hvilepuls, løpsform; 30 dager, normalområde som skygge, dagens verdi. Trykk dag → dagsark.
+3. **Kurver:** søvnscore, HRV, hvilepuls, løpsform; 30 dager, normalområde som skygge, dagens verdi. Trykk dag → dagsark; dra sideveis for å lese dag for dag (se 02-decisions 2026-10-06).
 4. **No clear link** og **trenger mer data** (sammenfoldet).
 
 **Dagsark:** søvnfaser som én stolpe, søvnscore, HRV og hvilepuls mot normal; dagen før (kcal mot mål, karbo, protein, alkohol hvis logget, sene måltider, trening); «Why?» (AI på).

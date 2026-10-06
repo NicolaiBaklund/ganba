@@ -728,7 +728,7 @@
       "aiNote": "Written by AI from the numbers above"
     },
     "openDay": "Open day",
-    "scrubHint": "Drag along the curve to see each day."
+    "scrubHint": "Tap a day to open it, or drag to read each day."
   },
   "coach": {
     "open": "Coach",

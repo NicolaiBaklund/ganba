@@ -1,14 +1,12 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Area, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Scatter, XAxis, YAxis } from "recharts";
 import { useFormatter } from "next-intl";
 import type { CurvePoint, ISODate } from "@loop/core";
 import { SectionHead } from "@/components/tasuki/SectionHead";
-import { useScrub } from "./useScrub";
+import { ScrubCurve } from "./ScrubCurve";
 
 type Key = "sleepScore" | "hrv" | "restingHr" | "runForm";
-const ts = (d: string) => new Date(`${d}T00:00:00Z`).getTime();
 
 export function RecoveryCurves({ curves, onPick }: { curves: Record<Key, CurvePoint[]>; onPick: (date: ISODate) => void }) {
   const t = useTranslations("recovery");
@@ -37,38 +35,18 @@ export function RecoveryCurves({ curves, onPick }: { curves: Record<Key, CurvePo
   );
 }
 
-/** One metric: drag along it to read a day (value and date in the header); tap the date to open that day. */
+/** One metric: tap a day to open it, drag to read days. */
 function MetricCurve({ k, points, onPick }: { k: Key; points: CurvePoint[]; onPick: (date: ISODate) => void }) {
   const t = useTranslations("recovery");
-  const format = useFormatter();
-  const data = points.map((p) => ({ x: ts(p.date), date: p.date, v: p.value, band: p.low != null && p.high != null ? [p.low, p.high] : null }));
-  const { selected, bind } = useScrub(data, { left: 4, right: 4 });
-  const shown = selected ?? data.at(-1)!;
   return (
     <div className="border-b border-border py-3">
-      <div className="flex items-baseline justify-between gap-3">
-        <p className="font-bold">{t(`metric.${k}`)}</p>
-        <p className="flex items-baseline gap-2">
-          {selected && (
-            <button type="button" onClick={() => onPick(selected.date)} className="text-[13px] font-semibold text-primary">
-              {format.dateTime(new Date(selected.x), { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })}
-            </button>
-          )}
-          <span className="num text-[17px] font-extrabold">{k === "runForm" ? shown.v.toFixed(1) : Math.round(shown.v)}</span>
-        </p>
-      </div>
-      <div className="mt-1 h-16 w-full select-none" {...bind}>
-        <ResponsiveContainer>
-          <ComposedChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
-            <XAxis dataKey="x" type="number" domain={["dataMin", "dataMax"]} hide />
-            <YAxis domain={["auto", "auto"]} hide />
-            <Area dataKey="band" stroke="none" fill="var(--muted)" isAnimationActive={false} />
-            <Line dataKey="v" stroke="var(--foreground)" strokeWidth={2} dot={false} isAnimationActive={false} />
-            {selected && <ReferenceLine x={selected.x} stroke="var(--muted-foreground)" strokeDasharray="3 3" />}
-            <Scatter data={[shown]} dataKey="v" fill="var(--primary)" isAnimationActive={false} />
-          </ComposedChart>
-        </ResponsiveContainer>
-      </div>
+      <ScrubCurve
+        points={points}
+        onPick={onPick}
+        height={64}
+        title={<p className="font-bold">{t(`metric.${k}`)}</p>}
+        format={(v) => (k === "runForm" ? v.toFixed(1) : String(Math.round(v)))}
+      />
     </div>
   );
 }
