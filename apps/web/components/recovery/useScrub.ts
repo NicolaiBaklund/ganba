@@ -3,6 +3,8 @@
 import { useRef, useState } from "react";
 
 const TAP_SLOP = 8; // px a finger may wander and still count as a tap
+/** The chart's side margins; ScrubCurve uses the same so the pointer maps onto the plotted days. */
+export const SCRUB_INSET = { left: 6, right: 6 } as const;
 
 /**
  * Tap a chart to get the nearest day (`onTap`), or press and drag sideways to read days one by one.
@@ -10,7 +12,7 @@ const TAP_SLOP = 8; // px a finger may wander and still count as a tap
  * (`touch-action: pan-y` hands those to the browser, which cancels the pointer) never select anything.
  * The pick is kept as an x value, so new data cannot shift it to another day. `inset` = the chart's side margins.
  */
-export function useScrub<T extends { x: number }>(data: readonly T[], onTap: (d: T) => void, inset = { left: 6, right: 6 }) {
+export function useScrub<T extends { x: number }>(data: readonly T[], onTap: (d: T) => void, inset: { left: number; right: number } = SCRUB_INSET) {
   const [x, setX] = useState<number | null>(null);
   const press = useRef<{ x0: number; y0: number; dragging: boolean } | null>(null);
 
@@ -36,6 +38,10 @@ export function useScrub<T extends { x: number }>(data: readonly T[], onTap: (d:
     onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => {
       const p = press.current;
       if (!p) return; // hover: nothing
+      if (e.pointerType === "mouse" && e.buttons === 0) {
+        press.current = null; // released outside the chart: back to hover
+        return;
+      }
       if (!p.dragging && Math.abs(e.clientX - p.x0) > TAP_SLOP && Math.abs(e.clientX - p.x0) > Math.abs(e.clientY - p.y0)) {
         p.dragging = true;
         e.currentTarget.setPointerCapture?.(e.pointerId);
@@ -46,6 +52,7 @@ export function useScrub<T extends { x: number }>(data: readonly T[], onTap: (d:
       const p = press.current;
       press.current = null;
       if (!p || p.dragging) return; // a drag only reads; "Open day" opens
+      if (Math.hypot(e.clientX - p.x0, e.clientY - p.y0) > TAP_SLOP) return; // moved too far to be a tap
       const d = nearest(e);
       if (d) {
         setX(d.x);

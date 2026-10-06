@@ -725,7 +725,8 @@
       "curve": "Form, 30 days",
       "learnedTitle": "Learned about you",
       "progress": "{found} found, {almost} almost there, {need} need more data",
-      "aiNote": "Written by AI from the numbers above"
+      "aiNote": "Written by AI from the numbers above",
+      "session": "session"
     },
     "openDay": "Open day",
     "scrubHint": "Tap a day to open it, or drag to read each day."

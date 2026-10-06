@@ -4,7 +4,7 @@ import { DayAnswerSchema, findingRefs, FORM_PROMPT_VERSION, formMessage, keepGro
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import type { Json } from "@/lib/db/types";
 import { anthropicRecoveryAi, type RecoveryAi } from "@/lib/ai/recovery";
-import { todaysWorkout } from "@/lib/training/view";
+import { formSession } from "./form-session";
 import { gate, usageCols, verifiedFindings } from "./insights";
 import { knownParts } from "./view";
 
@@ -23,9 +23,8 @@ export async function formNote(userId: string, opts: { ai?: RecoveryAi; today?: 
   if (!row || row.score == null) return { ok: false as const, error: "not_enough_data" as const };
 
   const parts = knownParts(row.parts).map((p) => ({ id: p.id, status: p.status, points: p.points, learned: p.learned, values: p.values }));
-  const { workout: w } = await todaysWorkout(userId, date);
-  // A session already done today is still today's session, not a rest day.
-  const workout = w && (w.status === "planned" || w.status === "done") ? { type: w.type, title: w.title, status: w.status } : null;
+  const s = await formSession(userId, date);
+  const workout = s ? { type: s.type ?? "other", title: s.title, status: s.status } : null;
   const inputHash = createHash("sha256").update(`${FORM_PROMPT_VERSION}\n${g.language}\n${row.score}\n${JSON.stringify(parts)}\n${JSON.stringify(workout)}`).digest("hex");
 
   const { data: cached } = await db.from("recovery_day_answers").select("content, input_hash").eq("user_id", userId).eq("local_date", date).eq("question", "form").maybeSingle();

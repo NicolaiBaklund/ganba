@@ -3,7 +3,7 @@
 import { useFormatter, useTranslations } from "next-intl";
 import { Area, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Scatter, XAxis, YAxis } from "recharts";
 import type { CurvePoint, ISODate } from "@loop/core";
-import { useScrub } from "./useScrub";
+import { SCRUB_INSET, useScrub } from "./useScrub";
 
 const ts = (d: string) => new Date(`${d}T00:00:00Z`).getTime();
 
@@ -47,7 +47,7 @@ export function ScrubCurve({
       </div>
       <div className="mt-1 w-full cursor-pointer select-none" style={{ height, ...touch }} {...handlers}>
         <ResponsiveContainer>
-          <ComposedChart data={data} margin={{ top: 6, right: 6, bottom: 0, left: 6 }}>
+          <ComposedChart data={data} margin={{ top: 6, bottom: 0, ...SCRUB_INSET }}>
             <XAxis dataKey="x" type="number" domain={["dataMin", "dataMax"]} hide />
             <YAxis domain={yDomain} hide />
             <Area dataKey="band" stroke="none" fill="var(--muted)" isAnimationActive={false} />
