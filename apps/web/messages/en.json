@@ -652,7 +652,8 @@
       },
       "lead": {
         "workout": "{band, select, ready {Ready for {workout}.} steady {Take {workout} steady.} other {Today's {workout} will feel hard.}}",
-        "rest": "{band, select, ready {A good day to train.} steady {An ordinary day.} other {Take it easy today.}}"
+        "rest": "{band, select, ready {A good day to train.} steady {An ordinary day.} other {Take it easy today.}}",
+        "done": "{band, select, ready {Today's {workout} is done, and you were in good shape for it.} steady {Today's {workout} is done.} other {Today's {workout} is done. Recover well.}}"
       },
       "drivers": {
         "both": "Lifted by {up}, held back by {down}.",

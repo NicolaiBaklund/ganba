@@ -4,7 +4,7 @@ import { RECOVERY_FACTORS, RECOVERY_OUTCOMES, type RecoveryFactor, type Recovery
 import type { RecoveryQuestion } from "./questions";
 
 export const RECOVERY_PROMPT_VERSION = 1;
-export const FORM_PROMPT_VERSION = 1;
+export const FORM_PROMPT_VERSION = 2;
 
 export const GroundedSentenceSchema = z.object({ text: z.string(), refs: z.array(z.string()) });
 export type GroundedSentence = z.infer<typeof GroundedSentenceSchema>;
@@ -88,15 +88,15 @@ Do not repeat existing questions. Prefer questions a runner would find useful.
 Answer in the language given (the rationale only).`;
 
 export const RECOVERY_FORM_PROMPT = `You write the one line under a runner's daily Form number (0–100, 50 = an ordinary day).
-You get today's score, the parts that make it up (each with its points from 50 and the numbers behind it), today's planned session (or none) and verified findings from the person's own data.
-Return 1–2 short sentences: what today's number means for today's session, and the one or two parts that matter most. Use findings only when they explain a part.
+You get today's score (measured this morning), the parts that make it up (each with its points from 50 and the numbers behind it), today's session with its status (or none) and verified findings from the person's own data.
+Return 1–2 short sentences: what today's number means for today, and the one or two parts that matter most. Session "planned": what the number means for doing it. Session "done": it is already behind them; talk about recovering from it, never call the day a rest day. No session: a rest day. Use findings only when they explain a part.
 Rules:
 - Every sentence needs refs: "part:<id>" for a part (only parts with status "ok"), "finding:<id>" for a finding. A sentence without valid refs is deleted.
 ${BASE_RULES}`;
 
 const table = (rows: readonly object[]) => JSON.stringify(rows);
 
-export function formMessage(i: { language: string; date: ISODate; score: number; parts: object[]; workout: { type: string; title: string } | null; findings: AiFinding[] }): string {
+export function formMessage(i: { language: string; date: ISODate; score: number; parts: object[]; workout: { type: string; title: string; status: "planned" | "done" } | null; findings: AiFinding[] }): string {
   return `Language: ${i.language}
 Form for ${i.date}: ${i.score}
 Parts: ${table(i.parts)}

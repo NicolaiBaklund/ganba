@@ -16,7 +16,8 @@ export function FormHero({ form, ai }: { form: FormView; ai: boolean }) {
   const [coach, setCoach] = useState(false);
   const [aiText, setAiText] = useState<string | null>(null);
   const f = form.today;
-  const workout = form.workout && form.workout.status === "planned" ? tw(form.workout.type).toLowerCase() : null;
+  const w = form.workout && (form.workout.status === "planned" || form.workout.status === "done") ? form.workout : null;
+  const workout = w ? { name: tw(w.type).toLowerCase(), done: w.status === "done" } : null;
 
   useEffect(() => {
     if (!ai || !f) return;
@@ -37,7 +38,7 @@ export function FormHero({ form, ai }: { form: FormView; ai: boolean }) {
     );
   }
   const sentence = aiText ?? formTemplate(f, workout, t);
-  const draft = form.action && workout ? t("draft", { score: f.score, reasons: drivers(f.parts, t).down || t(`band.${f.band}`).toLowerCase(), workout }) : "";
+  const draft = form.action && workout ? t("draft", { score: f.score, reasons: drivers(f.parts, t).down || t(`band.${f.band}`).toLowerCase(), workout: workout.name }) : "";
   return (
     <section className="mt-5 flex flex-col items-center">
       <button type="button" onClick={() => setSheet(true)} aria-label={t("aria", { score: f.score })} className="rounded-full">

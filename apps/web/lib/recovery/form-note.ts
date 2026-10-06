@@ -24,7 +24,8 @@ export async function formNote(userId: string, opts: { ai?: RecoveryAi; today?: 
 
   const parts = knownParts(row.parts).map((p) => ({ id: p.id, status: p.status, points: p.points, learned: p.learned, values: p.values }));
   const { workout: w } = await todaysWorkout(userId, date);
-  const workout = w && w.status === "planned" ? { type: w.type, title: w.title } : null;
+  // A session already done today is still today's session, not a rest day.
+  const workout = w && (w.status === "planned" || w.status === "done") ? { type: w.type, title: w.title, status: w.status } : null;
   const inputHash = createHash("sha256").update(`${FORM_PROMPT_VERSION}\n${g.language}\n${row.score}\n${JSON.stringify(parts)}\n${JSON.stringify(workout)}`).digest("hex");
 
   const { data: cached } = await db.from("recovery_day_answers").select("content, input_hash").eq("user_id", userId).eq("local_date", date).eq("question", "form").maybeSingle();
