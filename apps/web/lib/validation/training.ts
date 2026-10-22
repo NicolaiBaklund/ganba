@@ -21,6 +21,10 @@ export const PlanInputSchema = z
     sport: z.enum(["run", "ride"]).optional(),
     /** Cycling: riding on a trainer right now (the rider chooses). */
     indoor: z.boolean().optional(),
+    /** Rides with power targets (only used when an FTP is known). */
+    power: z.boolean().optional(),
+    /** Optional days for easy sessions of the other sport. */
+    crossWeekdays: z.array(weekday).max(5).optional(),
     /** Cycling plans: an event (date, km, climbing) or build fitness. `goal` is ignored then. */
     ride: z
       .object({
@@ -37,7 +41,8 @@ export const PlanInputSchema = z
   })
   .refine((p) => p.runsPerWeek <= new Set(p.weekdays).size, { message: "more runs than days", path: ["runsPerWeek"] })
   .refine((p) => p.weekdays.includes(p.longRunWeekday), { message: "long run day not allowed", path: ["longRunWeekday"] })
-  .refine((p) => p.sport !== "ride" || !!p.ride, { message: "ride goal missing", path: ["ride"] });
+  .refine((p) => p.sport !== "ride" || !!p.ride, { message: "ride goal missing", path: ["ride"] })
+  .refine((p) => !(p.crossWeekdays ?? []).some((d) => p.weekdays.includes(d)), { message: "cross days overlap main days", path: ["crossWeekdays"] });
 
 export type PlanInputBody = z.infer<typeof PlanInputSchema>;
 

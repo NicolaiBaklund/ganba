@@ -35,6 +35,9 @@ const PEAK_RANGE: Record<RaceDistance, [number, number]> = {
   half: [35, 70],
   marathon: [50, 90],
 };
+/** Weekly volume a goal asks for, as km per run (× runs per week). */
+const GOAL_KM_PER_RUN: Record<RaceDistance, number> = { "5k": 9, "10k": 11, half: 13, marathon: 15 };
+const GOAL_KM_PER_RUN_GENERAL = 12;
 /** Long run to build toward by the end of the build/peak phase. */
 const LONG_TARGET: Record<RaceDistance, number> = { "5k": 10, "10k": 14, half: 19, marathon: 30 };
 const LONG_CAP: Record<RaceDistance, number> = { "5k": 14, "10k": 18, half: 22, marathon: 32 };
@@ -145,8 +148,11 @@ export function generatePlan(input: PlanInput): GeneratedPlan {
       );
 
   const startKm = Math.max(input.startKmPerWeek, runs * 3);
-  const [peakLo, peakHi] = distance ? PEAK_RANGE[distance] : [Math.max(15, runs * 4), 60];
-  const peakKm = Math.max(startKm, clamp(startKm * (isBuild ? 1.3 : 1.5), peakLo, peakHi));
+  // The ceiling comes from the goal: km per run for the distance × runs per week. The start only decides
+  // how fast the plan gets there (growth per week) and how far it can go (≤ 2 × start). Never below the start.
+  const [peakLo, peakHi] = distance ? PEAK_RANGE[distance] : [15, 70];
+  const goalKm = clamp((distance ? GOAL_KM_PER_RUN[distance] : GOAL_KM_PER_RUN_GENERAL) * runs, peakLo, peakHi);
+  const peakKm = Math.max(startKm, Math.min(Math.max(goalKm, startKm * 1.1), startKm * 2, peakHi));
   const growth = input.deficitKcal > DEFICIT_SLOWDOWN_KCAL ? GROWTH_IN_DEFICIT : GROWTH;
   // General build plans teach running longer: the long run grows toward 18–20 km (cap 22).
   const longCap = distance ? LONG_CAP[distance] : runs >= 4 ? 22 : 20;
@@ -174,7 +180,7 @@ export function generatePlan(input: PlanInput): GeneratedPlan {
     else if (phase === "recovery") km = level * RECOVERY_FACTOR;
     else {
       // Week 1 matches the start volume (already the best recent week); growth starts in week 2.
-      if (growthIdx > 0 || input.week1Grows) level = Math.min(peakKm, level * (1 + growth));
+      if (growthIdx > 0) level = Math.min(peakKm, level * (1 + growth));
       km = level;
       growthIdx++;
       peakReached = Math.max(peakReached, level);
@@ -282,7 +288,7 @@ export function generatePlan(input: PlanInput): GeneratedPlan {
     }
 
     const kept = built.filter((b) => b.date >= input.startDate).sort((a, b) => (a.date < b.date ? -1 : 1));
-    for (const b of kept) workouts.push({ ...b.w, date: b.date, week: w + 1, phase });
+    for (const b of kept) workouts.push({ ...b.w, sport: "run", date: b.date, week: w + 1, phase });
     weeks.push({ week: w + 1, startDate: monday, phase, km: r1(kept.reduce((s, b) => s + b.w.plannedKm, 0)) });
   }
 

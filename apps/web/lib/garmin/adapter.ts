@@ -66,7 +66,8 @@ export interface GarminSource {
   fetch(tokens: string, from: string, to: string, knownIds: number[]): Promise<FetchResult>;
   fetchRecovery(tokens: string, dates: string[]): Promise<FetchRecoveryResult>;
   /** Lactate threshold heart rates (for cycling zones); null when Garmin has none. */
-  fetchThresholds(tokens: string): Promise<{ lthrRunning: number | null; lthrCycling: number | null; tokens: string | null }>;
+  /** Threshold heart rates and the cycling FTP (null when unset or stale) with the day it was set. */
+  fetchThresholds(tokens: string): Promise<{ lthrRunning: number | null; lthrCycling: number | null; ftp: number | null; ftpDate: string | null; tokens: string | null }>;
   pushWorkout(tokens: string, workout: unknown, date: string): Promise<{ workoutId: number; scheduleId: number | null; tokens: string | null }>;
   deleteWorkout(tokens: string, workoutId: number, scheduleId: number | null): Promise<{ tokens: string | null }>;
 }

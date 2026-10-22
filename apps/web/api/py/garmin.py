@@ -202,17 +202,26 @@ def op_fetch_recovery(b: dict[str, Any]) -> dict[str, Any]:
 
 
 def op_fetch_thresholds(b: dict[str, Any]) -> dict[str, Any]:
-    """Lactate threshold heart rate (running and, when set, cycling) for cycling zones. Missing parts are null."""
+    """Lactate threshold heart rate (running and, when set, cycling) and cycling FTP for zones.
+    Missing parts are null; a stale FTP (Garmin's isStale) is left out."""
     tokens = b["tokens"]
     g = session_from(tokens)
-    running = cycling = None
+    running = cycling = ftp = ftp_date = None
     try:
         hr = (g.get_lactate_threshold() or {}).get("speed_and_heart_rate") or {}
         running = hr.get("heartRate")
         cycling = hr.get("heartRateCycling")
     except (GarminConnectConnectionError, requests.exceptions.RequestException):
         pass
-    return {"lthrRunning": running, "lthrCycling": cycling, "tokens": changed_tokens(g, tokens)}
+    try:
+        f = g.get_cycling_ftp()
+        f = f[0] if isinstance(f, list) and f else f
+        if isinstance(f, dict) and f.get("functionalThresholdPower") and not f.get("isStale"):
+            ftp = f["functionalThresholdPower"]
+            ftp_date = str(f.get("calendarDate") or "")[:10] or None
+    except (GarminConnectConnectionError, requests.exceptions.RequestException):
+        pass
+    return {"lthrRunning": running, "lthrCycling": cycling, "ftp": ftp, "ftpDate": ftp_date, "tokens": changed_tokens(g, tokens)}
 
 
 def _schedule_id(res: Any) -> Any:

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fuelingFor, fuelMessage, type FuelAdvice } from "@loop/core";
+import { fuelingFor, fuelMessage, type FuelAdvice, type Sport } from "@loop/core";
 import { apiUser } from "@/lib/api/user";
 import { resolveAnthropicKey } from "@/lib/ai/keys";
 import { suggestFuel } from "@/lib/ai/fuel";
@@ -22,7 +22,7 @@ export async function POST(_req: Request, ctx: RouteContext<"/api/training/worko
   const db = createAdminSupabase();
   const { data: w } = await db
     .from("planned_workouts")
-    .select("id, date, title, type, planned_duration_s, status, fuel_advice, plan_id")
+    .select("id, date, title, type, planned_duration_s, status, fuel_advice, sport")
     .eq("id", id)
     .eq("user_id", u.user.id)
     .maybeSingle();
@@ -41,11 +41,7 @@ export async function POST(_req: Request, ctx: RouteContext<"/api/training/worko
   const message = fuelMessage({
     workoutTitle: w.title,
     minutes: w.planned_duration_s / 60,
-    fueling: fuelingFor(
-      { type: w.type, plannedDurationS: w.planned_duration_s },
-      kg,
-      ((await u.supabase.from("training_plans").select("sport").eq("id", w.plan_id).maybeSingle()).data?.sport ?? "run") as "run" | "ride",
-    ),
+    fueling: fuelingFor({ type: w.type, plannedDurationS: w.planned_duration_s }, kg, w.sport as Sport),
     eatenToday: snap.date === today ? snap.entries.flatMap((e) => e.items.map((i) => `${i.name} (${Math.round(Number(i.kcal))} kcal)`)) : [],
     remaining: {
       kcal: Math.max(0, Math.round(snap.macrosTarget.kcal - snap.intake.kcal)),

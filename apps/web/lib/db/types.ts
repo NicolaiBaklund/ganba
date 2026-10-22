@@ -568,6 +568,8 @@ export type Database = {
           ciphertext: string
           connected_at: string
           created_at: string
+          ftp_cycling: number | null
+          ftp_cycling_at: string | null
           history_imported_at: string | null
           iv: string
           last_synced_at: string | null
@@ -591,6 +593,8 @@ export type Database = {
           ciphertext: string
           connected_at?: string
           created_at?: string
+          ftp_cycling?: number | null
+          ftp_cycling_at?: string | null
           history_imported_at?: string | null
           iv: string
           last_synced_at?: string | null
@@ -614,6 +618,8 @@ export type Database = {
           ciphertext?: string
           connected_at?: string
           created_at?: string
+          ftp_cycling?: number | null
+          ftp_cycling_at?: string | null
           history_imported_at?: string | null
           iv?: string
           last_synced_at?: string | null
@@ -846,6 +852,7 @@ export type Database = {
           blocks: Json
           created_at: string
           date: string
+          edited: boolean
           fuel_advice: Json | null
           garmin_push_status: Database["public"]["Enums"]["garmin_push_status"]
           garmin_schedule_id: number | null
@@ -855,6 +862,7 @@ export type Database = {
           plan_id: string
           planned_duration_s: number
           planned_km: number
+          sport: string
           status: Database["public"]["Enums"]["workout_status"]
           title: string
           type: Database["public"]["Enums"]["workout_type"]
@@ -867,6 +875,7 @@ export type Database = {
           blocks: Json
           created_at?: string
           date: string
+          edited?: boolean
           fuel_advice?: Json | null
           garmin_push_status?: Database["public"]["Enums"]["garmin_push_status"]
           garmin_schedule_id?: number | null
@@ -876,6 +885,7 @@ export type Database = {
           plan_id: string
           planned_duration_s: number
           planned_km: number
+          sport?: string
           status?: Database["public"]["Enums"]["workout_status"]
           title: string
           type: Database["public"]["Enums"]["workout_type"]
@@ -888,6 +898,7 @@ export type Database = {
           blocks?: Json
           created_at?: string
           date?: string
+          edited?: boolean
           fuel_advice?: Json | null
           garmin_push_status?: Database["public"]["Enums"]["garmin_push_status"]
           garmin_schedule_id?: number | null
@@ -897,6 +908,7 @@ export type Database = {
           plan_id?: string
           planned_duration_s?: number
           planned_km?: number
+          sport?: string
           status?: Database["public"]["Enums"]["workout_status"]
           title?: string
           type?: Database["public"]["Enums"]["workout_type"]
@@ -1250,11 +1262,13 @@ export type Database = {
       training_plans: {
         Row: {
           created_at: string
+          cross_weekdays: number[]
           did_quality: boolean
           distance_km: number | null
           event_elevation_m: number | null
           event_km: number | null
           experienced: boolean
+          ftp: number | null
           generated_until: string
           goal_kind: Database["public"]["Enums"]["plan_goal_kind"]
           hills: boolean
@@ -1262,10 +1276,12 @@ export type Database = {
           indoor: boolean
           long_run_weekday: number
           lthr: number | null
+          power: boolean
           power_seen: boolean
           race_date: string | null
           recent_longest_km: number | null
           recent_longest_min: number | null
+          ride_experienced: boolean
           ride_speed_kmh: number | null
           runs_per_week: number
           sport: string
@@ -1277,16 +1293,17 @@ export type Database = {
           updated_at: string
           user_id: string
           vdot: number
-          week1_grows: boolean
           weekdays: number[]
         }
         Insert: {
           created_at?: string
+          cross_weekdays?: number[]
           did_quality?: boolean
           distance_km?: number | null
           event_elevation_m?: number | null
           event_km?: number | null
           experienced?: boolean
+          ftp?: number | null
           generated_until: string
           goal_kind: Database["public"]["Enums"]["plan_goal_kind"]
           hills?: boolean
@@ -1294,10 +1311,12 @@ export type Database = {
           indoor?: boolean
           long_run_weekday: number
           lthr?: number | null
+          power?: boolean
           power_seen?: boolean
           race_date?: string | null
           recent_longest_km?: number | null
           recent_longest_min?: number | null
+          ride_experienced?: boolean
           ride_speed_kmh?: number | null
           runs_per_week: number
           sport?: string
@@ -1309,16 +1328,17 @@ export type Database = {
           updated_at?: string
           user_id: string
           vdot: number
-          week1_grows?: boolean
           weekdays: number[]
         }
         Update: {
           created_at?: string
+          cross_weekdays?: number[]
           did_quality?: boolean
           distance_km?: number | null
           event_elevation_m?: number | null
           event_km?: number | null
           experienced?: boolean
+          ftp?: number | null
           generated_until?: string
           goal_kind?: Database["public"]["Enums"]["plan_goal_kind"]
           hills?: boolean
@@ -1326,10 +1346,12 @@ export type Database = {
           indoor?: boolean
           long_run_weekday?: number
           lthr?: number | null
+          power?: boolean
           power_seen?: boolean
           race_date?: string | null
           recent_longest_km?: number | null
           recent_longest_min?: number | null
+          ride_experienced?: boolean
           ride_speed_kmh?: number | null
           runs_per_week?: number
           sport?: string
@@ -1341,7 +1363,6 @@ export type Database = {
           updated_at?: string
           user_id?: string
           vdot?: number
-          week1_grows?: boolean
           weekdays?: number[]
         }
         Relationships: []

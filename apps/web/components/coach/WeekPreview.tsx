@@ -9,7 +9,9 @@ const DAYS = ["M", "T", "W", "T", "F", "S", "S"];
 
 function Cell({ cells, changed, faded }: { cells: PreviewCell[]; changed?: boolean; faded?: boolean }) {
   const c = cells[0];
-  const km = cells.reduce((s, x) => s + x.km, 0);
+  // Rides are about time (minutes), runs about km; a day's first session decides.
+  const ride = c?.sport === "ride";
+  const size = cells.filter((x) => (x.sport === "ride") === ride).reduce((s, x) => s + (ride ? x.min : x.km), 0);
   return (
     <div
       className={cn(
@@ -19,7 +21,7 @@ function Cell({ cells, changed, faded }: { cells: PreviewCell[]; changed?: boole
         changed && "outline outline-2 -outline-offset-2 outline-primary",
       )}
     >
-      {c && <span className="num pb-0.5 text-center text-[10px] font-bold">{km.toLocaleString("en", { maximumFractionDigits: 1 })}</span>}
+      {c && <span className="num pb-0.5 text-center text-[10px] font-bold">{ride ? `${size}′` : size.toLocaleString("en", { maximumFractionDigits: 1 })}</span>}
       <i className="block h-[5px]" style={{ background: c ? typeColor(c.type) : "var(--w-rest)" }} />
     </div>
   );

@@ -430,7 +430,20 @@
     "zones": "Heart rate zones",
     "indoor": "Riding indoors",
     "indoorHint": "Trainer season: long rides up to 2.5 h, easy rides up to 90 min. Switching rebuilds your upcoming rides.",
-    "indoorError": "Couldn't switch. Try again."
+    "indoorError": "Couldn't switch. Try again.",
+    "power": "Power targets",
+    "powerHint": "Rides target watts from your FTP ({ftp} W), and a smart trainer in ERG mode follows them. Off: heart rate.",
+    "ftp": "FTP",
+    "powerZones": "Power zones (W)",
+    "ridePowerZones": "Ride power zones (W)",
+    "rideHrZones": "Ride heart rate zones",
+    "crossRides": "Easy rides on",
+    "crossRuns": "Easy runs on",
+    "crossHint": "Optional extras on other days. Changing them rebuilds the upcoming ones.",
+    "addCrossRides": "+ Add easy rides on other days",
+    "addCrossRuns": "+ Add easy runs on other days",
+    "crossSave": "Save days",
+    "crossError": "Couldn't save the days. Try again."
   },
   "proposal": {
     "title": {
@@ -511,7 +524,23 @@
     "indoorPresetHint": "Trainer season: long rides up to 2.5 h. You can switch later on the Training page.",
     "whereRide": "Where do you ride now?",
     "outdoors": "Outdoors",
-    "indoors": "Indoors (trainer)"
+    "indoors": "Indoors (trainer)",
+    "power": "Power targets",
+    "powerHint": "FTP {ftp} W ({source}). For a power meter or smart trainer (ERG). Off: heart rate.",
+    "ftpSource": {
+      "garmin": "from Garmin",
+      "rides": "from your best recent rides",
+      "null": "unknown"
+    },
+    "addCrossRides": "+ Add rides on other days",
+    "addCrossRuns": "+ Add runs on other days",
+    "crossRides": "Easy rides on",
+    "crossRuns": "Easy runs on",
+    "crossRidesHint": "Optional extras: an hour at an easy effort, growing a little. Your running plan stays the same.",
+    "crossRunsHint": "Optional extras: an easy 5 km, growing a little. Your cycling plan stays the same.",
+    "crossWeekRides": "Rides that week",
+    "crossWeekRuns": "Runs that week",
+    "crossRideZones": "Rides use heart rate zones from your threshold of {lthr} bpm."
   },
   "garmin": {
     "title": "Garmin",

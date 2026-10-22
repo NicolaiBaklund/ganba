@@ -6,7 +6,7 @@ import { pushToGarmin, setRideIndoor, todayFor } from "@/lib/training/service";
 export const maxDuration = 120;
 const Body = z.object({ indoor: z.boolean() });
 
-/** Indoor season on/off for a cycling plan: upcoming rides are rebuilt and pushed again. */
+/** Indoor season on/off for the plan's rides: upcoming rides are rebuilt and pushed again. */
 export async function POST(req: Request) {
   const u = await apiUser();
   if (!u) return NextResponse.json({ error: "unauthorized" }, { status: 401 });

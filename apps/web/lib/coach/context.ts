@@ -1,5 +1,19 @@
 import "server-only";
-import { addDays, buildRecoveryRows, describeBlocks, fmtRideDuration, formatPace, pacesFor, rideProfile, rideZones, weekday, type ISODate, type PlanContext, type PlanWorkout } from "@loop/core";
+import {
+  addDays,
+  buildRecoveryRows,
+  describeBlocks,
+  fmtRideDuration,
+  formatPace,
+  pacesFor,
+  powerZones,
+  rideProfile,
+  rideZones,
+  weekday,
+  type ISODate,
+  type PlanContext,
+  type PlanWorkout,
+} from "@loop/core";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { getAiHealthConsent } from "@/lib/recovery/consent";
 import { loadRecoveryDays } from "@/lib/recovery/load";
@@ -32,13 +46,15 @@ export async function buildCoachContext(userId: string, threadId: string, opts: 
   if (!plan) return null;
   const today = await todayFor(userId);
   const ride = plan.sport === "ride";
+  const cross = plan.cross_weekdays.length > 0;
+  // Both sports' recent sessions when the plan has both; otherwise only the main sport's.
   const [workouts, runs, notes, history, consent, allRides] = await Promise.all([
     planWorkoutsWithKm(plan),
-    ride ? Promise.resolve([]) : recentRuns(userId, today),
+    !ride || cross ? recentRuns(userId, today) : Promise.resolve([]),
     listNotes(userId, today),
     recentMessages(threadId, CONTEXT_MESSAGES + 1),
     getAiHealthConsent(userId),
-    ride ? recentRides(userId, today) : Promise.resolve([]),
+    ride || cross ? recentRides(userId, today) : Promise.resolve([]),
   ]);
   // A retry: the same message is already the last one stored; it goes in once, as the new message.
   if (history.at(-1)?.role === "user" && history.at(-1)?.text === opts.message) history.pop();
@@ -58,14 +74,17 @@ export async function buildCoachContext(userId: string, threadId: string, opts: 
   // The long-run warning compares with the longest recent session of the plan's own sport.
   const sessions = ride ? allRides : runs;
   const recentLongestKm = Math.max(0, ...sessions.filter((r) => r.date >= addDays(today, -28)).map((r) => r.distanceM / 1000));
+  // Weekly volume of the main sport: done before this week, planned from this week on.
   const weeks: string[] = [];
   for (let i = -4; i < 4; i++) {
     const monday = addDays(mondayOf(today), i * 7);
     const km =
       i < 0
-        ? runs.filter((r) => mondayOf(r.date) === monday).reduce((s, r) => s + r.distanceM / 1000, 0)
-        : workouts.filter((w) => w.status !== "removed" && w.status !== "missed" && mondayOf(w.date) === monday).reduce((s, w) => s + w.plannedKm, 0);
-    weeks.push(`${monday} ${i < 0 ? "ran" : "planned"} ${Math.round(km * 10) / 10} km`);
+        ? sessions.filter((r) => mondayOf(r.date) === monday).reduce((s, r) => s + r.distanceM / 1000, 0)
+        : workouts
+            .filter((w) => w.sport === plan.sport && w.status !== "removed" && w.status !== "missed" && mondayOf(w.date) === monday)
+            .reduce((s, w) => s + w.plannedKm, 0);
+    weeks.push(`${monday} ${i < 0 ? (ride ? "rode" : "ran") : "planned"} ${Math.round(km * 10) / 10} km`);
   }
   const goal = goalOf(plan);
 
@@ -94,38 +113,60 @@ export async function buildCoachContext(userId: string, threadId: string, opts: 
   const aboutRef = opts.aboutWorkoutId ? refOf.get(opts.aboutWorkoutId) : undefined;
   const rides = allRides.filter((r) => r.date >= addDays(today, -21));
   const lthr = plan.lthr ?? 165;
-  // Cycling plans: time and heart rate, never pace (and no watts unless the plan has them).
-  const planLines = ride
-    ? [
-        plan.goal_kind === "race" && plan.race_date
-          ? `Goal: cycling event on ${plan.race_date}, ${plan.event_km} km${plan.event_elevation_m != null ? `, ${plan.event_elevation_m} m climbing` : ""} (${rideProfile(Number(plan.event_km), plan.event_elevation_m)})`
-          : "Goal: build cycling fitness",
-        `This is a CYCLING plan${plan.indoor ? " (indoor season: rides on a trainer)" : ""}. Threshold heart rate (LTHR) ${lthr} bpm. Zones: ${rideZones(lthr).map((z) => `${z.zone} ${z.minBpm}-${z.maxBpm}`).join(", ")}. Usual speed ${plan.ride_speed_kmh} km/h (km on sessions are estimates).`,
-        `Riding days: ${plan.weekdays.map((d) => DAY[d]).join(", ")}; long ride day: ${DAY[plan.long_run_weekday]}`,
-        "",
-        "Sessions (ref | date | type | duration | ~km | status | steps):",
-        ...upcoming.map((w) => `${refOf.get(w.id)} | ${w.date} ${DAY[weekday(w.date)]} | ${w.type} | ${fmtRideDuration(w.plannedDurationS / 60)} | ${w.plannedKm} km | ${w.status} | ${describeBlocks(w.blocks)}`),
-        "",
-        "Rides in the last 21 days:",
-        ...rides.map((r) => `${r.date}: ${fmtRideDuration(r.timeS / 60)}, ${Math.round(r.distanceM / 100) / 10} km${r.indoor ? " (indoor)" : ""}`),
-        "",
-      ]
-    : [
-        goal.kind === "race" ? `Goal: ${goal.distance} race on ${goal.raceDate}${goal.targetTimeS ? `, target ${Math.round(goal.targetTimeS / 60)} min` : ""}` : "Goal: build fitness",
-        `VDOT ${plan.vdot}. Paces: easy ${formatPace(paces.easy.min)}–${formatPace(paces.easy.max)}, marathon ${formatPace(paces.marathon)}, threshold ${formatPace(paces.threshold)}, interval ${formatPace(paces.interval)} per km.`,
-        `Running days: ${plan.weekdays.map((d) => DAY[d]).join(", ")}; long run day: ${DAY[plan.long_run_weekday]}`,
-        "",
-        "Sessions (ref | date | type | km | status | steps):",
-        ...upcoming.map((w) => `${refOf.get(w.id)} | ${w.date} ${DAY[weekday(w.date)]} | ${w.type} | ${w.plannedKm} km | ${w.status} | ${describeBlocks(w.blocks)}`),
-        "",
-        "Runs in the last 21 days:",
-        ...last21.map((r) => `${r.date}: ${Math.round(r.distanceM / 100) / 10} km at ${r.timeS > 0 ? formatPace(r.timeS / (r.distanceM / 1000)) : "–"}/km${r.indoor ? " (treadmill)" : ""}`),
-        "",
-      ];
+  const power = plan.power && !!plan.ftp;
+  // Rides: time and zones, never pace; watts only when power targets are on.
+  const rideZoneLines =
+    ride || cross
+      ? [
+          `Rides${plan.indoor ? " (indoor season: on a trainer)" : ""}: threshold heart rate (LTHR) ${lthr} bpm, zones ${rideZones(lthr).map((z) => `${z.zone} ${z.minBpm}-${z.maxBpm}`).join(", ")}.`,
+          power
+            ? `Power targets ON: FTP ${plan.ftp} W, zones ${powerZones(plan.ftp!).map((z) => `${z.zone} ${z.minW}-${z.maxW} W`).join(", ")}. Ride steps target these watts (ERG on a smart trainer).`
+            : "Rides are run by heart rate.",
+          `Usual speed ${plan.ride_speed_kmh} km/h (km on rides are estimates).`,
+        ]
+      : [];
+  const runLines = [`VDOT ${plan.vdot}. Paces: easy ${formatPace(paces.easy.min)}–${formatPace(paces.easy.max)}, marathon ${formatPace(paces.marathon)}, threshold ${formatPace(paces.threshold)}, interval ${formatPace(paces.interval)} per km.`];
+  const crossLine = cross
+    ? [`Cross-training: easy ${ride ? "runs" : "rides"} on ${plan.cross_weekdays.map((d) => DAY[d]).join(", ")} (optional extras, not in the weekly km).`]
+    : [];
+  const size = (w: PlanWorkout) => (w.sport === "ride" ? `${fmtRideDuration(w.plannedDurationS / 60)} (~${w.plannedKm} km)` : `${w.plannedKm} km`);
+  const planLines = [
+    ride
+      ? plan.goal_kind === "race" && plan.race_date
+        ? `Goal: cycling event on ${plan.race_date}, ${plan.event_km} km${plan.event_elevation_m != null ? `, ${plan.event_elevation_m} m climbing` : ""} (${rideProfile(Number(plan.event_km), plan.event_elevation_m)})`
+        : "Goal: build cycling fitness"
+      : goal.kind === "race"
+        ? `Goal: ${goal.distance} race on ${goal.raceDate}${goal.targetTimeS ? `, target ${Math.round(goal.targetTimeS / 60)} min` : ""}`
+        : "Goal: build fitness",
+    ride ? "This is a CYCLING plan." : "This is a RUNNING plan.",
+    ...(ride ? [] : runLines),
+    ...rideZoneLines,
+    ...(ride && cross ? runLines : []),
+    `${ride ? "Riding" : "Running"} days: ${plan.weekdays.map((d) => DAY[d]).join(", ")}; long ${ride ? "ride" : "run"} day: ${DAY[plan.long_run_weekday]}`,
+    ...crossLine,
+    "",
+    "Sessions (ref | date | sport | type | size | status | steps):",
+    ...upcoming.map((w) => `${refOf.get(w.id)} | ${w.date} ${DAY[weekday(w.date)]} | ${w.sport} | ${w.type} | ${size(w)} | ${w.status} | ${describeBlocks(w.blocks)}`),
+    "",
+    ...(runs.length || !ride
+      ? [
+          "Runs in the last 21 days:",
+          ...last21.map((r) => `${r.date}: ${Math.round(r.distanceM / 100) / 10} km at ${r.timeS > 0 ? formatPace(r.timeS / (r.distanceM / 1000)) : "–"}/km${r.indoor ? " (treadmill)" : ""}`),
+          "",
+        ]
+      : []),
+    ...(ride || cross
+      ? [
+          "Rides in the last 21 days:",
+          ...rides.map((r) => `${r.date}: ${fmtRideDuration(r.timeS / 60)}, ${Math.round(r.distanceM / 100) / 10} km${r.indoor ? " (indoor)" : ""}`),
+          "",
+        ]
+      : []),
+  ];
   const text = [
     `Today: ${today} (${DAY[weekday(today)]})`,
     ...planLines,
-    ride ? "Weekly km (estimates):" : "Weekly km:",
+    ride ? "Weekly ride km (estimates):" : "Weekly running km:",
     ...weeks,
     "",
     recovery,

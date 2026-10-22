@@ -35,7 +35,7 @@ try {
     const ctx = await browser.newContext({ viewport: { width: 440, height: 956 }, deviceScaleFactor: 2, isMobile: true, colorScheme: scheme });
     await ctx.addCookies([{ name: `sb-${ref}-auth-token`, value: "base64-" + Buffer.from(JSON.stringify(s.session)).toString("base64url"), domain: "localhost", path: "/" }]);
     const page = await ctx.newPage();
-    page.on("console", (m) => m.type() === "error" && !/must not return anything besides a function/.test(m.text()) && errors.push(m.text().slice(0, 300)));
+    page.on("console", (m) => m.type() === "error" && errors.push(m.text().slice(0, 300)));
     const shot = (n) => page.screenshot({ path: `tests/smoke/out/ride-${scheme}-${n}.png`, fullPage: true });
 
     if (scheme === "light") {
