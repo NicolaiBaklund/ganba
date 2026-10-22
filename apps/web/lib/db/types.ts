@@ -1243,17 +1243,26 @@ export type Database = {
           created_at: string
           did_quality: boolean
           distance_km: number | null
+          event_elevation_m: number | null
+          event_km: number | null
           experienced: boolean
           generated_until: string
           goal_kind: Database["public"]["Enums"]["plan_goal_kind"]
           hills: boolean
           id: string
+          indoor: boolean
           long_run_weekday: number
+          lthr: number | null
+          power_seen: boolean
           race_date: string | null
           recent_longest_km: number | null
+          recent_longest_min: number | null
+          ride_speed_kmh: number | null
           runs_per_week: number
+          sport: string
           start_date: string
           start_km_per_week: number
+          start_min_per_week: number | null
           status: Database["public"]["Enums"]["plan_status"]
           target_time_s: number | null
           updated_at: string
@@ -1266,17 +1275,26 @@ export type Database = {
           created_at?: string
           did_quality?: boolean
           distance_km?: number | null
+          event_elevation_m?: number | null
+          event_km?: number | null
           experienced?: boolean
           generated_until: string
           goal_kind: Database["public"]["Enums"]["plan_goal_kind"]
           hills?: boolean
           id?: string
+          indoor?: boolean
           long_run_weekday: number
+          lthr?: number | null
+          power_seen?: boolean
           race_date?: string | null
           recent_longest_km?: number | null
+          recent_longest_min?: number | null
+          ride_speed_kmh?: number | null
           runs_per_week: number
+          sport?: string
           start_date: string
           start_km_per_week: number
+          start_min_per_week?: number | null
           status?: Database["public"]["Enums"]["plan_status"]
           target_time_s?: number | null
           updated_at?: string
@@ -1289,17 +1307,26 @@ export type Database = {
           created_at?: string
           did_quality?: boolean
           distance_km?: number | null
+          event_elevation_m?: number | null
+          event_km?: number | null
           experienced?: boolean
           generated_until?: string
           goal_kind?: Database["public"]["Enums"]["plan_goal_kind"]
           hills?: boolean
           id?: string
+          indoor?: boolean
           long_run_weekday?: number
+          lthr?: number | null
+          power_seen?: boolean
           race_date?: string | null
           recent_longest_km?: number | null
+          recent_longest_min?: number | null
+          ride_speed_kmh?: number | null
           runs_per_week?: number
+          sport?: string
           start_date?: string
           start_km_per_week?: number
+          start_min_per_week?: number | null
           status?: Database["public"]["Enums"]["plan_status"]
           target_time_s?: number | null
           updated_at?: string

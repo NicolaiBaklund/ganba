@@ -42,6 +42,10 @@ export class FakeGarmin implements GarminSource {
       tokens: null,
     };
   }
+  thresholds = { lthrRunning: 180 as number | null, lthrCycling: null as number | null };
+  async fetchThresholds(_tokens: string) {
+    return { ...this.thresholds, tokens: null };
+  }
   async pushWorkout(_tokens: string, workout: unknown, date: string) {
     if (this.failWith) throw this.failWith;
     const workoutId = this.nextId++;

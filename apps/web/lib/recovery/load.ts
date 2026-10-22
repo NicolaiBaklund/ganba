@@ -81,7 +81,7 @@ export async function loadRecoveryDays(userId: string, today: ISODate, days = RE
     db.from("garmin_days").select("local_date, steps").eq("user_id", userId).gte("local_date", early).then(must),
     db
       .from("activities")
-      .select("id, local_date, type_key, distance_m, duration_s, moving_s, avg_hr, steps, te_aerobic, te_anaerobic, training_load")
+      .select("id, local_date, type_key, distance_m, duration_s, moving_s, avg_hr, steps, te_aerobic, te_anaerobic, training_load, garmin_kcal")
       .eq("user_id", userId)
       .gte("local_date", early)
       .then(must),
@@ -103,6 +103,7 @@ export async function loadRecoveryDays(userId: string, today: ISODate, days = RE
       distanceM: a.distance_m == null ? null : Number(a.distance_m),
       durationS: a.duration_s == null ? null : Number(a.duration_s),
       steps: a.steps,
+      kcal: a.garmin_kcal,
     });
     dayData.set(a.local_date, d);
     actsBy.set(a.local_date, [...(actsBy.get(a.local_date) ?? []), a]);

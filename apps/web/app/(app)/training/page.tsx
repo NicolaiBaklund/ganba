@@ -4,7 +4,8 @@ import { Plus } from "lucide-react";
 import { formatPace } from "@loop/core";
 import { requireUser } from "@/lib/supabase/server";
 import { loadTrainingView } from "@/lib/training/view";
-import { fmtClock } from "@/lib/training/format";
+import { fmtClock, hrZoneLabel } from "@/lib/training/format";
+import { IndoorSwitch } from "@/components/training/IndoorSwitch";
 import { ProposalCard } from "@/components/training/ProposalCard";
 import { CoachButton } from "@/components/coach/CoachButton";
 import { TrainingMap } from "@/components/training/TrainingMap";
@@ -37,13 +38,23 @@ export default async function TrainingPage() {
   }
 
   const p = v.plan;
-  const race = p.goal === "race" && p.distance && p.raceDate;
+  const ride = p.ride;
+  const race = p.goal === "race" && (ride ? true : !!p.distance) && p.raceDate;
   const raceDate = race ? new Date(`${p.raceDate}T00:00:00Z`) : null;
-  const stats = [
-    ...(p.weeksLeft != null ? [{ value: p.weeksLeft, label: t("weeksLeftLabel") }] : []),
-    ...(p.predictedTimeS != null ? [{ value: fmtClock(p.targetTimeS ?? p.predictedTimeS), label: p.targetTimeS ? t("target") : t("predicted") }] : []),
-    { value: p.vdot, label: t("vdot") },
-  ];
+  const stats = ride
+    ? [
+        ...(p.weeksLeft != null ? [{ value: p.weeksLeft, label: t("weeksLeftLabel") }] : []),
+        ...(ride.expectedS != null ? [{ value: fmtClock(ride.expectedS), label: t("expected") }] : []),
+        { value: ride.lthr, label: t("lthr") },
+      ]
+    : [
+        ...(p.weeksLeft != null ? [{ value: p.weeksLeft, label: t("weeksLeftLabel") }] : []),
+        ...(p.predictedTimeS != null ? [{ value: fmtClock(p.targetTimeS ?? p.predictedTimeS), label: p.targetTimeS ? t("target") : t("predicted") }] : []),
+        { value: p.vdot, label: t("vdot") },
+      ];
+  // Cycling: the heart-rate zones the sessions use (no watts without a power meter).
+  const zones = ride ? ride.zones.filter((z) => ["z2", "ss", "z4", "z5"].includes(z.zone)).map((z) => ({ value: `${z.minBpm}–${z.maxBpm}`, label: hrZoneLabel(z.zone) })) : [];
+  const bigLabel = ride ? (ride.eventKm != null ? `${Math.round(ride.eventKm)}K` : t("buildShort")) : p.distance ? BIG_DISTANCE[p.distance] : t("buildShort");
   const paces = [
     { value: `${formatPace(p.paces.easy.min)}–${formatPace(p.paces.easy.max)}`, label: t("paceZones.easy") },
     { value: formatPace(p.paces.marathon), label: t("paceZones.marathon") },
@@ -59,19 +70,22 @@ export default async function TrainingPage() {
       </div>
 
       <div className="mb-4 mt-4 flex items-end gap-3">
-        <p className="num text-[84px] font-black leading-[.82] [font-stretch:62%]">{p.distance ? BIG_DISTANCE[p.distance] : t("buildShort")}</p>
+        <p className="num text-[84px] font-black leading-[.82] [font-stretch:62%]">{bigLabel}</p>
         <p className="pb-1 text-sm leading-tight">
           {raceDate ? (
             <>
               <b className="num block text-lg font-extrabold">{format.dateTime(raceDate, { day: "numeric", month: "long", timeZone: "UTC" })}</b>
-              {t("raceDay")}
+              {ride ? t("eventDay") : t("raceDay")}
             </>
+          ) : ride ? (
+            t("rideBuild")
           ) : (
             t("build")
           )}
         </p>
       </div>
       <StatRow items={stats} />
+      {ride && <IndoorSwitch indoor={ride.indoor} />}
 
       {v.proposals.length > 0 && (
         <div className="mt-5 flex flex-col gap-3">
@@ -85,13 +99,14 @@ export default async function TrainingPage() {
         thisWeek={v.thisWeek}
         upcoming={v.upcoming}
         today={v.today}
-        raceLabel={race ? BIG_DISTANCE[p.distance!] : null}
+        raceLabel={race ? bigLabel : null}
+        hours={!!ride}
         raceDateLabel={raceDate ? format.dateTime(raceDate, { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }) : null}
       />
 
-      <SectionHead title={t("paces")} />
+      <SectionHead title={ride ? t("zones") : t("paces")} />
       <div className="mt-2">
-        <StatRow items={paces} ruled={false} />
+        <StatRow items={ride ? zones : paces} ruled={false} />
       </div>
     </main>
   );

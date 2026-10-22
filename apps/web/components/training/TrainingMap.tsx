@@ -15,16 +15,21 @@ export function TrainingMap({
   today,
   raceLabel,
   raceDateLabel,
+  hours = false,
 }: {
   thisWeek: WeekView | null;
   upcoming: WeekView[];
   today: string;
   raceLabel: string | null;
   raceDateLabel: string | null;
+  /** Cycling plans: bars and numbers in hours. */
+  hours?: boolean;
 }) {
   const t = useTranslations("training");
   const [open, setOpen] = useState<string | null>(null);
-  const max = Math.max(1, ...[thisWeek, ...upcoming].filter(Boolean).map((w) => w!.plannedKm));
+  const size = (w: WeekView) => (hours ? w.plannedMin / 60 : w.plannedKm);
+  const label = (w: WeekView) => (hours ? `${Math.round(w.plannedMin / 6) / 10} h` : w.plannedKm);
+  const max = Math.max(1, ...[thisWeek, ...upcoming].filter(Boolean).map((w) => size(w!)));
   const bar = (km: number) => `${Math.round((km / max) * 124)}px`;
 
   // A render function, not a component: a nested component would remount on every toggle and drop focus.
@@ -51,9 +56,9 @@ export function TrainingMap({
           <span className="grid grid-cols-[124px_44px] items-center gap-1.5">
             <span
               className={cn("block h-2.5", now ? "bg-primary" : easy ? "bg-[repeating-linear-gradient(135deg,var(--muted-foreground)_0_2px,transparent_2px_5px)] shadow-[inset_0_0_0_1px_var(--muted-foreground)]" : "bg-foreground")}
-              style={{ width: bar(w.plannedKm) }}
+              style={{ width: bar(size(w)) }}
             />
-            <span className={cn("num text-right text-lg font-extrabold", now && "text-primary")}>{w.plannedKm}</span>
+            <span className={cn("num text-right text-lg font-extrabold", now && "text-primary")}>{label(w)}</span>
           </span>
         </button>
         {isOpen && (

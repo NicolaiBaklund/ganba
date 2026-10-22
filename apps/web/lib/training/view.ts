@@ -1,5 +1,5 @@
 import "server-only";
-import { addDays, mondayOf, pacesFor, predictTimeS, RACE_KM, trendSeries, type Block, type FuelAdvice, type ISODate, type Paces, type WorkoutType } from "@loop/core";
+import { addDays, eventMinutes, mondayOf, pacesFor, predictTimeS, RACE_KM, rideProfile, rideZones, trendSeries, type Block, type FuelAdvice, type ISODate, type Paces, type WorkoutType } from "@loop/core";
 import { getGarminStatus } from "@/lib/garmin/accounts";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { activePlan, distanceOf, planWorkouts, todayFor } from "./service";
@@ -14,6 +14,8 @@ export interface WorkoutListItem {
   status: "planned" | "done" | "missed" | "removed";
   push: "none" | "pending" | "pushed" | "failed";
   actualKm: number | null;
+  /** Running or cycling plan: labels, units and targets differ. */
+  sport: "run" | "ride";
 }
 
 export interface WeekView {
@@ -22,6 +24,8 @@ export interface WeekView {
   phase: string;
   plannedKm: number;
   doneKm: number;
+  /** Planned minutes (cycling weeks show hours). */
+  plannedMin: number;
   workouts: WorkoutListItem[];
 }
 
@@ -43,6 +47,16 @@ export interface TrainingView {
     vdot: number;
     paces: Paces;
     weeksLeft: number | null;
+    sport: "run" | "ride";
+    /** Cycling plans. */
+    ride: null | {
+      eventKm: number | null;
+      elevationM: number | null;
+      expectedS: number | null;
+      lthr: number;
+      zones: { zone: string; minBpm: number; maxBpm: number }[];
+      indoor: boolean;
+    };
   };
   thisWeek: WeekView | null;
   upcoming: WeekView[];
@@ -70,7 +84,7 @@ export async function loadTrainingView(userId: string): Promise<TrainingView> {
   for (const r of rows) {
     if (r.status === "removed") continue;
     const monday = mondayOf(r.date);
-    const w = weeks.get(monday) ?? { week: r.week, monday, phase: r.phase, plannedKm: 0, doneKm: 0, workouts: [] };
+    const w = weeks.get(monday) ?? { week: r.week, monday, phase: r.phase, plannedKm: 0, doneKm: 0, plannedMin: 0, workouts: [] };
     const item: WorkoutListItem = {
       id: r.id,
       date: r.date,
@@ -81,8 +95,10 @@ export async function loadTrainingView(userId: string): Promise<TrainingView> {
       status: r.status,
       push: r.garmin_push_status,
       actualKm: r.activity_id ? (km.get(r.activity_id) ?? null) : null,
+      sport: plan.sport as "run" | "ride",
     };
     w.workouts.push(item);
+    w.plannedMin += Math.round(item.plannedDurationS / 60);
     w.plannedKm = Math.round((w.plannedKm + item.plannedKm) * 10) / 10;
     if (item.status === "done") w.doneKm = Math.round((w.doneKm + (item.actualKm ?? item.plannedKm)) * 10) / 10;
     weeks.set(monday, w);
@@ -105,6 +121,21 @@ export async function loadTrainingView(userId: string): Promise<TrainingView> {
       vdot,
       paces: pacesFor(vdot),
       weeksLeft: plan.race_date ? Math.max(0, Math.ceil((Date.parse(plan.race_date) - Date.parse(addDays(today, 0))) / (7 * 86_400_000))) : null,
+      sport: plan.sport as "run" | "ride",
+      ride:
+        plan.sport === "ride"
+          ? {
+              eventKm: plan.event_km == null ? null : Number(plan.event_km),
+              elevationM: plan.event_elevation_m,
+              expectedS:
+                plan.event_km == null
+                  ? null
+                  : Math.round(eventMinutes(Number(plan.event_km), Number(plan.ride_speed_kmh ?? 25), rideProfile(Number(plan.event_km), plan.event_elevation_m)) * 60),
+              lthr: plan.lthr ?? 165,
+              zones: rideZones(plan.lthr ?? 165),
+              indoor: plan.indoor,
+            }
+          : null,
     },
     thisWeek,
     upcoming,
@@ -165,6 +196,7 @@ export async function loadWorkout(userId: string, id: string): Promise<WorkoutDe
     fuelAdvice: (r.fuel_advice as { advice?: FuelAdvice } | null)?.advice ?? null,
     upcoming: r.status === "planned" && r.date >= (await todayFor(userId)),
     activity,
+    sport: ((await db.from("training_plans").select("sport").eq("id", r.plan_id).maybeSingle()).data?.sport ?? "run") as "run" | "ride",
   };
 }
 
@@ -206,6 +238,7 @@ export async function todaysWorkout(userId: string, today: ISODate): Promise<{ p
       status: data.status,
       push: data.garmin_push_status,
       actualKm,
+      sport: plan.sport as "run" | "ride",
     },
   };
 }

@@ -2,7 +2,7 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { Check, UtensilsCrossed, Watch } from "lucide-react";
 import { fuelingFor, type WorkoutType } from "@loop/core";
 import { Bib, RestBib } from "@/components/tasuki/Bib";
-import { bibNumber, fmtMinutes } from "@/lib/training/format";
+import { bibNumber, fmtMinutes, typeKey } from "@/lib/training/format";
 import type { WorkoutListItem } from "@/lib/training/view";
 
 /** Today's session as a race bib, or a small rest-day bib that names the next session. */
@@ -30,9 +30,10 @@ export async function TodayBib({
     );
   }
 
-  const { big, unit } = bibNumber(workout.title, workout.plannedKm);
+  const ride = workout.sport === "ride";
+  const { big, unit } = bibNumber(workout.title, workout.plannedKm, ride ? { durationS: workout.plannedDurationS } : undefined);
   const done = workout.status === "done";
-  const fuel = fuelingFor({ type: workout.type, plannedDurationS: workout.plannedDurationS }, kg);
+  const fuel = fuelingFor({ type: workout.type, plannedDurationS: workout.plannedDurationS }, kg, workout.sport);
   const fuelLine = fuel.before.carbsG
     ? tf("lineCarbs", { g: fuel.before.carbsG, p: fuel.after.proteinG })
     : tf("lineMeal", { p: fuel.after.proteinG });
@@ -40,7 +41,7 @@ export async function TodayBib({
   return (
     <Bib
       type={workout.type}
-      label={t(`types.${workout.type}`)}
+      label={t(typeKey(workout.type, workout.sport))}
       big={big}
       unit={unit}
       href={`/training/workout/${workout.id}`}
@@ -51,7 +52,7 @@ export async function TodayBib({
             {t("doneKm", { km: workout.actualKm })}
           </span>
         ) : (
-          t("bibMeta", { km: workout.plannedKm, time: fmtMinutes(workout.plannedDurationS) })
+          t(ride ? "bibMetaRide" : "bibMeta", { km: workout.plannedKm, time: fmtMinutes(workout.plannedDurationS) })
         )
       }
       footer={

@@ -17,8 +17,11 @@ export function fmtMinutes(totalS: number): string {
   return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`;
 }
 
+const HR_LABEL: Record<string, string> = { z1: "Z1", z2: "Z2", z3: "Z3", ss: "Sweet spot", z4: "Z4", z5: "Z5" };
+/** Pace range for running steps, heart-rate range for cycling steps. */
 export const fmtPaceRange = (t: Target): string | null =>
-  t.kind === "pace" ? `${formatPace(t.minSecPerKm)}–${formatPace(t.maxSecPerKm)} /km` : null;
+  t.kind === "pace" ? `${formatPace(t.minSecPerKm)}–${formatPace(t.maxSecPerKm)} /km` : t.kind === "hr" ? `${HR_LABEL[t.zone]} ${t.minBpm}–${t.maxBpm} bpm` : null;
+export const hrZoneLabel = (zone: string) => HR_LABEL[zone] ?? zone;
 
 /** "1:45:00", "45:30" or "45" (minutes) → seconds; null when invalid. */
 export function parseClock(s: string): number | null {
@@ -48,7 +51,16 @@ export function clockInput(raw: string): string {
 export const paceFromSpeed = (mps: number | null | undefined): number | null => (mps && mps > 0 ? 1000 / mps : null);
 
 /** Big bib number for a session: "5×1" + "km" from "Intervals 5 × 1 km", else the planned km. */
-export function bibNumber(title: string, km: number): { big: string; unit: string } {
+export function bibNumber(title: string, km: number, ride?: { durationS: number }): { big: string; unit: string } {
   const m = title.match(/(\d+)\s*[×x]\s*(\d+(?:\.\d+)?)\s*(km|m|min)\b/);
-  return m ? { big: `${m[1]}×${m[2]}`, unit: m[3]! } : { big: String(km), unit: "km" };
+  if (m) return { big: `${m[1]}×${m[2]}`, unit: m[3]! };
+  // Rides are time-based: the big number is the duration.
+  if (ride) {
+    const min = Math.round(ride.durationS / 300) * 5;
+    return min >= 60 ? { big: `${Math.floor(min / 60)}:${String(min % 60).padStart(2, "0")}`, unit: "h" } : { big: String(min), unit: "min" };
+  }
+  return { big: String(km), unit: "km" };
 }
+
+/** Message key for a session type: rides have their own names ("Long ride", "Endurance"). */
+export const typeKey = (type: string, sport: "run" | "ride" = "run") => (sport === "ride" ? `rideTypes.${type}` : `types.${type}`);

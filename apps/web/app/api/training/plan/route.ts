@@ -13,7 +13,8 @@ export async function POST(req: Request) {
   const parsed = PlanInputSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "invalid_input" }, { status: 400 });
   const today = await todayFor(u.user.id);
-  if (parsed.data.goal.kind === "race" && !raceDateOk(parsed.data.goal.raceDate, today))
+  const g = parsed.data.sport === "ride" ? parsed.data.ride!.goal : null;
+  if (g ? g.kind === "event" && !raceDateOk(g.date, today) : parsed.data.goal.kind === "race" && !raceDateOk(parsed.data.goal.raceDate, today))
     return NextResponse.json({ error: "invalid_race_date" }, { status: 400 });
   const id = await createPlan(u.user.id, parsed.data);
   after(() => pushToGarmin(u.user.id, today));

@@ -201,6 +201,20 @@ def op_fetch_recovery(b: dict[str, Any]) -> dict[str, Any]:
     return {"nights": nights, "tokens": changed_tokens(g, tokens)}
 
 
+def op_fetch_thresholds(b: dict[str, Any]) -> dict[str, Any]:
+    """Lactate threshold heart rate (running and, when set, cycling) for cycling zones. Missing parts are null."""
+    tokens = b["tokens"]
+    g = session_from(tokens)
+    running = cycling = None
+    try:
+        hr = (g.get_lactate_threshold() or {}).get("speed_and_heart_rate") or {}
+        running = hr.get("heartRate")
+        cycling = hr.get("heartRateCycling")
+    except (GarminConnectConnectionError, requests.exceptions.RequestException):
+        pass
+    return {"lthrRunning": running, "lthrCycling": cycling, "tokens": changed_tokens(g, tokens)}
+
+
 def _schedule_id(res: Any) -> Any:
     if not isinstance(res, dict):
         return None
@@ -238,6 +252,7 @@ OPS = {
     "login_mfa": op_login_mfa,
     "fetch": op_fetch,
     "fetch_recovery": op_fetch_recovery,
+    "fetch_thresholds": op_fetch_thresholds,
     "push_workout": op_push_workout,
     "delete_workout": op_delete_workout,
 }

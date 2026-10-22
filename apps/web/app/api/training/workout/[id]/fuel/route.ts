@@ -22,7 +22,7 @@ export async function POST(_req: Request, ctx: RouteContext<"/api/training/worko
   const db = createAdminSupabase();
   const { data: w } = await db
     .from("planned_workouts")
-    .select("id, date, title, type, planned_duration_s, status, fuel_advice")
+    .select("id, date, title, type, planned_duration_s, status, fuel_advice, plan_id")
     .eq("id", id)
     .eq("user_id", u.user.id)
     .maybeSingle();
@@ -41,7 +41,11 @@ export async function POST(_req: Request, ctx: RouteContext<"/api/training/worko
   const message = fuelMessage({
     workoutTitle: w.title,
     minutes: w.planned_duration_s / 60,
-    fueling: fuelingFor({ type: w.type, plannedDurationS: w.planned_duration_s }, kg),
+    fueling: fuelingFor(
+      { type: w.type, plannedDurationS: w.planned_duration_s },
+      kg,
+      ((await u.supabase.from("training_plans").select("sport").eq("id", w.plan_id).maybeSingle()).data?.sport ?? "run") as "run" | "ride",
+    ),
     eatenToday: snap.date === today ? snap.entries.flatMap((e) => e.items.map((i) => `${i.name} (${Math.round(Number(i.kcal))} kcal)`)) : [],
     remaining: {
       kcal: Math.max(0, Math.round(snap.macrosTarget.kcal - snap.intake.kcal)),

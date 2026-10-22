@@ -25,13 +25,13 @@ interface DayData {
 async function loadDays(db: DB, userId: string, from: ISODate, to: ISODate): Promise<Map<ISODate, DayData>> {
   const [days, acts] = await Promise.all([
     db.from("garmin_days").select("local_date, steps").eq("user_id", userId).gte("local_date", from).lte("local_date", to),
-    db.from("activities").select("local_date, type_key, distance_m, duration_s, steps").eq("user_id", userId).gte("local_date", from).lte("local_date", to),
+    db.from("activities").select("local_date, type_key, distance_m, duration_s, steps, garmin_kcal").eq("user_id", userId).gte("local_date", from).lte("local_date", to),
   ]);
   const map = new Map<ISODate, DayData>();
   for (const d of days.data ?? []) map.set(d.local_date, { steps: d.steps, activities: [] });
   for (const a of acts.data ?? []) {
     const day = map.get(a.local_date) ?? { steps: null, activities: [] };
-    day.activities.push({ typeKey: a.type_key, distanceM: a.distance_m == null ? null : Number(a.distance_m), durationS: a.duration_s == null ? null : Number(a.duration_s), steps: a.steps });
+    day.activities.push({ typeKey: a.type_key, distanceM: a.distance_m == null ? null : Number(a.distance_m), durationS: a.duration_s == null ? null : Number(a.duration_s), steps: a.steps, kcal: a.garmin_kcal });
     map.set(a.local_date, day);
   }
   return map;

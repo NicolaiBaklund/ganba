@@ -1,7 +1,7 @@
 import "server-only";
 import { addDays, checkChanges, describeChanges, weekPreview, type PlanWarning } from "@loop/core";
 import { createAdminSupabase } from "@/lib/supabase/admin";
-import { activePlan, planContext, planWorkoutsWithKm, recentRuns, savePlanChanges, todayFor } from "@/lib/training/service";
+import { activePlan, planContext, planWorkoutsWithKm, recentRides, recentRuns, savePlanChanges, todayFor } from "@/lib/training/service";
 import { claimMessage, releaseMessage, updateOptions, type CoachOption } from "./store";
 
 const key = (w: PlanWarning) => `${w.code}|${w.date ?? ""}|${w.week ?? ""}|${w.severity}|${w.before ?? ""}|${w.after ?? ""}|${w.pct ?? ""}`;
@@ -31,7 +31,7 @@ export async function applyOption(userId: string, messageId: string, optionId: s
     const plan = await activePlan(userId);
     if (!plan) return { ok: false as const, error: "no_plan" as ApplyError };
     const today = await todayFor(userId);
-    const [workouts, runs] = await Promise.all([planWorkoutsWithKm(plan), recentRuns(userId, today)]);
+    const [workouts, runs] = await Promise.all([planWorkoutsWithKm(plan), plan.sport === "ride" ? recentRides(userId, today) : recentRuns(userId, today)]);
     const recentLongestKm = Math.max(0, ...runs.filter((r) => r.date >= addDays(today, -28)).map((r) => r.distanceM / 1000));
     const res = checkChanges(workouts, o.changes, planContext(plan, today), { recentLongestKm });
     const save = (next: Partial<CoachOption>) => updateOptions(m.id, options.map((x) => (x.id === o.id ? { ...x, ...next } : x)));

@@ -2,7 +2,8 @@ import { addDays, weekday, type ISODate } from "../dates";
 import { mondayOf } from "./generate";
 import { pacesFor, predictTimeS, vdotFrom, vo2AtSpeed } from "./vdot";
 import { blocksFromSteps, buildByType, defaultTitle, measure, repaceBlocks, rescaleBlocks, resizeQuality, type BuildContext } from "./workouts";
-import { HARD_TYPES, KEY_TYPES, RACE_KM, type PlanWorkout, type ProposalChange, type RaceDistance, type WorkoutType } from "./types";
+import { enduranceRide, longRide, rezoneBlocks, rideByType, rideContext, rideDefaultTitle } from "./ride";
+import { HARD_TYPES, KEY_TYPES, RACE_KM, type Sport, type PlanWorkout, type ProposalChange, type RaceDistance, type WorkoutType } from "./types";
 
 export interface PlanContext {
   weekdays: number[];
@@ -12,6 +13,10 @@ export interface PlanContext {
   today: ISODate;
   /** Race pace follows fitness (no target time, e.g. a build plan's focus): a repace recomputes it. */
   racePaceFromVdot?: boolean;
+  /** Cycling plans: heart-rate targets from LTHR, km estimated from the usual speed. */
+  sport?: Sport;
+  lthr?: number | null;
+  rideSpeedKmh?: number | null;
 }
 
 export interface Proposal {
@@ -211,6 +216,8 @@ export interface ApplyResult {
   workouts: PlanWorkout[];
   changedIds: Set<string>;
   vdot: number;
+  /** Cycling plans: the threshold heart rate after the changes. */
+  lthr: number | null;
 }
 
 /** Applies changes to copies of the workouts. Only future, planned (or missed, for moves) sessions change. */
@@ -220,9 +227,22 @@ export function applyChanges(all: PlanWorkout[], changes: ProposalChange[], ctx:
   const changed = new Set<string>();
   let vdot = ctx.vdot;
   let racePaceS = ctx.racePaceS ?? undefined;
-  const build = (): BuildContext => ({ paces: pacesFor(vdot), racePaceS });
+  const ride = ctx.sport === "ride";
+  let lthr = ctx.lthr ?? 165;
+  const speed = ctx.rideSpeedKmh ?? 25;
+  const build = (): BuildContext => (ride ? rideContext(lthr, speed) : { paces: pacesFor(vdot), racePaceS });
+  const title = (type: PlanWorkout["type"], m: { km: number; s: number }) => (ride ? rideDefaultTitle(type, m.s / 60) : defaultTitle(type, m.km));
 
   for (const c of changes) {
+    if (c.op === "rezone") {
+      lthr = c.lthr;
+      for (const w of list)
+        if (w.status === "planned" && w.date >= ctx.today) {
+          w.blocks = rezoneBlocks(w.blocks, lthr);
+          changed.add(w.id);
+        }
+      continue;
+    }
     if (c.op === "repace") {
       vdot = c.vdot;
       if (ctx.racePaceFromVdot && ctx.distance) racePaceS = Math.round(predictTimeS(RACE_KM[ctx.distance] * 1000, vdot) / RACE_KM[ctx.distance]);
@@ -238,6 +258,14 @@ export function applyChanges(all: PlanWorkout[], changes: ProposalChange[], ctx:
     if (c.op === "rescale") {
       for (const w of list)
         if (w.status === "planned" && w.date >= c.fromDate && (w.type === "easy" || w.type === "long" || w.type === "strides")) {
+          if (ride) {
+            // Rides are time-based: rebuild at the scaled length.
+            const minutes = (w.plannedDurationS / 60) * c.factor;
+            const b = w.type === "long" ? longRide(minutes, rideContext(lthr, speed)) : enduranceRide(minutes, rideContext(lthr, speed), /^Recovery/.test(w.title));
+            Object.assign(w, { title: b.title, blocks: b.blocks, plannedKm: b.plannedKm, plannedDurationS: b.plannedDurationS });
+            changed.add(w.id);
+            continue;
+          }
           w.blocks = rescaleBlocks(w.blocks, c.factor);
           const m = measure(w.blocks, build().paces);
           w.plannedKm = m.km;
@@ -259,7 +287,7 @@ export function applyChanges(all: PlanWorkout[], changes: ProposalChange[], ctx:
         id: `new:${changed.size}:${c.date}`,
         date: c.date,
         type: c.type,
-        title: c.title?.trim() || defaultTitle(c.type, m.km),
+        title: c.title?.trim() || title(c.type, m),
         blocks,
         plannedKm: m.km,
         plannedDurationS: m.s,
@@ -279,6 +307,10 @@ export function applyChanges(all: PlanWorkout[], changes: ProposalChange[], ctx:
       w.status = "planned";
     } else if (c.op === "drop") {
       w.status = "removed";
+    } else if (c.op === "replace" && ride) {
+      // km from the coach is an estimate: turn it into minutes at the usual speed.
+      const b = rideByType(c.type, (c.km / speed) * 60, 2, rideContext(lthr, speed));
+      Object.assign(w, { type: b.type, title: b.title, blocks: b.blocks, plannedKm: b.plannedKm, plannedDurationS: b.plannedDurationS });
     } else if (c.op === "replace") {
       const sameQuality = c.type === w.type && (c.type === "intervals" || c.type === "threshold" || c.type === "tempo");
       if (sameQuality) {
@@ -295,10 +327,10 @@ export function applyChanges(all: PlanWorkout[], changes: ProposalChange[], ctx:
       const blocks = blocksFromSteps(c.steps, build());
       const m = measure(blocks, build().paces);
       const type = c.type ?? w.type;
-      Object.assign(w, { type, title: c.title?.trim() || defaultTitle(type, m.km), blocks, plannedKm: m.km, plannedDurationS: m.s });
+      Object.assign(w, { type, title: c.title?.trim() || title(type, m), blocks, plannedKm: m.km, plannedDurationS: m.s });
     }
     changed.add(w.id);
   }
-  return { workouts: list, changedIds: changed, vdot };
+  return { workouts: list, changedIds: changed, vdot, lthr: ride ? lthr : null };
 }
 
