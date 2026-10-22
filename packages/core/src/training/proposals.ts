@@ -1,6 +1,6 @@
 import { addDays, weekday, type ISODate } from "../dates";
 import { mondayOf } from "./generate";
-import { pacesFor, vo2AtSpeed } from "./vdot";
+import { pacesFor, vdotFrom, vo2AtSpeed } from "./vdot";
 import { blocksFromSteps, buildByType, defaultTitle, measure, repaceBlocks, rescaleBlocks, resizeQuality, type BuildContext } from "./workouts";
 import { HARD_TYPES, KEY_TYPES, type PlanWorkout, type ProposalChange, type RaceDistance, type WorkoutType } from "./types";
 
@@ -27,6 +27,7 @@ const LABEL: Record<WorkoutType, string> = {
   tempo: "marathon-pace run",
   strides: "strides run",
   race: "race",
+  test: "fitness test",
 };
 
 const active = (w: PlanWorkout) => w.status !== "removed";
@@ -88,6 +89,44 @@ export function pacesProposal(planVdot: number, fitnessVdot: number): Proposal |
   return {
     kind: "paces",
     summary: `Your recent runs show better fitness (VDOT ${v}, plan uses ${planVdot}). Update your paces?`,
+    changes: [{ op: "repace", vdot: v }],
+  };
+}
+
+/** A finished fitness test: the activity's laps (Garmin), or its whole distance/time when there are none. */
+export interface TestRun {
+  date: ISODate;
+  distanceM: number;
+  timeS: number;
+  laps: { distanceM: number; timeS: number }[];
+}
+
+const TEST_MIN_M = 4800;
+const TEST_MAX_M = 5400;
+const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
+
+/** The 5 km effort inside a test run: its fastest ~5 km lap, else the whole run if it was just the test. */
+export function testEffort(run: TestRun): { distanceM: number; timeS: number } | null {
+  const lap = run.laps
+    .filter((l) => l.distanceM >= TEST_MIN_M && l.distanceM <= TEST_MAX_M && l.timeS > 0)
+    .sort((a, b) => a.timeS / a.distanceM - b.timeS / b.distanceM)[0];
+  if (lap) return lap;
+  return run.distanceM >= TEST_MIN_M && run.distanceM <= TEST_MAX_M && run.timeS > 0 ? { distanceM: run.distanceM, timeS: run.timeS } : null;
+}
+
+/**
+ * Fitness test result → new paces (spec 2026-10-22 §5): up or down when it moves VDOT by 0.5 or more,
+ * never more than 3 down. The summary names the test date so it is proposed once.
+ */
+export function testProposal(planVdot: number, run: TestRun): Proposal | null {
+  const e = testEffort(run);
+  if (!e) return null;
+  const measured = Math.round(vdotFrom(e.distanceM, e.timeS) * 10) / 10;
+  const v = Math.max(planVdot - MAX_VDOT_DROP, measured);
+  if (Math.abs(v - planVdot) < 0.5) return null;
+  return {
+    kind: "paces",
+    summary: `Fitness test (${run.date}): ${Math.round(e.distanceM / 100) / 10} km in ${mmss(e.timeS)}, VDOT ${v} (plan ${planVdot}). Update your paces?`,
     changes: [{ op: "repace", vdot: v }],
   };
 }

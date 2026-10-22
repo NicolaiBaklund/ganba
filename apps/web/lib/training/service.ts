@@ -9,6 +9,7 @@ import {
   missedProposal,
   pacesProposal,
   slowerPacesProposal,
+  testProposal,
   volumeProposal,
   applyChanges,
   vdotFrom,
@@ -22,6 +23,7 @@ import {
   type ProposalChange,
   type RaceDistance,
   type RunRecord,
+  type TestRun,
   type WorkoutSpec,
 } from "@loop/core";
 import { createAdminSupabase } from "@/lib/supabase/admin";
@@ -53,7 +55,7 @@ export const distanceOf = (p: Pick<PlanRow, "distance_km">): RaceDistance | null
 export const goalOf = (p: PlanRow): Goal =>
   p.goal_kind === "race" && p.race_date && distanceOf(p)
     ? { kind: "race", distance: distanceOf(p)!, raceDate: p.race_date, targetTimeS: p.target_time_s }
-    : { kind: "build" };
+    : { kind: "build", focus: distanceOf(p) };
 
 export function toPlanWorkout(r: WorkoutRow, activityKm?: number | null): PlanWorkout {
   return {
@@ -126,6 +128,8 @@ export interface CreatePlanInput {
   weekdays: number[];
   longRunWeekday: number;
   runsPerWeek: number;
+  /** Hills nearby: hill repeats take the place of fartlek. */
+  hills?: boolean;
   /** Optional recent race result that overrides the Garmin estimate. */
   recentRace?: { distanceM: number; timeS: number } | null;
 }
@@ -186,6 +190,7 @@ export async function previewPlan(userId: string, input: CreatePlanInput) {
     experienced: fit.experienced,
     didQuality: fit.didQuality,
     recentLongestKm: fit.longestKm,
+    hills: !!input.hills,
   });
   return { today, fitness: { ...fit, vdot, source: input.recentRace ? ({ kind: "manual" } as const) : fit.source }, plan };
 }
@@ -202,7 +207,9 @@ export async function createPlan(userId: string, input: CreatePlanInput): Promis
     .insert({
       user_id: userId,
       goal_kind: goal.kind,
-      distance_km: goal.kind === "race" ? RACE_KM[goal.distance] : null,
+      // Build plans keep their focus distance here (null = General).
+      distance_km: goal.kind === "race" ? RACE_KM[goal.distance] : goal.focus ? RACE_KM[goal.focus] : null,
+      hills: !!input.hills,
       race_date: goal.kind === "race" ? goal.raceDate : null,
       target_time_s: goal.kind === "race" ? (goal.targetTimeS ?? null) : null,
       runs_per_week: input.runsPerWeek,
@@ -278,7 +285,9 @@ export async function reconcilePlan(userId: string, today: ISODate): Promise<voi
   if (plan.goal_kind === "build" && plan.generated_until < addDays(today, BUILD_EXTEND_AHEAD_DAYS)) {
     const until = addDays(plan.generated_until, BUILD_EXTEND_WEEKS * 7);
     const full = generatePlan({
-      goal: { kind: "build" },
+      // Same focus and hills as when the plan was made, so new weeks continue the same rotation.
+      goal: goalOf(plan),
+      hills: plan.hills,
       startDate: plan.start_date,
       weekdays: plan.weekdays,
       longRunWeekday: plan.long_run_weekday,
@@ -308,6 +317,19 @@ export async function planWorkoutsWithKm(plan: PlanRow): Promise<PlanWorkout[]> 
   return rows.map((r) => toPlanWorkout(r, r.activity_id ? km.get(r.activity_id) : null));
 }
 
+/** The activity linked to a done fitness test, with its Garmin laps. */
+async function testRunFor(planId: string, workoutId: string, date: string): Promise<TestRun | null> {
+  const { data: w } = await db().from("planned_workouts").select("activity_id").eq("id", workoutId).eq("plan_id", planId).maybeSingle();
+  if (!w?.activity_id) return null;
+  const { data: a } = await db().from("activities").select("distance_m, moving_s, duration_s, splits").eq("id", w.activity_id).maybeSingle();
+  if (!a) return null;
+  const laps = ((a.splits as { lapDTOs?: { distance?: number | null; duration?: number | null; movingDuration?: number | null }[] } | null)?.lapDTOs ?? []).map((l) => ({
+    distanceM: Number(l.distance ?? 0),
+    timeS: Number(l.movingDuration ?? l.duration ?? 0),
+  }));
+  return { date, distanceM: Number(a.distance_m ?? 0), timeS: Number(a.moving_s ?? a.duration_s ?? 0), laps };
+}
+
 /** Engine proposals, created lazily (on page load / after sync). At most one pending per kind. */
 export async function refreshProposals(userId: string, today: ISODate): Promise<void> {
   const plan = await activePlan(userId);
@@ -330,9 +352,18 @@ export async function refreshProposals(userId: string, today: ISODate): Promise<
     all.filter((p) => p.kind === "missed").flatMap((p) => (p.changes as unknown as ProposalChange[]).map((c) => ("workoutId" in c ? c.workoutId : ""))),
   );
 
+  // A fitness test done in the last two weeks: its result decides the paces (once per test).
+  const test = workouts
+    .filter((w) => w.type === "test" && w.status === "done" && w.date >= addDays(today, -14))
+    .sort((a, b) => (a.date < b.date ? 1 : -1))[0];
+  const testRun = test && !pendingKinds.has("paces") ? await testRunFor(plan.id, test.id, test.date) : null;
+  const testDone = (date: string) => all.some((p) => p.kind === "paces" && p.summary.startsWith(`Fitness test (${date})`));
+  const fromTest = testRun && !testDone(testRun.date) ? testProposal(Number(plan.vdot), testRun) : null;
+
   const candidates = [
+    fromTest,
     !pendingKinds.has("missed") ? missedProposal(workouts, ctx, proposed) : null,
-    !pendingKinds.has("paces") && !recent("paces")
+    !fromTest && !pendingKinds.has("paces") && !recent("paces")
       ? (pacesProposal(Number(plan.vdot), (await currentFitness(userId, today)).vdot) ??
         slowerPacesProposal(Number(plan.vdot), await qualityResultsBetween(userId, addDays(today, -21), today, plan.id), today))
       : null,

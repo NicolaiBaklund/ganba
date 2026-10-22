@@ -6,6 +6,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/common/Chip";
+import { cn } from "@/lib/utils";
 import { clockInput, fmtClock, parseClock, typeColor } from "@/lib/training/format";
 import type { WorkoutType } from "@loop/core";
 
@@ -46,6 +47,8 @@ export function PlanWizard({ minDate }: { minDate: string }) {
 
   const [step, setStep] = useState(0);
   const [goal, setGoal] = useState<GoalChoice>("10k");
+  const [focus, setFocus] = useState<Distance | null>(null);
+  const [hills, setHills] = useState(false);
   const [raceDate, setRaceDate] = useState("");
   const [targetTime, setTargetTime] = useState("");
   const [days, setDays] = useState<number[]>([2, 4, 0]);
@@ -63,7 +66,8 @@ export function PlanWizard({ minDate }: { minDate: string }) {
   const daysValid = days.length >= 2 && runs <= days.length && days.includes(longDay);
 
   const body = () => ({
-    goal: isRace ? { kind: "race", distance: goal, raceDate, targetTimeS: targetS } : { kind: "build" },
+    goal: isRace ? { kind: "race", distance: goal, raceDate, targetTimeS: targetS } : { kind: "build", focus },
+    hills,
     weekdays: days,
     longRunWeekday: longDay,
     runsPerWeek: runs,
@@ -156,6 +160,38 @@ export function PlanWizard({ minDate }: { minDate: string }) {
               </label>
             </>
           )}
+          {!isRace && (
+            <div className="flex flex-col gap-2">
+              <p className="text-sm text-muted-foreground">{t("focus")}</p>
+              <div className="flex flex-wrap gap-2">
+                <Chip selected={focus == null} onClick={() => setFocus(null)}>
+                  {t("focusGeneral")}
+                </Chip>
+                {DISTANCES.map((d) => (
+                  <Chip key={d} selected={focus === d} onClick={() => setFocus(d)}>
+                    {tt(`distance.${d}`)}
+                  </Chip>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">{focus ? t("focusDistanceHint") : t("focusGeneralHint")}</p>
+            </div>
+          )}
+          <div className="flex items-center justify-between gap-4 border-y border-border py-3">
+            <span>
+              <span className="block text-[15px] font-semibold">{t("hills")}</span>
+              <span className="block text-xs text-muted-foreground">{t("hillsHint")}</span>
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={hills}
+              aria-label={t("hills")}
+              onClick={() => setHills(!hills)}
+              className={cn("relative h-7 w-12 shrink-0 rounded-full transition-colors", hills ? "bg-primary" : "bg-muted")}
+            >
+              <span className={cn("absolute top-1 size-5 rounded-full bg-card shadow transition-[left]", hills ? "left-6" : "left-1")} />
+            </button>
+          </div>
           <Button className="h-12" disabled={!goalValid} onClick={() => setStep(1)}>
             {t("next")}
           </Button>

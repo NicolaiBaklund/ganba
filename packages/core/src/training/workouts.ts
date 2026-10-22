@@ -115,34 +115,124 @@ export function longRun(km: number, ctx: BuildContext, marathonPaceKm = 0): Buil
   );
 }
 
-const SHORT_REPS: [number, number][] = [[5, 800], [6, 800], [5, 1000], [6, 1000], [5, 1200]];
-const LONG_REPS: [number, number][] = [[4, 1000], [5, 1000], [4, 1200], [5, 1200], [6, 1200]];
 const recoverFor = (m: number) => (m <= 400 ? 90 : m <= 800 ? 120 : m <= 1000 ? 150 : 180);
+const at = <T,>(table: readonly T[], level: number): T => table[Math.max(0, Math.min(table.length - 1, level))]!;
 
+/**
+ * Quality session families (spec 2026-10-22 §3). Each has a table for level 0–4; `Shrink` makes it fit small weeks.
+ * Everything runs on flat ground except hills, which only come with the hills choice.
+ */
+export type QualityKind = "short" | "long" | "racePace" | "threshold" | "fartlek" | "hills" | "tempo";
+
+const SHORT_REPS: [number, number][] = [[8, 400], [10, 400], [6, 600], [8, 600], [12, 400]];
+const LONG_REPS: [number, number][] = [[5, 1000], [6, 1000], [4, 1200], [5, 1200], [3, 1600]];
+const RACE_REPS: Record<RaceDistance, [number, number][]> = {
+  "5k": [[4, 1000], [5, 1000], [3, 1600], [4, 1200], [3, 2000]],
+  "10k": [[3, 2000], [4, 1600], [3, 2500], [2, 3000], [3, 3000]],
+  half: [[2, 3000], [3, 3000], [2, 5000], [3, 4000], [2, 6000]],
+  marathon: [[2, 3000], [3, 3000], [2, 5000], [3, 4000], [2, 6000]],
+};
+/** Hard minutes, easy minutes (seconds). */
+const FARTLEK: [number, number, number][] = [[8, 60, 60], [10, 60, 60], [6, 120, 60], [8, 120, 60], [5, 180, 90]];
+const HILLS: [number, number][] = [[6, 60], [8, 60], [10, 60], [6, 90], [8, 90]];
+
+const label = (m: number) => (m >= 1000 ? `${m / 1000} km` : `${m} m`);
+
+/** Interval-pace repeats of `m` metres (the classic session; kept for the coach's "replace"). */
 export function intervals(level: number, distance: RaceDistance, ctx: BuildContext, o: Shrink = {}): BuiltWorkout {
-  const table = distance === "5k" || distance === "10k" ? SHORT_REPS : LONG_REPS;
-  const [times, m] = table[Math.max(0, Math.min(table.length - 1, level))]!;
+  const table = distance === "5k" || distance === "10k" ? SHORT_REPS_OLD : LONG_REPS;
+  const [times, m] = at(table, level);
   return repeatsWorkout("intervals", Math.max(2, times - (o.cut ?? 0)), m, "interval", ctx, o);
 }
+const SHORT_REPS_OLD: [number, number][] = [[5, 800], [6, 800], [5, 1000], [6, 1000], [5, 1200]];
 
 /** Short and sharp, for taper weeks. */
 export function sharpener(ctx: BuildContext): BuiltWorkout {
   return repeatsWorkout("intervals", 4, 400, "interval", ctx);
 }
 
-function repeatsWorkout(type: WorkoutType, times: number, m: number, zone: PaceZone, ctx: BuildContext, o: Shrink = {}): BuiltWorkout {
-  const label = m >= 1000 ? `${m / 1000} km` : `${m} m`;
+function repeatsWorkout(type: WorkoutType, times: number, m: number, zone: PaceZone, ctx: BuildContext, o: Shrink = {}, title?: string): BuiltWorkout {
   return finish(
     type,
-    `Intervals ${times} × ${label}`,
+    title ?? `Intervals ${times} × ${label(m)}`,
     [
       step("warmup", dist(o.warm ?? WARMUP_KM), targetFor("easy", ctx.paces)),
       {
         kind: "repeat",
         times,
-        steps: [step("run", dist(m / 1000), targetFor(zone, ctx.paces)), step("recover", time(recoverFor(m)), { kind: "none" })],
+        steps: [step("run", dist(m / 1000), targetFor(zone, ctx.paces, ctx.racePaceS)), step("recover", time(recoverFor(m)), { kind: "none" })],
       },
       step("cooldown", dist(o.cool ?? COOLDOWN_KM), targetFor("easy", ctx.paces)),
+    ],
+    ctx,
+  );
+}
+
+export function shortReps(level: number, ctx: BuildContext, o: Shrink = {}): BuiltWorkout {
+  const [t, m] = at(SHORT_REPS, level);
+  const times = Math.max(3, t - 2 * (o.cut ?? 0));
+  return repeatsWorkout("intervals", times, m, m <= 400 ? "rep" : "interval", ctx, o, `Short reps ${times} × ${label(m)}`);
+}
+
+export function longReps(level: number, ctx: BuildContext, o: Shrink = {}): BuiltWorkout {
+  const [t, m] = at(LONG_REPS, level);
+  const times = Math.max(2, t - (o.cut ?? 0));
+  return repeatsWorkout("intervals", times, m, "interval", ctx, o, `Intervals ${times} × ${label(m)}`);
+}
+
+const PACE_NAME: Record<RaceDistance, string> = { "5k": "5K", "10k": "10K", half: "Half marathon", marathon: "Marathon" };
+
+/** Reps at goal race pace (needs ctx.racePaceS; without it, threshold pace). */
+export function racePaceReps(level: number, distance: RaceDistance, ctx: BuildContext, o: Shrink = {}): BuiltWorkout {
+  const [t, m] = at(RACE_REPS[distance], level);
+  const times = Math.max(2, t - (o.cut ?? 0));
+  const zone: PaceZone = ctx.racePaceS ? "race" : "threshold";
+  return repeatsWorkout("intervals", times, m, zone, ctx, o, `${PACE_NAME[distance]} pace ${times} × ${label(m)}`);
+}
+
+/** Time-based surges, run by feel on any road: no track or exact distances needed. */
+export function fartlek(level: number, ctx: BuildContext, o: Shrink = {}): BuiltWorkout {
+  const [t, on, off] = at(FARTLEK, level);
+  const times = Math.max(4, t - 2 * (o.cut ?? 0));
+  const zone: PaceZone = on <= 60 ? "interval" : "threshold";
+  const mins = (s: number) => (s % 60 ? `${s / 60}`.replace(".5", "½") : `${s / 60}`);
+  return finish(
+    "intervals",
+    `Fartlek ${times} × ${mins(on)} min`,
+    [
+      step("warmup", dist(o.warm ?? WARMUP_KM), targetFor("easy", ctx.paces)),
+      { kind: "repeat", times, steps: [step("run", time(on), targetFor(zone, ctx.paces)), step("recover", time(off), { kind: "none" })] },
+      step("cooldown", dist(o.cool ?? COOLDOWN_KM), targetFor("easy", ctx.paces)),
+    ],
+    ctx,
+  );
+}
+
+/** Uphill repeats by effort (no pace target), jog back down. */
+export function hillReps(level: number, ctx: BuildContext, o: Shrink = {}): BuiltWorkout {
+  const [t, s] = at(HILLS, level);
+  const times = Math.max(4, t - 2 * (o.cut ?? 0));
+  return finish(
+    "intervals",
+    `Hills ${times} × ${s} s`,
+    [
+      step("warmup", dist(o.warm ?? WARMUP_KM), targetFor("easy", ctx.paces)),
+      { kind: "repeat", times, steps: [step("run", time(s), { kind: "none" }), step("recover", time(Math.round(s * 1.5)), { kind: "none" })] },
+      step("cooldown", dist(o.cool ?? COOLDOWN_KM), targetFor("easy", ctx.paces)),
+    ],
+    ctx,
+  );
+}
+
+/** 5K time trial: all-out but even, no pace target. Its result updates the plan's paces (spec §5). */
+export function fitnessTest(ctx: BuildContext): BuiltWorkout {
+  return finish(
+    "test",
+    "Fitness test: 5K time trial",
+    [
+      step("warmup", dist(WARMUP_KM), targetFor("easy", ctx.paces)),
+      step("run", dist(5), { kind: "none" }),
+      step("cooldown", dist(COOLDOWN_KM), targetFor("easy", ctx.paces)),
     ],
     ctx,
   );
@@ -151,7 +241,7 @@ function repeatsWorkout(type: WorkoutType, times: number, m: number, zone: PaceZ
 const THRESHOLD: [number, number][] = [[3, 8], [2, 12], [3, 10], [2, 15], [4, 10]];
 
 export function threshold(level: number, ctx: BuildContext, o: Shrink = {}): BuiltWorkout {
-  const [t0, min] = THRESHOLD[Math.max(0, Math.min(THRESHOLD.length - 1, level))]!;
+  const [t0, min] = at(THRESHOLD, level);
   const times = Math.max(2, t0 - (o.cut ?? 0));
   return finish(
     "threshold",
@@ -177,8 +267,7 @@ const TEMPO_KM: Record<RaceDistance, number[]> = {
 };
 
 export function tempo(level: number, distance: RaceDistance, ctx: BuildContext, o: Shrink = {}): BuiltWorkout {
-  const t = TEMPO_KM[distance];
-  const km = Math.max(2, t[Math.max(0, Math.min(t.length - 1, level))]! - (o.cut ?? 0));
+  const km = Math.max(2, at(TEMPO_KM[distance], level) - (o.cut ?? 0));
   return finish(
     "tempo",
     `Marathon pace ${km} km`,
@@ -193,13 +282,32 @@ export function tempo(level: number, distance: RaceDistance, ctx: BuildContext, 
 
 export type QualityType = "intervals" | "threshold" | "tempo";
 
+function makeQuality(kind: QualityKind, level: number, distance: RaceDistance, ctx: BuildContext, o?: Shrink): BuiltWorkout {
+  switch (kind) {
+    case "short":
+      return shortReps(level, ctx, o);
+    case "long":
+      return longReps(level, ctx, o);
+    case "racePace":
+      return distance === "marathon" ? tempo(level, distance, ctx, o) : racePaceReps(level, distance, ctx, o);
+    case "threshold":
+      return threshold(level, ctx, o);
+    case "fartlek":
+      return fartlek(level, ctx, o);
+    case "hills":
+      return hillReps(level, ctx, o);
+    case "tempo":
+      return tempo(level, distance, ctx, o);
+  }
+}
+
 /**
  * The biggest version of a quality session (at or below `level`) that fits `budgetKm`.
  * Falls back to short warm-up/cool-down and fewer repeats for small weeks.
  */
-export function qualityFor(type: QualityType, level: number, distance: RaceDistance, ctx: BuildContext, budgetKm: number): BuiltWorkout {
-  const make = (l: number, o?: Shrink) =>
-    type === "intervals" ? intervals(l, distance, ctx, o) : type === "threshold" ? threshold(l, ctx, o) : tempo(l, distance, ctx, o);
+export function qualityFor(kind: QualityKind | QualityType, level: number, distance: RaceDistance, ctx: BuildContext, budgetKm: number): BuiltWorkout {
+  const k: QualityKind = kind === "intervals" ? "long" : kind;
+  const make = (l: number, o?: Shrink) => makeQuality(k, l, distance, ctx, o);
   for (let l = Math.max(0, level); l >= 0; l--) {
     const w = make(l);
     if (w.plannedKm <= budgetKm * 1.1) return w;
@@ -231,7 +339,8 @@ export function buildByType(type: WorkoutType, km: number, distance: RaceDistanc
     case "tempo":
       return tempo(level, distance, ctx);
     case "race":
-      return easyRun(km, ctx); // races are only placed by the generator
+    case "test":
+      return easyRun(km, ctx); // races and tests are only placed by the generator
   }
 }
 
@@ -272,6 +381,7 @@ const TYPE_LABEL: Record<WorkoutType, string> = {
   tempo: "Tempo",
   strides: "Easy run with strides",
   race: "Race",
+  test: "Fitness test",
 };
 export const defaultTitle = (type: WorkoutType, km: number) => `${TYPE_LABEL[type]} ${r1(km)} km`;
 

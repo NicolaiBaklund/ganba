@@ -354,7 +354,8 @@
       "threshold": "Threshold",
       "tempo": "Marathon pace",
       "strides": "Strides",
-      "race": "Race"
+      "race": "Race",
+      "test": "Fitness test"
     },
     "next": "Next:",
     "nextText": "{day}, {type} {km} km",
@@ -458,7 +459,13 @@
       "garmin": "Based on Garmin’s 10K estimate ({time}), read slightly cautiously",
       "default": "No recent runs found. Starting cautiously.",
       "manual": "Based on the time you entered"
-    }
+    },
+    "focus": "Focus",
+    "focusGeneral": "General",
+    "focusGeneralHint": "Faster and longer: blocks of speed, threshold and endurance, and a 5K test every 8 weeks.",
+    "focusDistanceHint": "Trains like a plan for that distance, with no race day. A 5K test every 8 weeks keeps your paces right.",
+    "hills": "I have hills nearby",
+    "hillsHint": "Adds hill repeats. Off: everything runs on flat ground."
   },
   "garmin": {
     "title": "Garmin",

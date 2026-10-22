@@ -12,11 +12,12 @@ export const PlanInputSchema = z
         raceDate: isoDate,
         targetTimeS: z.number().int().min(600).max(86_400).nullable().optional(),
       }),
-      z.object({ kind: z.literal("build") }),
+      z.object({ kind: z.literal("build"), focus: z.enum(["5k", "10k", "half", "marathon"]).nullable().optional() }),
     ]),
     weekdays: z.array(weekday).min(2).max(7),
     longRunWeekday: weekday,
     runsPerWeek: z.number().int().min(2).max(6),
+    hills: z.boolean().optional(),
     recentRace: z
       .object({ distanceM: z.number().min(1000).max(50_000), timeS: z.number().int().min(120).max(30_000) })
       .nullable()
