@@ -21,6 +21,7 @@ interface Preview {
   fitness: {
     vdot: number;
     kmPerWeek: number;
+    baseKmPerWeek: number;
     sparse: boolean;
     experienced: boolean;
     didQuality: boolean;
@@ -268,7 +269,7 @@ export function PlanWizard({ minDate }: { minDate: string }) {
             <div>
               <p className="text-muted-foreground">{tt("vdot")}</p>
               <p className="num text-2xl font-extrabold">{preview.fitness.vdot}</p>
-              <p className="text-xs text-muted-foreground">{t("kmPerWeek", { km: preview.fitness.kmPerWeek })}</p>
+              <p className="text-xs text-muted-foreground">{t("startKm", { km: preview.fitness.baseKmPerWeek })}</p>
             </div>
             {preview.predictedTimeS != null && (
               <div>

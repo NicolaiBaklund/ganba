@@ -103,8 +103,8 @@ Ren TypeScript, deterministisk, ingen I/O.
 - Treningstempo (fart der `vo2(v) = V × andel`), andeler **(Claude-valg)**: Rolig 0.65–0.74, Maraton 0.80, Terskel 0.88, Intervall 0.975, Repetisjon 1.05. Tempo vises som område ±5 s/km (rolig: hele området).
 
 ### 5.2 Volum
-- Startvolum = snitt km/uke siste 4 uker (min `økter × 3 km`).
-- Ukentlig økning 8 % (maks 10 %); **5 %** når vektmålet har underskudd > 500 kcal/dag.
+- Startvolum = beste enkeltuke av de siste 4 (rullerende 7 dager), maks 30 % over 4-ukerssnittet; etter et opphold (de to siste ukene under halve snittet) det forsiktige: høyeste av 4- og 2-ukerssnitt, maks +20 %. Min `økter × 3 km`. Uke 1 matcher startvolumet. *(Endret 2026-10-22, se 02-decisions.)*
+- Ukentlig økning 8 % (maks 10 %) fra uke 2; **5 %** når vektmålet har underskudd > 500 kcal/dag.
 - Hver 4. uke er lett uke (−25 %).
 - Toppvolum: `clamp(start × 1.5, min, maks)` per distanse: 5k 20–50, 10k 25–60, halv 30–70, maraton 40–90 km.
 - Langtur ≈ 30 % av ukevolum, tak: 5k 14, 10k 18, halv 22, maraton 32 km.

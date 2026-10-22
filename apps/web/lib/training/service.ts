@@ -220,6 +220,7 @@ export async function createPlan(userId: string, input: CreatePlanInput): Promis
       experienced: fitness.experienced,
       did_quality: fitness.didQuality,
       recent_longest_km: fitness.longestKm,
+      week1_grows: false,
       start_date: today,
       generated_until: goal.kind === "race" ? goal.raceDate : addDays(today, BUILD_EXTEND_WEEKS * 7 - 1) > lastDate ? addDays(today, BUILD_EXTEND_WEEKS * 7 - 1) : lastDate,
     })
@@ -300,6 +301,7 @@ export async function reconcilePlan(userId: string, today: ISODate): Promise<voi
       experienced: plan.experienced,
       didQuality: plan.did_quality,
       recentLongestKm: plan.recent_longest_km == null ? undefined : Number(plan.recent_longest_km),
+      week1Grows: plan.week1_grows,
     });
     const fresh = full.workouts.filter((w) => w.date > plan.generated_until && w.date >= today);
     if (fresh.length) await d.from("planned_workouts").insert(fresh.map((w) => workoutRow(userId, plan.id, w)));

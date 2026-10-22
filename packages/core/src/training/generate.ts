@@ -174,7 +174,7 @@ export function generatePlan(input: PlanInput): GeneratedPlan {
     else if (phase === "recovery") km = level * RECOVERY_FACTOR;
     else {
       // Week 1 matches the start volume (already the best recent week); growth starts in week 2.
-      if (growthIdx > 0) level = Math.min(peakKm, level * (1 + growth));
+      if (growthIdx > 0 || input.week1Grows) level = Math.min(peakKm, level * (1 + growth));
       km = level;
       growthIdx++;
       peakReached = Math.max(peakReached, level);

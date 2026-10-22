@@ -465,7 +465,8 @@
     "focusGeneralHint": "Faster and longer: blocks of speed, threshold and endurance, and a 5K test every 8 weeks.",
     "focusDistanceHint": "Trains like a plan for that distance, with no race day. A 5K test every 8 weeks keeps your paces right.",
     "hills": "I have hills nearby",
-    "hillsHint": "Adds hill repeats. Off: everything runs on flat ground."
+    "hillsHint": "Adds hill repeats. Off: everything runs on flat ground.",
+    "startKm": "Starts at {km} km/week (your best recent week)"
   },
   "garmin": {
     "title": "Garmin",
