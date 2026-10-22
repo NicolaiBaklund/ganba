@@ -47,7 +47,9 @@ export function CoachSheet({ aboutWorkoutId, draft, onClose }: { aboutWorkoutId?
       })
       .catch(() => setFailed("load"));
   useEffect(() => void load(), []);
-  useEffect(() => end.current?.scrollIntoView({ block: "end" }), [data?.messages.length, busy]);
+  useEffect(() => {
+    end.current?.scrollIntoView({ block: "end" });
+  }, [data?.messages.length, busy]);
 
   async function send(body = text, retry = false) {
     const msg = body.trim();
