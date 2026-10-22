@@ -30,9 +30,12 @@ async function timezoneOf(supabase: DB, userId: string): Promise<string> {
 export async function createFoodEntry(supabase: DB, userId: string, b: z.output<typeof CreateEntry>): Promise<string> {
   if (b.photoPaths.some((p) => !p.startsWith(`${userId}/`))) throw new EntryError("invalid_input", 400);
   const tz = await timezoneOf(supabase, userId);
-  const loggedAt = b.loggedAt ? new Date(b.loggedAt) : new Date();
-  const day = b.localDate ?? localDate(tz, loggedAt);
+  const sent = b.loggedAt ? new Date(b.loggedAt) : new Date();
+  const day = b.localDate ?? localDate(tz, sent);
   if (day > localDate(tz)) throw new EntryError("invalid_input", 400);
+  // A time picked while logging places the meal on its own day; otherwise the moment it was logged.
+  // A time later than now (a slipped picker) is taken as now.
+  const loggedAt = b.time ? new Date(Math.min(zonedTime(day, b.time, tz).getTime(), Date.now())) : sent;
 
   const { data: entry, error } = await supabase
     .from("food_entries")

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { MealTimeField } from "@/components/food/MealTimeField";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { estimateTotals, localDate } from "@loop/core";
@@ -117,16 +118,7 @@ export function EditEntrySheet({ entry, timezone, onClose }: { entry: FoodEntryW
             </Chip>
           ))}
         </div>
-        <label className="flex items-center justify-between gap-3 border-b border-border py-2 text-sm">
-          <span className="font-semibold">{t("time")}</span>
-          <input
-            type="time"
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
-            className="num rounded-md bg-muted px-3 py-1.5 text-base"
-            aria-label={t("time")}
-          />
-        </label>
+        <MealTimeField value={time} onChange={setTime} />
         {!initialTime && <p className="-mt-2 text-xs text-muted-foreground">{t("timeUnknown")}</p>}
         <Button size="lg" className="h-12" disabled={!items.length || busy} onClick={save}>
           {t("save")}

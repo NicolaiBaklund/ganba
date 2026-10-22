@@ -5,6 +5,8 @@ import type { Block, Step, WorkoutSpec } from "@loop/core";
  * Plan workout → Garmin Connect workout JSON (running).
  * IDs follow Garmin Connect's own workout export: end condition lap.button 1, time 2, distance 3,
  * iterations 7; target no.target 1, pace.zone 6 (values in m/s, slower first).
+ * Easy-zone steps (easy and long runs, warm-ups, cool-downs) go without a pace target: run them by feel, no alerts.
+ * The app still shows the easy pace as guidance.
  */
 const STEP_TYPE = {
   warmup: { stepTypeId: 1, stepTypeKey: "warmup", displayOrder: 1 },
@@ -35,7 +37,7 @@ function stepJson(s: Step, order: { n: number }) {
     stepType: STEP_TYPE[s.kind],
     endCondition: cond,
     endConditionValue: s.duration.kind === "distance" ? s.duration.m : s.duration.kind === "time" ? s.duration.s : null,
-    ...(s.target.kind === "pace"
+    ...(s.target.kind === "pace" && s.target.zone !== "easy"
       ? { targetType: PACE_TARGET, targetValueOne: mps(s.target.maxSecPerKm), targetValueTwo: mps(s.target.minSecPerKm) }
       : { targetType: NO_TARGET }),
   };
