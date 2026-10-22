@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, generatePlan, testProposal, weekday, type ISODate, type PlanInput } from "@loop/core";
+import { addDays, fitnessFrom, generatePlan, testProposal, weekday, type ISODate, type PlanInput } from "@loop/core";
 
 // A Monday, so week 1 is whole unless a test says otherwise.
 const MONDAY: ISODate = "2026-11-02";
@@ -107,5 +107,31 @@ describe("plan variety: fitness test → paces", () => {
     const auto = [360, 355, 258, 256, 259, 257, 262, 350, 352].map((t) => ({ distanceM: 1000, timeS: t }));
     const fromAuto = testProposal(42, run(auto, 9000, 2709));
     expect(fromAuto!.summary).toContain("5 km in 21:32");
+  });
+});
+
+describe("start volume", () => {
+  const today: ISODate = "2026-10-22";
+  // One run per day of the given km in each of the last four 7-day weeks (index 0 = the last 7 days).
+  const runsFor = (weeks: number[]) =>
+    weeks.flatMap((km, i) => [1, 3, 5].map((d) => ({ date: addDays(today, -(7 * i + d)), distanceM: (km / 3) * 1000, timeS: (km / 3) * 330 })));
+
+  it("a sick week doesn't drag the start down: best week, capped at 30 % over the average", () => {
+    const f = fitnessFrom(runsFor([11.6, 26.9, 39.6, 43]), today);
+    expect(f.baseKmPerWeek).toBeCloseTo(39.4, 0); // best 43, cap 1.3 × 30.3
+  });
+
+  it("after a break (last two weeks nearly zero) it starts carefully", () => {
+    const f = fitnessFrom(runsFor([0, 0, 40, 40]), today);
+    expect(f.baseKmPerWeek).toBe(20); // the 4-week average, not 26
+  });
+
+  it("week 1 matches the start volume; older plans keep their week-1 growth", () => {
+    const input = { goal: { kind: "build" as const }, startDate: MONDAY, weekdays: [1, 3, 5, 0], longRunWeekday: 0, runsPerWeek: 4, vdot: 43, startKmPerWeek: 40, deficitKcal: 0, experienced: true, recentLongestKm: 16 };
+    // Session sizes round and have floors/caps, so the week lands near (not exactly on) its target.
+    const matched = generatePlan(input).weeks[0]!.km;
+    const grown = generatePlan({ ...input, week1Grows: true }).weeks[0]!.km;
+    expect(Math.abs(matched - 40)).toBeLessThan(2.5);
+    expect(grown).toBeGreaterThan(matched + 1.5);
   });
 });

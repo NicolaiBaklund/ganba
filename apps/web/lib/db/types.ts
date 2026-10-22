@@ -1259,6 +1259,7 @@ export type Database = {
           updated_at: string
           user_id: string
           vdot: number
+          week1_grows: boolean
           weekdays: number[]
         }
         Insert: {
@@ -1281,6 +1282,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           vdot: number
+          week1_grows?: boolean
           weekdays: number[]
         }
         Update: {
@@ -1303,6 +1305,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           vdot?: number
+          week1_grows?: boolean
           weekdays?: number[]
         }
         Relationships: []

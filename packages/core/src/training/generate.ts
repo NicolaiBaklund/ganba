@@ -173,8 +173,8 @@ export function generatePlan(input: PlanInput): GeneratedPlan {
     if (phase === "taper") km = peakReached * TAPER[distance!]![taperIdx++]!;
     else if (phase === "recovery") km = level * RECOVERY_FACTOR;
     else {
-      // Week 1 already steps up from the recent average.
-      level = Math.min(peakKm, level * (1 + growth));
+      // Week 1 matches the start volume (already the best recent week); growth starts in week 2.
+      if (growthIdx > 0 || input.week1Grows) level = Math.min(peakKm, level * (1 + growth));
       km = level;
       growthIdx++;
       peakReached = Math.max(peakReached, level);

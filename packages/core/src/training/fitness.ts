@@ -1,4 +1,4 @@
-import { addDays, type ISODate } from "../dates";
+import { addDays, daysBetween, type ISODate } from "../dates";
 import { pacesFor, vdotFrom, vo2AtSpeed } from "./vdot";
 
 export interface RunRecord {
@@ -26,7 +26,11 @@ export interface Fitness {
   runCount: number;
   /** True when there is too little history to trust the numbers. */
   sparse: boolean;
-  /** Start volume for a plan: the higher of the 4- and 2-week averages, at most 20 % above the 4-week one. */
+  /**
+   * Start volume for a plan: the best single week of the last four (a sick or busy week doesn't drag it down),
+   * at most 30 % above the 4-week average so one odd big week doesn't set the bar; after a break (last two weeks
+   * under half the average) the recent averages instead. Week 1 of a plan matches it.
+   */
   baseKmPerWeek: number;
   /** Ran consistently the last 4 weeks (≥ 10 runs, ≥ 15 km/week): no base phase needed. */
   experienced: boolean;
@@ -59,6 +63,10 @@ function lapsVdot(r: RunRecord): number | null {
 const EXPERIENCED_RUNS = 10;
 const EXPERIENCED_KM = 15;
 const QUALITY_LAP_M = 300;
+/** The start volume (best recent week) is at most this times the 4-week average. */
+const BEST_WEEK_CAP = 1.3;
+/** Last two weeks below this share of the 4-week average = a break, not a dip. */
+const STOPPED_SHARE = 0.5;
 
 export const DEFAULT_VDOT = 30;
 const MIN_PACE_S_PER_KM = 150; // faster than 2:30/km is a GPS error, not a run
@@ -88,8 +96,16 @@ export function fitnessFrom(runs: RunRecord[], today: ISODate, garmin?: { time10
   const best = candidates.sort((a, b) => b.vdot - a.vdot)[0] ?? { vdot: DEFAULT_VDOT, source: { kind: "default" } as FitnessSource };
   const vdot = Math.round(Math.min(VDOT_MAX, Math.max(VDOT_MIN, best.vdot)) * 10) / 10;
 
-  const km4 = last4.reduce((s, r) => s + r.distanceM / 1000, 0) / 4;
-  const km2 = valid.filter((r) => r.date >= addDays(today, -14) && r.date < today).reduce((s, r) => s + r.distanceM / 1000, 0) / 2;
+  // Rolling 7-day weeks back from today (index 0 = the last 7 days).
+  const weeks = [0, 0, 0, 0];
+  for (const r of last4) weeks[Math.min(3, Math.floor((daysBetween(r.date, today) - 1) / 7))]! += r.distanceM / 1000;
+  const km4 = weeks.reduce((s, x) => s + x, 0) / 4;
+  const km2 = (weeks[0]! + weeks[1]!) / 2;
+  const bestWeek = Math.max(...weeks);
+  // A sick or busy week shouldn't lower the start: take the best week (capped). But if the last two weeks
+  // nearly stopped (injury, long break), start carefully from the recent averages instead.
+  const stopped = km2 < km4 * STOPPED_SHARE;
+  const base = stopped ? Math.min(Math.max(km4, km2), km4 * 1.2) : Math.min(bestWeek, km4 * BEST_WEEK_CAP);
   const thresholdPace = pacesFor(vdot).threshold;
   const didQuality = last4.some((r) =>
     (r.laps ?? []).some((l) => l.distanceM >= QUALITY_LAP_M && l.timeS > 0 && l.timeS / (l.distanceM / 1000) <= thresholdPace + 5),
@@ -101,7 +117,7 @@ export function fitnessFrom(runs: RunRecord[], today: ISODate, garmin?: { time10
     longestKm: r1(Math.max(0, ...last4.map((r) => r.distanceM / 1000))),
     runCount: last4.length,
     sparse: last4.length < 4,
-    baseKmPerWeek: r1(Math.min(Math.max(km4, km2), km4 * 1.2)),
+    baseKmPerWeek: r1(base),
     experienced: last4.length >= EXPERIENCED_RUNS && km4 >= EXPERIENCED_KM,
     didQuality,
     source: best.source,

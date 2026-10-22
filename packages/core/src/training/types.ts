@@ -82,6 +82,8 @@ export interface PlanInput {
   recentLongestKm?: number;
   /** Hills nearby: hill repeats take the place of fartlek. */
   hills?: boolean;
+  /** Plans made before 2026-10-23 grew already in week 1; their extensions must keep doing so. */
+  week1Grows?: boolean;
 }
 
 export interface Paces {
