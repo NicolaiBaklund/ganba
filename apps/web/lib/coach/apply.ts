@@ -1,5 +1,5 @@
 import "server-only";
-import { addDays, checkChanges, describeChanges, type PlanWarning } from "@loop/core";
+import { addDays, checkChanges, describeChanges, weekPreview, type PlanWarning } from "@loop/core";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { activePlan, planContext, planWorkoutsWithKm, recentRuns, savePlanChanges, todayFor } from "@/lib/training/service";
 import { claimMessage, releaseMessage, updateOptions, type CoachOption } from "./store";
@@ -42,8 +42,9 @@ export async function applyOption(userId: string, messageId: string, optionId: s
       return { ok: false as const, error: "invalid" as ApplyError, reason };
     }
     if (!sameWarnings(res.warnings, o.warnings)) {
-      await save({ status: "stale", warnings: res.warnings, lines: describeChanges(workouts, res.after, res.valid) });
-      return { ok: false as const, error: "changed" as ApplyError, warnings: res.warnings };
+      const weeks = weekPreview(workouts, res.after, res.weeks);
+      await save({ status: "stale", warnings: res.warnings, lines: describeChanges(workouts, res.after, res.valid), weeks });
+      return { ok: false as const, error: "changed" as ApplyError, warnings: res.warnings, weeks };
     }
     if (o.status === "stale" && !opts.confirm) return { ok: false as const, error: "changed" as ApplyError, warnings: o.warnings };
 

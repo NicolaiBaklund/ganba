@@ -2,7 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type Anthropic from "@anthropic-ai/sdk";
-import { checkChanges, COACH_PROMPT_VERSION, COACH_SYSTEM_PROMPT, CoachChangeSchema, describeChanges, toProposalChange, type ProposalChange } from "@loop/core";
+import { checkChanges, weekPreview, COACH_PROMPT_VERSION, COACH_SYSTEM_PROMPT, CoachChangeSchema, describeChanges, toProposalChange, type ProposalChange } from "@loop/core";
 import { resolveAnthropicKey } from "@/lib/ai/keys";
 import { costUsd } from "@/lib/ai/pricing";
 import { anthropicCoachAi, COACH_MODEL, type CoachAi } from "@/lib/ai/coach";
@@ -181,6 +181,7 @@ export async function runCoach(userId: string, input: { text: string; aboutWorko
         changes: res.valid,
         lines: describeChanges(cc.workouts, res.after, res.valid),
         warnings: res.warnings,
+        weeks: weekPreview(cc.workouts, res.after, res.weeks),
         status: "pending",
       });
     }

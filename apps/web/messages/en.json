@@ -735,7 +735,7 @@
     "open": "Coach",
     "ask": "Ask the coach",
     "title": "Coach",
-    "placeholder": "Tell the coach what you want. E.g. “I feel great, swap today's easy run for something harder”",
+    "placeholder": "Ask the coach",
     "send": "Send",
     "thinking": "Thinking",
     "empty": "Ask anything about your plan. The coach can change sessions, move them or add new ones, and tells you if something is unwise.",
@@ -756,8 +756,6 @@
     "back": "Back",
     "endPlan": "End plan",
     "endConfirm": "Yes, end the plan",
-    "apply": "Apply",
-    "applyAnyway": "Apply anyway",
     "applied": "Applied",
     "notUsed": "Not used",
     "changed": "The plan changed since this was suggested. Check the warnings again.",
@@ -773,6 +771,20 @@
     },
     "invalid": "Can't be applied any more: {reason}.",
     "endExplain": "Ends the plan. Upcoming sessions are removed from your watch.",
-    "loadError": "Couldn't load the coach."
+    "loadError": "Couldn't load the coach.",
+    "use": "Use this",
+    "useAnyway": "Use anyway",
+    "details": "Details",
+    "hideDetails": "Hide details",
+    "showWeek": "Show week",
+    "now": "Now",
+    "newRow": "New",
+    "moreWeeks": "{n, plural, one {+1 more week changes} other {+# more weeks change}}",
+    "earlierInThread": "Earlier, show all",
+    "chip": {
+      "tired": "I'm tired today",
+      "move": "Move tomorrow's session",
+      "easier": "Make this week easier"
+    }
   }
 }

@@ -2,14 +2,12 @@
 
 import { useState } from "react";
 import { useFormatter, useTranslations } from "next-intl";
-import { ChevronDown } from "lucide-react";
 import type { CoachNote } from "@/lib/coach/store";
-import { cn } from "@/lib/utils";
 
+/** What the coach remembers; opened from the memory icon in the sheet's header. */
 export function NotesPanel({ notes, onChange }: { notes: CoachNote[]; onChange: (n: CoachNote[]) => void }) {
   const t = useTranslations("coach");
   const format = useFormatter();
-  const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
 
@@ -25,20 +23,14 @@ export function NotesPanel({ notes, onChange }: { notes: CoachNote[]; onChange: 
 
   return (
     <div className="border-b border-border">
-      <button onClick={() => setOpen(!open)} aria-expanded={open} className="flex w-full items-center justify-between py-2 text-[13px] font-semibold">
-        <span>
-          {t("remembers")} <span className="num text-muted-foreground">{notes.length}</span>
-        </span>
-        <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} />
-      </button>
-      {open && (
-        <ul className="pb-2">
+      <p className="pt-1 text-[13px] font-semibold">{t("remembers")}</p>
+      <ul className="pb-2">
           {!notes.length && <li className="py-1 text-[13px] text-muted-foreground">{t("noNotes")}</li>}
           {notes.map((n) => (
             <li key={n.id} className="flex items-start gap-2 py-1 text-[13px]">
               {editing === n.id ? (
                 <>
-                  <input value={draft} maxLength={200} onChange={(e) => setDraft(e.target.value)} className="min-w-0 flex-1 rounded-md bg-muted px-2 py-1" aria-label={t("edit")} />
+                  <input value={draft} maxLength={200} onChange={(e) => setDraft(e.target.value)} className="min-w-0 flex-1 rounded-md bg-muted px-2 py-1 text-base" aria-label={t("edit")} />
                   <button onClick={() => save(n.id)} className="font-semibold text-primary">{t("save")}</button>
                 </>
               ) : (
@@ -54,7 +46,6 @@ export function NotesPanel({ notes, onChange }: { notes: CoachNote[]; onChange: 
             </li>
           ))}
         </ul>
-      )}
     </div>
   );
 }

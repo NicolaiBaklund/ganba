@@ -72,22 +72,43 @@ try {
   const { data: easy } = await admin.from("planned_workouts").select("id, planned_km").eq("user_id", uid).eq("type", "easy").gte("date", today).order("date").limit(1).single();
   const { data: thread } = await admin.from("coach_threads").insert({ user_id: uid }).select("id").single();
   const longer = Math.round((Number(easy.planned_km) + 2) * 10) / 10;
-  const seeded = await admin.from("coach_messages").insert([
-    { thread_id: thread.id, user_id: uid, role: "user", text: "Make my next easy run 2 km longer", options: [] },
+  // An earlier exchange (folds into one line), then the latest: a previewed option and a serious one.
+  const preview = [{ monday: today, beforeKm: 20, afterKm: 22, days: Array.from({ length: 7 }, (_, i) => ({
+    date: addDays(today, i),
+    before: i === 1 ? [{ type: "easy", km: Number(easy.planned_km), done: false }] : i === 5 ? [{ type: "long", km: 12, done: false }] : [],
+    after: i === 1 ? [{ type: "easy", km: longer, done: false }] : i === 5 ? [{ type: "long", km: 12, done: false }] : [],
+    changed: i === 1,
+  })) }];
+  const msgs = [
+    { role: "user", text: "Can I skip Friday?", options: [] },
+    { role: "coach", text: "You can.", options: [{ id: "old1", title: "Drop Friday", summary: "", status: "not_used", warnings: [], lines: [], changes: [] }] },
+    { role: "user", text: "Make my next easy run 2 km longer", options: [] },
     {
-      thread_id: thread.id, user_id: uid, role: "coach", text: "Sure. It stays easy, so the load is fine.",
-      options: [{ id: "opt1", title: "Easy run +2 km", summary: `${easy.planned_km} to ${longer} km`, status: "pending", warnings: [], lines: [`${easy.planned_km} km → ${longer} km`],
-        changes: [{ op: "edit", workoutId: easy.id, steps: [{ kind: "run", km: longer }] }] }],
+      role: "coach", text: "Sure. It stays easy, so the load is **fine**.",
+      options: [
+        { id: "opt1", title: "Easy run +2 km", summary: `${easy.planned_km} to ${longer} km`, status: "pending", warnings: [], lines: [`${easy.planned_km} km → ${longer} km`], weeks: preview,
+          changes: [{ op: "edit", workoutId: easy.id, steps: [{ kind: "run", km: longer }] }] },
+        { id: "opt2", title: "Double it", summary: "", status: "pending", lines: [], weeks: preview, changes: [{ op: "edit", workoutId: easy.id, steps: [{ kind: "run", km: longer * 2 }] }],
+          warnings: [{ code: "volume_jump", severity: "serious", week: today, before: 20, after: 40, pct: 100 }] },
+      ],
     },
-  ]);
-  if (seeded.error) console.log("coach seed error", seeded.error.message);
+  ];
+  for (const m of msgs) {
+    const r = await admin.from("coach_messages").insert({ thread_id: thread.id, user_id: uid, ...m });
+    if (r.error) console.log("coach seed error", r.error.message);
+    await new Promise((res) => setTimeout(res, 20)); // distinct created_at, kept in order
+  }
   await admin.from("coach_notes").insert({ user_id: uid, text: "Prefers morning runs", source: "coach" });
   await page.goto(`${BASE}/training`);
   await page.getByRole("button", { name: "Coach", exact: true }).click();
   await page.getByText("Easy run +2 km").waitFor();
   await page.waitForTimeout(400);
   await shot("46-coach");
-  await page.getByRole("button", { name: "Apply" }).click();
+  const folded = await page.getByText("Drop Friday").count();
+  const previewShown = await page.getByText("Now", { exact: true }).count();
+  const useAnyway = await page.getByRole("button", { name: "Use anyway" }).count();
+  const bold = await page.locator("b", { hasText: "fine" }).count();
+  await page.getByRole("button", { name: "Use this" }).click();
   await page.getByText("Applied").waitFor({ timeout: 30_000 }).catch(() => null);
   const { data: afterEasy } = await admin.from("planned_workouts").select("planned_km").eq("id", easy.id).single();
   await page.getByRole("button", { name: /What the coach remembers/ }).click();
@@ -107,6 +128,10 @@ try {
     "race on race day": (ws ?? []).some((w) => w.type === "race" && w.date === addDays(today, 63)),
     "activity tag on Today": hasBreakdown > 0,
     "fuel section on session": hasFuel > 0,
+    "coach: earlier exchange folded": folded > 0,
+    "coach: week preview": previewShown > 0,
+    "coach: serious warning asks Use anyway": useAnyway > 0,
+    "coach: bold key numbers": bold > 0,
     "ask the coach on session": hasAskCoach > 0,
     "coach option applied": Number(afterEasy.planned_km) === longer,
     "coach notes shown": notesShown > 0,
