@@ -852,6 +852,7 @@ export type Database = {
           blocks: Json
           created_at: string
           date: string
+          edited: boolean
           fuel_advice: Json | null
           garmin_push_status: Database["public"]["Enums"]["garmin_push_status"]
           garmin_schedule_id: number | null
@@ -874,6 +875,7 @@ export type Database = {
           blocks: Json
           created_at?: string
           date: string
+          edited?: boolean
           fuel_advice?: Json | null
           garmin_push_status?: Database["public"]["Enums"]["garmin_push_status"]
           garmin_schedule_id?: number | null
@@ -896,6 +898,7 @@ export type Database = {
           blocks?: Json
           created_at?: string
           date?: string
+          edited?: boolean
           fuel_advice?: Json | null
           garmin_push_status?: Database["public"]["Enums"]["garmin_push_status"]
           garmin_schedule_id?: number | null
@@ -1278,6 +1281,7 @@ export type Database = {
           race_date: string | null
           recent_longest_km: number | null
           recent_longest_min: number | null
+          ride_experienced: boolean
           ride_speed_kmh: number | null
           runs_per_week: number
           sport: string
@@ -1312,6 +1316,7 @@ export type Database = {
           race_date?: string | null
           recent_longest_km?: number | null
           recent_longest_min?: number | null
+          ride_experienced?: boolean
           ride_speed_kmh?: number | null
           runs_per_week: number
           sport?: string
@@ -1346,6 +1351,7 @@ export type Database = {
           race_date?: string | null
           recent_longest_km?: number | null
           recent_longest_min?: number | null
+          ride_experienced?: boolean
           ride_speed_kmh?: number | null
           runs_per_week?: number
           sport?: string

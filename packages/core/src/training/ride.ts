@@ -512,11 +512,13 @@ export interface RideTestRun {
  * average power (Friel). Proposed when LTHR moves 2 bpm or more, or FTP 3 % or more (or is new).
  */
 export function rideTestProposal(plan: { lthr: number; ftp: number | null }, run: RideTestRun): Proposal | null {
-  const lap = run.laps.filter((l) => l.timeS >= 1080 && l.timeS <= 1920 && (l.avgHr ?? 0) > 100).sort((a, b) => (b.avgHr ?? 0) - (a.avgHr ?? 0))[0];
+  // The hardest ~30 min lap: by power when recorded (a trainer without a heart-rate strap), else by heart rate.
+  const effort = (l: RideTestRun["laps"][number]) => ((l.avgPower ?? 0) >= 80 ? 1000 + l.avgPower! : (l.avgHr ?? 0) > 100 ? l.avgHr! : 0);
+  const lap = run.laps.filter((l) => l.timeS >= 1080 && l.timeS <= 1920 && effort(l) > 0).sort((a, b) => effort(b) - effort(a))[0];
   if (!lap) return null;
-  const lthr = Math.round(lap.avgHr! + 1);
+  const lthr = (lap.avgHr ?? 0) > 100 ? Math.round(lap.avgHr! + 1) : null;
   const ftp = (lap.avgPower ?? 0) >= 80 ? Math.round(lap.avgPower!) : null;
-  const lthrMoved = Math.abs(lthr - plan.lthr) >= 2;
+  const lthrMoved = lthr != null && Math.abs(lthr - plan.lthr) >= 2;
   const ftpMoved = ftp != null && (plan.ftp == null || Math.abs(ftp - plan.ftp) / plan.ftp >= 0.03);
   if (!lthrMoved && !ftpMoved) return null;
   const parts = [
@@ -526,7 +528,7 @@ export function rideTestProposal(plan: { lthr: number; ftp: number | null }, run
   return {
     kind: "paces",
     summary: `Ride test (${run.date}): ${parts.join(", ")}. Update your zones?`,
-    changes: [{ op: "rezone", ...(lthrMoved ? { lthr } : {}), ...(ftpMoved ? { ftp: ftp! } : {}) }],
+    changes: [{ op: "rezone", ...(lthrMoved ? { lthr: lthr! } : {}), ...(ftpMoved ? { ftp: ftp! } : {}) }],
   };
 }
 

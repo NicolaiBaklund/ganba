@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/common/Chip";
 import { SwitchRow } from "@/components/common/SwitchRow";
+import { DayPicker } from "@/components/common/DayPicker";
 import { clockInput, fmtClock, parseClock, typeColor } from "@/lib/training/format";
 import type { WorkoutType } from "@loop/core";
 
@@ -337,13 +338,7 @@ export function PlanWizard({ minDate }: { minDate: string }) {
           <h2 className="cond text-[22px] leading-tight">{t("daysTitle")}</h2>
           <div>
             <p className="mb-2 text-sm text-muted-foreground">{t("days")}</p>
-            <div className="grid grid-cols-7 gap-1.5">
-              {WEEK.map((d) => (
-                <Chip key={d} selected={days.includes(d)} onClick={() => toggleDay(d)} className="h-11 px-0 text-xs">
-                  {tw(String(d))}
-                </Chip>
-              ))}
-            </div>
+            <DayPicker selected={days} onToggle={toggleDay} />
           </div>
           <div>
             {sport === "ride" && (
@@ -382,19 +377,7 @@ export function PlanWizard({ minDate }: { minDate: string }) {
             {crossOpen || cross.length ? (
               <>
                 <p className="mb-2 text-sm text-muted-foreground">{t(sport === "ride" ? "crossRuns" : "crossRides")}</p>
-                <div className="grid grid-cols-7 gap-1.5">
-                  {WEEK.map((d) => (
-                    <Chip
-                      key={d}
-                      selected={cross.includes(d)}
-                      disabled={days.includes(d)}
-                      onClick={() => setCross(cross.includes(d) ? cross.filter((x) => x !== d) : [...cross, d])}
-                      className="h-11 px-0 text-xs"
-                    >
-                      {tw(String(d))}
-                    </Chip>
-                  ))}
-                </div>
+                <DayPicker selected={cross} blocked={days} onToggle={(d) => setCross(cross.includes(d) ? cross.filter((x) => x !== d) : [...cross, d])} />
                 <p className="mt-1.5 text-xs text-muted-foreground">{t(sport === "ride" ? "crossRunsHint" : "crossRidesHint")}</p>
               </>
             ) : (

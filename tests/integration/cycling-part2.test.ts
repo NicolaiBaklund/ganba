@@ -22,7 +22,17 @@ import {
 import { saveTokens } from "@/lib/garmin/accounts";
 import { syncGarmin } from "@/lib/garmin/sync";
 import { toGarminWorkout } from "@/lib/garmin/workout-json";
-import { activePlan, createPlan, planWorkouts, pushToGarmin, reconcilePlan, setCrossDays, setRideIndoor, setRidePower } from "@/lib/training/service";
+import {
+  activePlan,
+  createPlan,
+  planWorkouts,
+  pushToGarmin,
+  reconcilePlan,
+  savePlanChanges,
+  setCrossDays,
+  setRideIndoor,
+  setRidePower,
+} from "@/lib/training/service";
 // @ts-expect-error — plain JS helper shared with the smoke scripts
 import { seedUser } from "../smoke/seed.mjs";
 import { FakeGarmin, run } from "./fake-garmin";
@@ -89,6 +99,11 @@ describe("power: FTP, targets, Garmin, test", () => {
     expect(r).toMatchObject({ lthr: 176, ftp: 262 });
     const z4 = steps(r.workouts[0]!.blocks).find((s) => s.target.kind === "power" && s.target.zone === "z4")!.target as { maxW: number };
     expect(z4.maxW).toBe(Math.round(262 * 1.05));
+  });
+
+  it("a ride test on a trainer without a heart-rate strap still sets FTP", () => {
+    const laps = [{ timeS: 900, avgHr: null, avgPower: 170 }, { timeS: 1800, avgHr: null, avgPower: 255 }, { timeS: 600, avgHr: null, avgPower: 110 }];
+    expect(rideTestProposal({ lthr: 170, ftp: null }, { date: "2026-12-26", laps })!.changes).toEqual([{ op: "rezone", ftp: 255 }]);
   });
 });
 
@@ -220,6 +235,29 @@ describe("power and cross-training (service)", () => {
 
     expect(await setCrossDays(u.id, [])).toBe(true);
     expect((await planWorkouts(plan.id)).filter((w) => w.sport === "ride" && w.status === "planned" && w.date >= today)).toEqual([]);
+  });
+
+  it("rebuilds keep the user's own changes; a coach-added ride in a plan without rides gets the rider's zones", async () => {
+    // Running plan without cross days: no ride zones yet.
+    await createPlan(u.id, { goal: { kind: "build" }, weekdays: [1, 3, 5, 0], longRunWeekday: 0, runsPerWeek: 4 }, garmin);
+    let plan = (await activePlan(u.id))!;
+    expect(plan.lthr).toBeNull();
+    const free = [0, 1, 2, 3, 4, 5, 6].filter((d) => ![1, 3, 5, 0].includes(d));
+    const addDate = [1, 2, 3, 4, 5, 6, 7].map((n) => addDays(today, n)).find((d) => weekday(d) === free[0])!;
+    await savePlanChanges(u.id, plan, [{ op: "add", date: addDate, type: "easy", sport: "ride", steps: [{ kind: "run", minutes: 70, zone: "z2" }] }], today, garmin);
+    plan = (await activePlan(u.id))!;
+    expect(plan.lthr).toBe(175); // Garmin running threshold − 5, not the 165 default
+    const added = (await planWorkouts(plan.id)).find((w) => w.sport === "ride")!;
+    expect(added).toMatchObject({ edited: true, date: addDate, planned_duration_s: 70 * 60 });
+    // New cross days and the indoor season rebuild generated rides, never the coach's one.
+    expect(await setCrossDays(u.id, free.slice(0, 2))).toBe(true);
+    expect(await setRideIndoor(u.id, true)).toBe(true);
+    const after = (await planWorkouts(plan.id)).find((w) => w.id === added.id)!;
+    expect(after).toMatchObject({ status: "planned", planned_duration_s: 70 * 60 });
+    const sameDay = (await planWorkouts(plan.id)).filter((w) => w.sport === "ride" && w.date === addDate && w.status === "planned");
+    expect(sameDay).toHaveLength(1);
+    // Few recent rides: not an experienced rider, so cross rides stay at most 90 min.
+    expect((await activePlan(u.id))!.ride_experienced).toBe(false);
   });
 
   it("a cycling plan with easy runs on a cross day", async () => {

@@ -243,6 +243,7 @@ export function applyChanges(all: PlanWorkout[], changes: ProposalChange[], ctx:
   const main: Sport = ctx.sport ?? "run";
   let lthr = ctx.lthr ?? 165;
   let ftp = ctx.ftp ?? null;
+  let rezoned = false;
   const speed = ctx.rideSpeedKmh ?? 25;
   const rideCtx = () => rideContext(lthr, speed, ctx.power ? ftp : null);
   const build = (sport: Sport): BuildContext => (sport === "ride" ? rideCtx() : { paces: pacesFor(vdot), racePaceS });
@@ -254,6 +255,7 @@ export function applyChanges(all: PlanWorkout[], changes: ProposalChange[], ctx:
     if (c.op === "rezone") {
       lthr = c.lthr ?? lthr;
       ftp = c.ftp ?? ftp;
+      rezoned = true;
       for (const w of list)
         if (upcoming(w) && w.sport === "ride") {
           w.blocks = retargetRide(w.blocks, rideCtx());
@@ -355,7 +357,7 @@ export function applyChanges(all: PlanWorkout[], changes: ProposalChange[], ctx:
     }
     changed.add(w.id);
   }
-  const rides = main === "ride" || list.some((w) => w.sport === "ride");
-  return { workouts: list, changedIds: changed, vdot, lthr: rides ? lthr : null, ftp: rides ? ftp : null };
+  // Zones change only with a rezone (the 165 default for a plan without ride zones is never stored).
+  return { workouts: list, changedIds: changed, vdot, lthr: rezoned ? lthr : (ctx.lthr ?? null), ftp: rezoned ? ftp : (ctx.ftp ?? null) };
 }
 

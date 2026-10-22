@@ -268,6 +268,7 @@ const rideColumns = (fitness: RideFitness, power: boolean, indoor: boolean): Par
   power_seen: fitness.powerSeen,
   start_min_per_week: fitness.baseMinPerWeek,
   recent_longest_min: fitness.longestMin,
+  ride_experienced: fitness.experienced,
   indoor,
 });
 
@@ -282,7 +283,7 @@ interface CrossSource {
   ftp: number | null;
   power: boolean;
   ride_speed_kmh: number | null;
-  start_min_per_week: number | null;
+  ride_experienced: boolean;
 }
 const crossSource = (r: PlanInsert): CrossSource => ({
   sport: r.sport ?? "run",
@@ -294,7 +295,7 @@ const crossSource = (r: PlanInsert): CrossSource => ({
   ftp: r.ftp ?? null,
   power: !!r.power,
   ride_speed_kmh: r.ride_speed_kmh ?? null,
-  start_min_per_week: r.start_min_per_week ?? null,
+  ride_experienced: !!r.ride_experienced,
 });
 
 function crossOf(
@@ -310,24 +311,22 @@ function crossOf(
     : crossSessions(main.weeks, {
         ...base,
         sport: "ride",
-        ride: { ctx: rideCtxOf(plan), indoor, experienced: (plan.start_min_per_week ?? 0) >= CROSS_RIDE_EXPERIENCED_MIN },
+        ride: { ctx: rideCtxOf(plan), indoor, experienced: plan.ride_experienced },
       });
 }
-/** Riders with 3 h a week or more get cross rides up to 2 h. */
-const CROSS_RIDE_EXPERIENCED_MIN = 180;
 const rideCtxOf = (plan: Pick<CrossSource, "lthr" | "ftp" | "power" | "ride_speed_kmh">) =>
   rideContext(plan.lthr ?? 165, Number(plan.ride_speed_kmh ?? 25), plan.power ? plan.ftp : null);
 const byDate = (a: WorkoutSpec, b: WorkoutSpec) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
 
 /** Cycling preview: fitness from rides and Garmin's thresholds, then the ride plan (and runs on cross days). */
-export async function previewRidePlan(userId: string, input: CreatePlanInput, source: GarminSource = httpGarmin()) {
+export async function previewRidePlan(userId: string, input: CreatePlanInput, source: GarminSource = httpGarmin(), opts: { create?: boolean } = {}) {
   const today = await todayFor(userId);
   const cross = input.crossWeekdays ?? [];
   const [fitness, deficit, run] = await Promise.all([
     rideSetup(userId, today, source),
     deficitKcal(userId, today),
-    // Runs on cross days use the runner's paces; the VDOT is kept for a later switch back too.
-    currentFitness(userId, today),
+    // The runner's VDOT: paces for runs on cross days, and kept for a later switch back (only at creation otherwise).
+    cross.length || opts.create ? currentFitness(userId, today) : Promise.resolve(null),
   ]);
   const power = usePower(fitness, input.power);
   const indoor = !!input.indoor;
@@ -359,7 +358,7 @@ export async function previewRidePlan(userId: string, input: CreatePlanInput, so
     weekdays: input.weekdays,
     cross_weekdays: cross,
     long_run_weekday: input.longRunWeekday,
-    vdot: run.vdot,
+    vdot: run?.vdot ?? 0,
     ...rideColumns(fitness, power, indoor),
     start_km_per_week: Math.round((fitness.baseMinPerWeek / 60) * fitness.speedKmh * 10) / 10,
     experienced: fitness.experienced,
@@ -435,7 +434,7 @@ export async function previewPlan(userId: string, input: CreatePlanInput, source
 
 /** Creates the plan (replacing any active one) and returns its id. */
 export async function createPlan(userId: string, input: CreatePlanInput, source: GarminSource = httpGarmin()): Promise<string> {
-  const { today, plan, cross, row } = input.sport === "ride" ? await previewRidePlan(userId, input, source) : await previewPlan(userId, input, source);
+  const { today, plan, cross, row } = input.sport === "ride" ? await previewRidePlan(userId, input, source, { create: true }) : await previewPlan(userId, input, source);
   const d = db();
   await d.from("training_plans").update({ status: "cancelled" }).eq("user_id", userId).eq("status", "active");
   const workouts = [...plan.workouts, ...cross].sort(byDate);
@@ -507,14 +506,15 @@ async function generateFromPlan(
 
 /**
  * Replaces the upcoming planned sessions of one sport with freshly generated ones on their own dates, in one
- * transaction. Done sessions stay (no fresh session of that sport lands on a day one is done); the old copies
- * leave the watch on the next push, and pending suggestions about them go stale.
+ * transaction. Done sessions and the user's own changes (coach or suggestion, `edited`) stay, and no fresh
+ * session of that sport lands on their day; the old copies leave the watch on the next push, and pending
+ * suggestions about them go stale.
  */
 async function rebuildUpcoming(userId: string, plan: PlanRow, sport: Sport, fresh: WorkoutSpec[], today: ISODate) {
   const rows = await planWorkouts(plan.id);
-  const doneDays = new Set(rows.filter((w) => w.status === "done" && w.sport === sport).map((w) => w.date));
-  const old = rows.filter((w) => w.status === "planned" && w.sport === sport && w.date >= today);
-  const add = fresh.filter((w) => w.sport === sport && w.date >= today && !doneDays.has(w.date));
+  const kept = new Set(rows.filter((w) => w.sport === sport && (w.status === "done" || (w.edited && w.status === "planned"))).map((w) => w.date));
+  const old = rows.filter((w) => w.status === "planned" && w.sport === sport && !w.edited && w.date >= today);
+  const add = fresh.filter((w) => w.sport === sport && w.date >= today && !kept.has(w.date));
   const fields = (w: WorkoutSpec, status: string) => ({
     date: w.date,
     status,
@@ -533,6 +533,15 @@ async function rebuildUpcoming(userId: string, plan: PlanRow, sport: Sport, fres
   });
   if (error) throw error;
   await db().from("plan_proposals").update({ status: "stale" }).eq("plan_id", plan.id).eq("status", "pending");
+}
+
+/** A running plan's first ride (cross days or a coach-added ride) learns the rider's zones from Garmin and rides first. */
+async function withRideColumns(userId: string, plan: PlanRow, today: ISODate, source: GarminSource): Promise<PlanRow> {
+  if (plan.sport === "ride" || plan.lthr != null) return plan;
+  const fitness = await rideSetup(userId, today, source);
+  const cols = rideColumns(fitness, usePower(fitness), plan.indoor);
+  await db().from("training_plans").update(cols).eq("id", plan.id);
+  return { ...plan, ...cols } as PlanRow;
 }
 
 const hasRides = (plan: PlanRow) => plan.sport === "ride" || plan.cross_weekdays.length > 0;
@@ -586,16 +595,11 @@ export async function setRidePower(userId: string, power: boolean): Promise<bool
  * that gets rides for the first time learns the rider's zones now.
  */
 export async function setCrossDays(userId: string, days: number[], source: GarminSource = httpGarmin()): Promise<boolean> {
-  let plan = await activePlan(userId);
-  if (!plan) return false;
-  const clean = [...new Set(days)].filter((d) => !plan!.weekdays.includes(d)).sort();
+  const active = await activePlan(userId);
+  if (!active) return false;
+  const clean = [...new Set(days)].filter((d) => !active.weekdays.includes(d)).sort();
   const today = await todayFor(userId);
-  if (plan.sport === "run" && clean.length && plan.lthr == null) {
-    const fitness = await rideSetup(userId, today, source);
-    const cols = rideColumns(fitness, usePower(fitness), plan.indoor);
-    await db().from("training_plans").update(cols).eq("id", plan.id);
-    plan = { ...plan, ...cols } as PlanRow;
-  }
+  const plan = clean.length ? await withRideColumns(userId, active, today, source) : active;
   const other: Sport = plan.sport === "ride" ? "run" : "ride";
   await rebuildUpcoming(userId, plan, other, await generateFromPlan(userId, plan, today, { crossWeekdays: clean }), today);
   await db().from("training_plans").update({ cross_weekdays: clean }).eq("id", plan.id);
@@ -629,18 +633,18 @@ export async function reconcilePlan(userId: string, today: ISODate): Promise<voi
       .gte("local_date", open[0]!.date)
       .lte("local_date", today);
     // Each session matches the day's longest activity of its own sport.
-    const byDate = new Map<string, { id: string; km: number }>();
+    const longest = new Map<string, { id: string; km: number }>();
     for (const a of acts ?? []) {
       const sport: Sport | null = isRide(a.type_key) ? "ride" : isRun(a.type_key) ? "run" : null;
       if (!sport) continue;
       const km = Number(a.distance_m ?? 0) / 1000;
       const key = `${sport}|${a.local_date}`;
-      const prev = byDate.get(key);
-      if (!prev || km > prev.km) byDate.set(key, { id: a.id, km });
+      const prev = longest.get(key);
+      if (!prev || km > prev.km) longest.set(key, { id: a.id, km });
     }
     const usedActivities = new Set(workouts.filter((w) => w.activity_id).map((w) => w.activity_id));
     for (const w of open) {
-      const run = byDate.get(`${w.sport}|${w.date}`);
+      const run = longest.get(`${w.sport}|${w.date}`);
       if (run && !usedActivities.has(run.id)) {
         usedActivities.add(run.id);
         await d.from("planned_workouts").update({ status: "done", activity_id: run.id }).eq("id", w.id);
@@ -780,10 +784,19 @@ export async function refreshProposals(userId: string, today: ISODate): Promise<
 
 /** Applies a proposal's changes to the plan. Returns false if it is no longer pending. */
 /** Applies engine changes to the stored plan: updates changed sessions, inserts added ones, marks all for Garmin push. */
-export async function savePlanChanges(userId: string, plan: PlanRow, changes: ProposalChange[], today: ISODate): Promise<string[]> {
+export async function savePlanChanges(
+  userId: string,
+  initial: PlanRow,
+  changes: ProposalChange[],
+  today: ISODate,
+  source: GarminSource = httpGarmin(),
+): Promise<string[]> {
+  const plan = changes.some((c) => c.op === "add" && c.sport === "ride") ? await withRideColumns(userId, initial, today, source) : initial;
   const before = await planWorkoutsWithKm(plan);
   const result = applyChanges(before, changes, planContext(plan, today));
   const changed = result.workouts.filter((x) => result.changedIds.has(x.id));
+  // Changes to single sessions are the user's choice: later rebuilds keep them. Plan-wide ones (paces, zones, volume) are not.
+  const own = new Set(changes.flatMap((c) => ("workoutId" in c ? [c.workoutId] : [])));
   const fields = (w: PlanWorkout) => ({
     date: w.date,
     status: w.status,
@@ -798,8 +811,8 @@ export async function savePlanChanges(userId: string, plan: PlanRow, changes: Pr
     p_user: userId,
     p_plan: plan.id,
     p_vdot: (result.vdot !== Number(plan.vdot) ? result.vdot : null) as number, // null = unchanged (generated types miss nullable args)
-    p_updates: changed.filter((w) => !w.id.startsWith("new:")).map((w) => ({ id: w.id, ...fields(w) })) as unknown as Json,
-    p_inserts: changed.filter((w) => w.id.startsWith("new:")).map((w) => ({ ...fields(w), week: w.week, phase: w.phase, sport: w.sport })) as unknown as Json,
+    p_updates: changed.filter((w) => !w.id.startsWith("new:")).map((w) => ({ id: w.id, ...fields(w), ...(own.has(w.id) ? { edited: true } : {}) })) as unknown as Json,
+    p_inserts: changed.filter((w) => w.id.startsWith("new:")).map((w) => ({ ...fields(w), week: w.week, phase: w.phase, sport: w.sport, edited: true })) as unknown as Json,
   });
   if (error) throw error;
   const zones = {
