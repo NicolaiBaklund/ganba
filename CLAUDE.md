@@ -7,6 +7,7 @@ Personlig trenings- + ernæringsapp (Runna + MyFitnessPal i ett). Webapp, må fu
 Systemet er **generelt/flerbruker** — aldri hardkod brukerens personlige verdier.
 
 ## Les først
+- [docs/specs/2026-10-22-plan-variasjon.md](docs/specs/2026-10-22-plan-variasjon.md) — **variasjon i planene** (øktfamilier, bygg form med fokus, formtest, bakker; plan: docs/plans/2026-10-22-plan-variasjon-plan.md)
 - [docs/specs/2026-10-05-form.md](docs/specs/2026-10-05-form.md) — **Form** (dagstall 0–100 på Recovery og forsiden; plan: docs/plans/2026-10-05-form-plan.md)
 - [docs/specs/2026-10-05-coach.md](docs/specs/2026-10-05-coach.md) — **coach** (samtale om planen; plan: docs/plans/2026-10-05-coach-plan.md)
 - [docs/specs/2026-10-04-restitusjon.md](docs/specs/2026-10-04-restitusjon.md) — **restitusjon** (søvn/HRV, sammenhenger i egne data); planer: docs/plans/2026-10-04-restitusjon-del1-plan.md, docs/plans/2026-10-05-restitusjon-del2-plan.md

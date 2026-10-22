@@ -59,7 +59,7 @@ export default async function TrainingPage() {
       </div>
 
       <div className="mb-4 mt-4 flex items-end gap-3">
-        <p className="num text-[84px] font-black leading-[.82] [font-stretch:62%]">{race ? BIG_DISTANCE[p.distance!] : t("buildShort")}</p>
+        <p className="num text-[84px] font-black leading-[.82] [font-stretch:62%]">{p.distance ? BIG_DISTANCE[p.distance] : t("buildShort")}</p>
         <p className="pb-1 text-sm leading-tight">
           {raceDate ? (
             <>

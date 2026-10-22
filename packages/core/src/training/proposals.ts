@@ -1,8 +1,8 @@
 import { addDays, weekday, type ISODate } from "../dates";
 import { mondayOf } from "./generate";
-import { pacesFor, vo2AtSpeed } from "./vdot";
+import { pacesFor, predictTimeS, vdotFrom, vo2AtSpeed } from "./vdot";
 import { blocksFromSteps, buildByType, defaultTitle, measure, repaceBlocks, rescaleBlocks, resizeQuality, type BuildContext } from "./workouts";
-import { HARD_TYPES, KEY_TYPES, type PlanWorkout, type ProposalChange, type RaceDistance, type WorkoutType } from "./types";
+import { HARD_TYPES, KEY_TYPES, RACE_KM, type PlanWorkout, type ProposalChange, type RaceDistance, type WorkoutType } from "./types";
 
 export interface PlanContext {
   weekdays: number[];
@@ -10,6 +10,8 @@ export interface PlanContext {
   racePaceS: number | null;
   distance: RaceDistance | null;
   today: ISODate;
+  /** Race pace follows fitness (no target time, e.g. a build plan's focus): a repace recomputes it. */
+  racePaceFromVdot?: boolean;
 }
 
 export interface Proposal {
@@ -27,6 +29,7 @@ const LABEL: Record<WorkoutType, string> = {
   tempo: "marathon-pace run",
   strides: "strides run",
   race: "race",
+  test: "fitness test",
 };
 
 const active = (w: PlanWorkout) => w.status !== "removed";
@@ -88,6 +91,55 @@ export function pacesProposal(planVdot: number, fitnessVdot: number): Proposal |
   return {
     kind: "paces",
     summary: `Your recent runs show better fitness (VDOT ${v}, plan uses ${planVdot}). Update your paces?`,
+    changes: [{ op: "repace", vdot: v }],
+  };
+}
+
+/** A finished fitness test: the activity's laps (Garmin), or its whole distance/time when there are none. */
+export interface TestRun {
+  date: ISODate;
+  distanceM: number;
+  timeS: number;
+  laps: { distanceM: number; timeS: number }[];
+}
+
+const TEST_MIN_M = 4800;
+const TEST_MAX_M = 5400;
+const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
+
+/**
+ * The 5 km effort inside a test run: the fastest stretch of consecutive laps adding up to 4.8–5.4 km (one
+ * 5 km step lap from the pushed workout, or five 1 km auto-laps), else the whole run if it was just the test.
+ * Never an average over warm-up and cool-down: that would read too slow.
+ */
+export function testEffort(run: TestRun): { distanceM: number; timeS: number } | null {
+  let best: { distanceM: number; timeS: number } | null = null;
+  for (let i = 0; i < run.laps.length; i++) {
+    let d = 0;
+    let t = 0;
+    for (let j = i; j < run.laps.length && d < TEST_MIN_M; j++) {
+      d += run.laps[j]!.distanceM;
+      t += run.laps[j]!.timeS;
+    }
+    if (d >= TEST_MIN_M && d <= TEST_MAX_M && t > 0 && (!best || t / d < best.timeS / best.distanceM)) best = { distanceM: d, timeS: t };
+  }
+  if (best) return best;
+  return run.distanceM >= TEST_MIN_M && run.distanceM <= TEST_MAX_M && run.timeS > 0 ? { distanceM: run.distanceM, timeS: run.timeS } : null;
+}
+
+/**
+ * Fitness test result → new paces (spec 2026-10-22 §5): up or down when it moves VDOT by 0.5 or more,
+ * never more than 3 down. The summary names the test date so it is proposed once.
+ */
+export function testProposal(planVdot: number, run: TestRun): Proposal | null {
+  const e = testEffort(run);
+  if (!e) return null;
+  const measured = Math.round(vdotFrom(e.distanceM, e.timeS) * 10) / 10;
+  const v = Math.max(planVdot - MAX_VDOT_DROP, measured);
+  if (Math.abs(v - planVdot) < 0.5) return null;
+  return {
+    kind: "paces",
+    summary: `Fitness test (${run.date}): ${Math.round(e.distanceM / 100) / 10} km in ${mmss(e.timeS)}, VDOT ${v} (plan ${planVdot}). Update your paces?`,
     changes: [{ op: "repace", vdot: v }],
   };
 }
@@ -167,14 +219,16 @@ export function applyChanges(all: PlanWorkout[], changes: ProposalChange[], ctx:
   const byId = new Map(list.map((w) => [w.id, w]));
   const changed = new Set<string>();
   let vdot = ctx.vdot;
-  const build = (): BuildContext => ({ paces: pacesFor(vdot), racePaceS: ctx.racePaceS ?? undefined });
+  let racePaceS = ctx.racePaceS ?? undefined;
+  const build = (): BuildContext => ({ paces: pacesFor(vdot), racePaceS });
 
   for (const c of changes) {
     if (c.op === "repace") {
       vdot = c.vdot;
+      if (ctx.racePaceFromVdot && ctx.distance) racePaceS = Math.round(predictTimeS(RACE_KM[ctx.distance] * 1000, vdot) / RACE_KM[ctx.distance]);
       for (const w of list)
         if (w.status === "planned" && w.date >= ctx.today) {
-          w.blocks = repaceBlocks(w.blocks, build().paces, ctx.racePaceS ?? undefined);
+          w.blocks = repaceBlocks(w.blocks, build().paces, racePaceS);
           const m = measure(w.blocks, build().paces);
           w.plannedDurationS = m.s;
           changed.add(w.id);

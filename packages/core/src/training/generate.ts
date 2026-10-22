@@ -3,6 +3,7 @@ import { assignDays } from "./schedule";
 import { predictTimeS, pacesFor } from "./vdot";
 import {
   easyRun,
+  fitnessTest,
   longRun,
   qualityFor,
   raceDay,
@@ -10,7 +11,7 @@ import {
   stridesRun,
   type BuildContext,
   type BuiltWorkout,
-  type QualityType,
+  type QualityKind,
 } from "./workouts";
 import { RACE_KM, type Phase, type PlanInput, type RaceDistance, type WorkoutSpec, type WorkoutType } from "./types";
 
@@ -24,6 +25,9 @@ export const MAX_RACE_PLAN_WEEKS = 20;
 export const QUALITY_SHARE = { one: 0.3, two: 0.4 };
 export const SECOND_QUALITY_MIN_KM = 40;
 export const MIN_RUN_KM = 5;
+/** The long run grows at most ~10 % over the last full-size one (1–2 km), also when spare volume lifts it. */
+export const LONG_STEP = { share: 0.1, minKm: 1, maxKm: 2 } as const;
+const longStep = (last: number) => clamp(last * LONG_STEP.share, LONG_STEP.minKm, LONG_STEP.maxKm);
 
 const PEAK_RANGE: Record<RaceDistance, [number, number]> = {
   "5k": [20, 50],
@@ -78,21 +82,36 @@ function racePhases(n: number, distance: RaceDistance, experienced: boolean): Ph
   return phases;
 }
 
-/** Hard session types for a week, by goal and phase; `k` alternates week to week. */
-function qualityTypes(distance: RaceDistance | null, phase: Phase, count: number, k: number): WorkoutType[] {
-  if (phase === "base" || phase === "recovery") return count > 0 ? ["strides"] : [];
-  if (phase === "taper") return count > 0 ? ["intervals"] : [];
-  const d = distance ?? "10k";
-  const pairs: Record<RaceDistance, Record<"build" | "peak", [WorkoutType, WorkoutType]>> = {
-    "5k": { build: ["intervals", "threshold"], peak: ["intervals", "threshold"] },
-    "10k": { build: ["intervals", "threshold"], peak: ["threshold", "intervals"] },
-    half: { build: ["threshold", "intervals"], peak: ["threshold", "tempo"] },
-    marathon: { build: ["threshold", "tempo"], peak: ["tempo", "threshold"] },
-  };
-  const [a, b] = pairs[d][phase];
-  if (distance == null) return [k % 2 === 0 ? "threshold" : "strides"].slice(0, count) as WorkoutType[];
-  if (count >= 2) return [a, b];
-  return count === 1 ? [k % 2 === 0 ? a : b] : [];
+/** "speed" = hill repeats with the hills choice, else fartlek. */
+type Slot = QualityKind | "speed";
+
+/** Quality rotation per distance and phase (spec 2026-10-22 §3); one step per quality session. */
+const ROTATION: Record<RaceDistance, Record<"build" | "peak", Slot[]>> = {
+  "5k": { build: ["short", "threshold", "long", "speed"], peak: ["racePace", "short", "threshold"] },
+  "10k": { build: ["long", "threshold", "short", "speed"], peak: ["racePace", "threshold", "long"] },
+  half: { build: ["threshold", "long", "speed", "threshold"], peak: ["racePace", "threshold", "tempo"] },
+  marathon: { build: ["threshold", "tempo", "long", "speed"], peak: ["tempo", "threshold"] },
+};
+/** Build plans without a focus: 4-week blocks of speed, threshold and endurance (spec §4). */
+const GENERAL_BLOCKS: Slot[][] = [
+  ["short", "speed", "long"],
+  ["threshold", "long"],
+  ["speed", "threshold"],
+];
+export const BLOCK_WEEKS = 4;
+/** Build plans: a fitness test in the lighter week of every second block. */
+export const TEST_EVERY_WEEKS = 8;
+const TEST_MIN_WEEK_KM = 18;
+/** Build plans: weeks over which the long run grows to its target (independent of how far the plan is generated). */
+const BUILD_LONG_GROWTH_WEEKS = 12;
+
+function pickQuality(rotation: readonly Slot[], k: number, count: number, hills: boolean): QualityKind[] {
+  const out: QualityKind[] = [];
+  for (let i = 0; i < count && i < rotation.length; i++) {
+    const s = rotation[(k + i) % rotation.length]!;
+    out.push(s === "speed" ? (hills ? "hills" : "fartlek") : s);
+  }
+  return out;
 }
 
 /**
@@ -101,13 +120,15 @@ function qualityTypes(distance: RaceDistance | null, phase: Phase, count: number
  */
 export function generatePlan(input: PlanInput): GeneratedPlan {
   const paces = pacesFor(input.vdot);
-  const distance = input.goal.kind === "race" ? input.goal.distance : null;
+  const isBuild = input.goal.kind === "build";
+  // Race plans: the race distance. Build plans: the focus distance (no race day), or null = General.
+  const distance = input.goal.kind === "race" ? input.goal.distance : (input.goal.focus ?? null);
   const raceKm = distance ? RACE_KM[distance] : null;
   const predictedTimeS = raceKm ? predictTimeS(raceKm * 1000, input.vdot) : null;
-  const racePaceS =
-    input.goal.kind === "race" && raceKm
-      ? Math.round((input.goal.targetTimeS ?? predictedTimeS!) / raceKm)
-      : null;
+  const racePaceS = raceKm
+    ? Math.round((input.goal.kind === "race" ? (input.goal.targetTimeS ?? predictedTimeS!) : predictedTimeS!) / raceKm)
+    : null;
+  const hills = !!input.hills;
   const ctx: BuildContext = { paces, racePaceS: racePaceS ?? undefined };
 
   const runs = clamp(Math.min(input.runsPerWeek, new Set(input.weekdays).size), 1, 6);
@@ -116,19 +137,22 @@ export function generatePlan(input: PlanInput): GeneratedPlan {
     input.goal.kind === "race" ? input.goal.raceDate : (input.untilDate ?? addDays(input.startDate, BUILD_PLAN_WEEKS * 7 - 1));
   const nWeeks = Math.max(1, daysBetween(firstMonday, mondayOf(lastDate)) / 7 + 1);
 
-  const phases: Phase[] =
-    distance != null
-      ? racePhases(nWeeks, distance, !!input.experienced)
-      : Array.from({ length: nWeeks }, (_, i) => (i % 4 === 3 ? "recovery" : "build"));
+  // Build plans: rolling 4-week blocks (3 + 1 lighter); with a focus every third block is race-specific.
+  const phases: Phase[] = !isBuild
+    ? racePhases(nWeeks, distance!, !!input.experienced)
+    : Array.from({ length: nWeeks }, (_, i) =>
+        i % BLOCK_WEEKS === BLOCK_WEEKS - 1 ? "recovery" : distance && Math.floor(i / BLOCK_WEEKS) % 3 === 2 ? "peak" : "build",
+      );
 
   const startKm = Math.max(input.startKmPerWeek, runs * 3);
   const [peakLo, peakHi] = distance ? PEAK_RANGE[distance] : [Math.max(15, runs * 4), 60];
-  const peakKm = Math.max(startKm, clamp(startKm * (distance ? 1.5 : 1.3), peakLo, peakHi));
+  const peakKm = Math.max(startKm, clamp(startKm * (isBuild ? 1.3 : 1.5), peakLo, peakHi));
   const growth = input.deficitKcal > DEFICIT_SLOWDOWN_KCAL ? GROWTH_IN_DEFICIT : GROWTH;
-  const longCap = distance ? LONG_CAP[distance] : 16;
+  // General build plans teach running longer: the long run grows toward 18–20 km (cap 22).
+  const longCap = distance ? LONG_CAP[distance] : runs >= 4 ? 22 : 20;
   const longShare = runs <= 2 ? 0.5 : runs === 3 ? 0.4 : 0.3;
   const longStart = Math.max(5, startKm * longShare, Math.min(input.recentLongestKm ?? 0, distance ? LONG_TARGET[distance] : 12, startKm * 0.55));
-  const longTarget = distance ? Math.max(longStart, LONG_TARGET[distance]) : Math.max(longStart, 12);
+  const longTarget = distance ? Math.max(longStart, LONG_TARGET[distance]) : Math.max(longStart, runs >= 4 ? 20 : 18);
   const qualityWeeks = phases.filter((p) => p === "build" || p === "peak").length;
   const growthWeeks = phases.filter((p) => p !== "taper" && p !== "recovery").length;
   let growthIdx = 0;
@@ -139,6 +163,8 @@ export function generatePlan(input: PlanInput): GeneratedPlan {
   let taperIdx = 0;
   let qualityIdx = 0;
   let peakReached = startKm;
+  // Last full-size long run (recovery and taper weeks don't count): the next one grows from here.
+  let lastLong = Math.max(longStart, input.recentLongestKm ?? 0);
 
   for (let w = 0; w < nWeeks; w++) {
     const phase = phases[w]!;
@@ -154,19 +180,33 @@ export function generatePlan(input: PlanInput): GeneratedPlan {
       peakReached = Math.max(peakReached, level);
     }
 
-    const isQualityWeek = phase === "build" || phase === "peak";
+    // A plan that starts after Monday gets only easy runs (and the long run) in that first week.
+    const partialFirst = w === 0 && input.startDate > monday;
+    const isQualityWeek = (phase === "build" || phase === "peak") && !partialFirst;
     // Session size follows both time in the plan and the runner's volume (beginners stay small).
-    const byProgress = qualityWeeks > 1 ? Math.round((qualityIdx / (qualityWeeks - 1)) * 4) : 2;
+    // Build plans level up per block, so extending the plan never changes what a week already got.
+    const byProgress = isBuild ? Math.min(4, Math.floor(w / BLOCK_WEEKS)) : qualityWeeks > 1 ? Math.round((qualityIdx / (qualityWeeks - 1)) * 4) : 2;
     const byVolume = km < 20 ? 0 : km < 30 ? 1 : km < 40 ? 2 : km < 55 ? 3 : 4;
     const lvl = Math.min(byProgress + (input.didQuality ? 1 : 0), byVolume);
     // A second hard session only in bigger weeks.
     const qualityCount = isQualityWeek ? (runs >= 5 && km >= SECOND_QUALITY_MIN_KM ? 2 : 1) : 0;
-    const qTypes = isQualityWeek ? qualityTypes(distance, phase, qualityCount, qualityIdx) : [];
+    const rotation: readonly Slot[] = distance
+      ? ROTATION[distance][phase === "peak" ? "peak" : "build"]
+      : GENERAL_BLOCKS[Math.floor(w / BLOCK_WEEKS) % GENERAL_BLOCKS.length]!;
+    // General build blocks start their own rotation each block; distance plans rotate through the whole plan.
+    const k = distance ? qualityIdx : w % BLOCK_WEEKS;
+    let kinds: QualityKind[] = isQualityWeek ? pickQuality(rotation, k, qualityCount, hills) : [];
     if (isQualityWeek) qualityIdx++;
-    const hardTypes = (phase === "taper" && runs >= 3 ? ["intervals"] : qTypes.filter((t) => t !== "strides")) as QualityType[];
-    const wantStrides = phase === "base" || phase === "recovery" || qTypes.includes("strides");
+    // Base weeks: one light fartlek (or hills) once the week is big enough; strides otherwise.
+    if (phase === "base" && !partialFirst && km >= 20) kinds = [hills ? "hills" : "fartlek"];
+    // Build plans: a 5K time trial in the lighter week of every second block, once the week is big enough
+    // that an 8.5 km session doesn't turn the lighter week into the hardest one.
+    const testWeek = isBuild && !partialFirst && w % TEST_EVERY_WEEKS === TEST_EVERY_WEEKS - 1 && runs >= 3 && km >= TEST_MIN_WEEK_KM;
+    const taperHard = phase === "taper" && runs >= 3 && !partialFirst;
 
-    const isRaceWeek = distance != null && w === nWeeks - 1;
+    const isRaceWeek = !isBuild && w === nWeeks - 1;
+    // Strides once a week everywhere except the taper and race week.
+    const wantStrides = phase !== "taper" && !isRaceWeek;
     const built: { date: ISODate; w: BuiltWorkout }[] = [];
     // Short runs only for very small weeks (beginners); otherwise fewer, proper runs.
     const minRun = clamp(km * 0.2, 3, MIN_RUN_KM);
@@ -184,19 +224,27 @@ export function generatePlan(input: PlanInput): GeneratedPlan {
         built.push({ date: d, w: sharp ? sharpener(ctx) : easyRun(clamp((km - raceKm!) / Math.max(1, pick.length), 3, 6), ctx) });
       });
     } else {
-      const marathonPeak = distance === "marathon" && phase === "peak";
+      const marathonPeak = !isBuild && distance === "marathon" && phase === "peak";
+      // General build, endurance block: every other long run finishes with 2–3 km at marathon pace.
+      const fastFinish = isBuild && !distance && Math.floor(w / BLOCK_WEEKS) % GENERAL_BLOCKS.length === 2 && phase === "build" && w % 2 === 1;
       // Long run grows linearly toward the target, never above ~55 % of the week.
-      const progress = growthWeeks > 1 ? Math.min(1, Math.max(0, growthIdx - 1) / (growthWeeks - 1)) : 1;
+      const progress = isBuild
+        ? Math.min(1, Math.max(0, growthIdx - 1) / BUILD_LONG_GROWTH_WEEKS)
+        : growthWeeks > 1
+          ? Math.min(1, Math.max(0, growthIdx - 1) / (growthWeeks - 1))
+          : 1;
       const longGoal = longStart + (longTarget - longStart) * progress;
       const longScale = phase === "recovery" || phase === "taper" ? (phase === "taper" ? 0.6 : RECOVERY_FACTOR) : 1;
-      const longMax = Math.min(longCap, km * 0.55);
+      const longMax = Math.min(longCap, km * 0.55, phase === "recovery" || phase === "taper" ? Infinity : lastLong + longStep(lastLong));
       let longKm = Math.max(5, Math.min(longMax, Math.max(km * longShare, longGoal * longScale)));
 
       // Quality (incl. warm-up/cool-down) stays within ~30 % of the week, 40 % for two sessions; with two runs a week, whatever the long run leaves.
-      const qualityBudget = runs <= 2 ? Math.max(0, km - longKm) : km * (hardTypes.length >= 2 ? QUALITY_SHARE.two : QUALITY_SHARE.one);
-      const quality = hardTypes.map((t) =>
-        phase === "taper" ? sharpener(ctx) : qualityFor(t, lvl, distance ?? "10k", ctx, qualityBudget / hardTypes.length),
-      );
+      const qualityBudget = runs <= 2 ? Math.max(0, km - longKm) : km * (kinds.length >= 2 && !testWeek && !taperHard ? QUALITY_SHARE.two : QUALITY_SHARE.one);
+      const quality: BuiltWorkout[] = testWeek
+        ? [fitnessTest(ctx)]
+        : taperHard
+          ? [sharpener(ctx)]
+          : kinds.map((k) => qualityFor(k, phase === "base" ? 0 : lvl, distance ?? "10k", ctx, qualityBudget / kinds.length));
       const qualityKm = quality.reduce((sum, q) => sum + q.plannedKm, 0);
       // Drop easy runs rather than make them tiny; they come back as the volume grows.
       let easyCount = Math.max(0, runs - 1 - quality.length);
@@ -204,7 +252,9 @@ export function generatePlan(input: PlanInput): GeneratedPlan {
       // If easy runs would outgrow the long run, the long run takes the extra instead.
       const biggestEasy = easyCount ? ((km - longKm - qualityKm) / easyCount) * (runs >= 4 && easyCount >= 2 ? 1.25 : 1) : 0;
       if (biggestEasy > longKm * 0.8) longKm = Math.max(longKm, Math.min(longMax, biggestEasy / 0.8));
-      const long = longRun(longKm, ctx, marathonPeak ? Math.min(12, Math.round(longKm * 0.35)) : 0);
+      if (phase !== "recovery" && phase !== "taper") lastLong = Math.max(lastLong, longKm);
+      const mpKm = marathonPeak ? Math.min(12, Math.round(longKm * 0.35)) : fastFinish && longKm >= 10 ? (longKm >= 16 ? 3 : 2) : 0;
+      const long = longRun(longKm, ctx, mpKm);
       const left = Math.max(0, km - long.plannedKm - qualityKm);
       const days = assignDays(input.weekdays, input.longRunWeekday, true, quality.length, easyCount);
 

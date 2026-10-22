@@ -1246,9 +1246,11 @@ export type Database = {
           experienced: boolean
           generated_until: string
           goal_kind: Database["public"]["Enums"]["plan_goal_kind"]
+          hills: boolean
           id: string
           long_run_weekday: number
           race_date: string | null
+          recent_longest_km: number | null
           runs_per_week: number
           start_date: string
           start_km_per_week: number
@@ -1266,9 +1268,11 @@ export type Database = {
           experienced?: boolean
           generated_until: string
           goal_kind: Database["public"]["Enums"]["plan_goal_kind"]
+          hills?: boolean
           id?: string
           long_run_weekday: number
           race_date?: string | null
+          recent_longest_km?: number | null
           runs_per_week: number
           start_date: string
           start_km_per_week: number
@@ -1286,9 +1290,11 @@ export type Database = {
           experienced?: boolean
           generated_until?: string
           goal_kind?: Database["public"]["Enums"]["plan_goal_kind"]
+          hills?: boolean
           id?: string
           long_run_weekday?: number
           race_date?: string | null
+          recent_longest_km?: number | null
           runs_per_week?: number
           start_date?: string
           start_km_per_week?: number
@@ -1437,6 +1443,7 @@ export type Database = {
         | "tempo"
         | "strides"
         | "race"
+        | "test"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1589,6 +1596,7 @@ export const Constants = {
         "tempo",
         "strides",
         "race",
+        "test",
       ],
     },
   },

@@ -11,7 +11,7 @@ export interface Fueling {
   after: { proteinG: number; carbsG: number | null };
 }
 
-const HARD: ReadonlySet<WorkoutType> = new Set(["intervals", "threshold", "tempo", "race"]);
+const HARD: ReadonlySet<WorkoutType> = new Set(["intervals", "threshold", "tempo", "race", "test"]);
 const round5 = (n: number) => Math.round(n / 5) * 5;
 
 export function fuelingFor(w: { type: WorkoutType; plannedDurationS: number }, kg: number): Fueling {

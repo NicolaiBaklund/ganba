@@ -3,9 +3,9 @@ import type { ISODate } from "../dates";
 export type RaceDistance = "5k" | "10k" | "half" | "marathon";
 export const RACE_KM: Record<RaceDistance, number> = { "5k": 5, "10k": 10, half: 21.0975, marathon: 42.195 };
 
-export type WorkoutType = "easy" | "long" | "intervals" | "threshold" | "tempo" | "strides" | "race";
-export const HARD_TYPES: ReadonlySet<WorkoutType> = new Set(["long", "intervals", "threshold", "tempo", "race"]);
-export const KEY_TYPES: ReadonlySet<WorkoutType> = new Set(["long", "intervals", "threshold", "tempo"]);
+export type WorkoutType = "easy" | "long" | "intervals" | "threshold" | "tempo" | "strides" | "race" | "test";
+export const HARD_TYPES: ReadonlySet<WorkoutType> = new Set(["long", "intervals", "threshold", "tempo", "race", "test"]);
+export const KEY_TYPES: ReadonlySet<WorkoutType> = new Set(["long", "intervals", "threshold", "tempo", "test"]);
 
 export type Phase = "base" | "build" | "peak" | "taper" | "recovery";
 
@@ -58,7 +58,8 @@ export interface PlanWorkout extends WorkoutSpec {
 
 export type Goal =
   | { kind: "race"; distance: RaceDistance; raceDate: ISODate; targetTimeS?: number | null }
-  | { kind: "build" };
+  /** Build plans: optional focus distance (no race day), null = General. */
+  | { kind: "build"; focus?: RaceDistance | null };
 
 export interface PlanInput {
   goal: Goal;
@@ -79,6 +80,8 @@ export interface PlanInput {
   didQuality?: boolean;
   /** Longest run in the last 4 weeks: the long run starts there, not below. */
   recentLongestKm?: number;
+  /** Hills nearby: hill repeats take the place of fartlek. */
+  hills?: boolean;
 }
 
 export interface Paces {
