@@ -219,6 +219,7 @@ export async function createPlan(userId: string, input: CreatePlanInput): Promis
       start_km_per_week: fitness.baseKmPerWeek,
       experienced: fitness.experienced,
       did_quality: fitness.didQuality,
+      recent_longest_km: fitness.longestKm,
       start_date: today,
       generated_until: goal.kind === "race" ? goal.raceDate : addDays(today, BUILD_EXTEND_WEEKS * 7 - 1) > lastDate ? addDays(today, BUILD_EXTEND_WEEKS * 7 - 1) : lastDate,
     })
@@ -298,6 +299,7 @@ export async function reconcilePlan(userId: string, today: ISODate): Promise<voi
       untilDate: until,
       experienced: plan.experienced,
       didQuality: plan.did_quality,
+      recentLongestKm: plan.recent_longest_km == null ? undefined : Number(plan.recent_longest_km),
     });
     const fresh = full.workouts.filter((w) => w.date > plan.generated_until && w.date >= today);
     if (fresh.length) await d.from("planned_workouts").insert(fresh.map((w) => workoutRow(userId, plan.id, w)));
@@ -306,7 +308,7 @@ export async function reconcilePlan(userId: string, today: ISODate): Promise<voi
 }
 
 export function planContext(plan: PlanRow, today: ISODate): PlanContext {
-  return { weekdays: plan.weekdays, vdot: Number(plan.vdot), racePaceS: racePaceOf(plan), distance: distanceOf(plan), today };
+  return { weekdays: plan.weekdays, vdot: Number(plan.vdot), racePaceS: racePaceOf(plan), distance: distanceOf(plan), today, racePaceFromVdot: plan.target_time_s == null };
 }
 
 export async function planWorkoutsWithKm(plan: PlanRow): Promise<PlanWorkout[]> {
@@ -356,14 +358,16 @@ export async function refreshProposals(userId: string, today: ISODate): Promise<
   const test = workouts
     .filter((w) => w.type === "test" && w.status === "done" && w.date >= addDays(today, -14))
     .sort((a, b) => (a.date < b.date ? 1 : -1))[0];
-  const testRun = test && !pendingKinds.has("paces") ? await testRunFor(plan.id, test.id, test.date) : null;
   const testDone = (date: string) => all.some((p) => p.kind === "paces" && p.summary.startsWith(`Fitness test (${date})`));
-  const fromTest = testRun && !testDone(testRun.date) ? testProposal(Number(plan.vdot), testRun) : null;
+  const testRun = test && !pendingKinds.has("paces") && !testDone(test.date) ? await testRunFor(plan.id, test.id, test.date) : null;
+  const fromTest = testRun ? testProposal(Number(plan.vdot), testRun) : null;
+  // A test in the last two weeks decides the paces: no estimate-based proposal may overrule it.
+  const testedRecently = !!test;
 
   const candidates = [
     fromTest,
     !pendingKinds.has("missed") ? missedProposal(workouts, ctx, proposed) : null,
-    !fromTest && !pendingKinds.has("paces") && !recent("paces")
+    !fromTest && !testedRecently && !pendingKinds.has("paces") && !recent("paces")
       ? (pacesProposal(Number(plan.vdot), (await currentFitness(userId, today)).vdot) ??
         slowerPacesProposal(Number(plan.vdot), await qualityResultsBetween(userId, addDays(today, -21), today, plan.id), today))
       : null,

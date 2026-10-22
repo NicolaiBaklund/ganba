@@ -101,6 +101,7 @@ const GENERAL_BLOCKS: Slot[][] = [
 export const BLOCK_WEEKS = 4;
 /** Build plans: a fitness test in the lighter week of every second block. */
 export const TEST_EVERY_WEEKS = 8;
+const TEST_MIN_WEEK_KM = 18;
 /** Build plans: weeks over which the long run grows to its target (independent of how far the plan is generated). */
 const BUILD_LONG_GROWTH_WEEKS = 12;
 
@@ -198,10 +199,10 @@ export function generatePlan(input: PlanInput): GeneratedPlan {
     if (isQualityWeek) qualityIdx++;
     // Base weeks: one light fartlek (or hills) once the week is big enough; strides otherwise.
     if (phase === "base" && !partialFirst && km >= 20) kinds = [hills ? "hills" : "fartlek"];
-    const baseLight = phase === "base";
-    // Build plans: a 5K time trial in the lighter week of every second block.
-    const testWeek = isBuild && !partialFirst && w % TEST_EVERY_WEEKS === TEST_EVERY_WEEKS - 1 && runs >= 2;
-    const taperHard = phase === "taper" && runs >= 3;
+    // Build plans: a 5K time trial in the lighter week of every second block, once the week is big enough
+    // that an 8.5 km session doesn't turn the lighter week into the hardest one.
+    const testWeek = isBuild && !partialFirst && w % TEST_EVERY_WEEKS === TEST_EVERY_WEEKS - 1 && runs >= 3 && km >= TEST_MIN_WEEK_KM;
+    const taperHard = phase === "taper" && runs >= 3 && !partialFirst;
 
     const isRaceWeek = !isBuild && w === nWeeks - 1;
     // Strides once a week everywhere except the taper and race week.
@@ -238,13 +239,12 @@ export function generatePlan(input: PlanInput): GeneratedPlan {
       let longKm = Math.max(5, Math.min(longMax, Math.max(km * longShare, longGoal * longScale)));
 
       // Quality (incl. warm-up/cool-down) stays within ~30 % of the week, 40 % for two sessions; with two runs a week, whatever the long run leaves.
-      const slots = testWeek ? 1 : taperHard ? 1 : kinds.length;
-      const qualityBudget = runs <= 2 ? Math.max(0, km - longKm) : km * (slots >= 2 ? QUALITY_SHARE.two : QUALITY_SHARE.one);
+      const qualityBudget = runs <= 2 ? Math.max(0, km - longKm) : km * (kinds.length >= 2 && !testWeek && !taperHard ? QUALITY_SHARE.two : QUALITY_SHARE.one);
       const quality: BuiltWorkout[] = testWeek
         ? [fitnessTest(ctx)]
         : taperHard
           ? [sharpener(ctx)]
-          : kinds.map((k) => qualityFor(k, baseLight ? 0 : lvl, distance ?? "10k", ctx, qualityBudget / kinds.length));
+          : kinds.map((k) => qualityFor(k, phase === "base" ? 0 : lvl, distance ?? "10k", ctx, qualityBudget / kinds.length));
       const qualityKm = quality.reduce((sum, q) => sum + q.plannedKm, 0);
       // Drop easy runs rather than make them tiny; they come back as the volume grows.
       let easyCount = Math.max(0, runs - 1 - quality.length);

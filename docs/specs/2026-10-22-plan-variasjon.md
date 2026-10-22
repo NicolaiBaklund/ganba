@@ -69,7 +69,7 @@ Langturen bygges mot 18 km (3 løp i uka) eller 20 km (4 løp eller flere), med 
 
 - **Når:** I «bygg form»-planer, i den lettere uka i hver andre blokk (uke 8, 16, 24 …), på dagen kvalitetsøkten ellers ville ligget.
 - **Økt:** «Fitness test: 5K time trial». 2 km rolig, 5 km så raskt du klarer jevnt, 1,5 km rolig. Ingen pace-mål på klokka. Type `test`, regnes som hard.
-- **Etterpå:** Når testen er gjort og koblet til en aktivitet med minst 4,8 km i testdelen, regnes VDOT ut fra aktivitetens tid (fra rundene hvis de finnes, ellers hele aktiviteten minus oppvarming og nedjogg ved snittfart). Er forskjellen fra planens VDOT minst 0,5, lages et fartsforslag («Fitness test: 5 km in 22:31, VDOT 44.1 (plan 43.2). Update your paces?»). Både opp og ned, maks 3 ned. Det brukes med det eksisterende forslagssystemet.
+- **Etterpå:** Når testen er gjort og koblet til en aktivitet med minst 4,8 km i testdelen, regnes VDOT ut fra de raskeste sammenhengende rundene som til sammen er 4,8–5,4 km (5 km-runden fra den sendte økta, eller fem 1 km auto-runder), ellers hele aktiviteten hvis den bare var testen. Aldri snitt over oppvarming og nedjogg (for tregt). Formtesten legges bare i uker på minst 18 km med minst 3 løp. En test de siste 14 dagene bestemmer farten: andre fartsforslag lages ikke da. Er forskjellen fra planens VDOT minst 0,5, lages et fartsforslag («Fitness test: 5 km in 22:31, VDOT 44.1 (plan 43.2). Update your paces?»). Både opp og ned, maks 3 ned. Det brukes med det eksisterende forslagssystemet.
 
 ## 6. Stigningsløp
 

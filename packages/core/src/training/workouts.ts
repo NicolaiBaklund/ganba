@@ -138,13 +138,15 @@ const HILLS: [number, number][] = [[6, 60], [8, 60], [10, 60], [6, 90], [8, 90]]
 
 const label = (m: number) => (m >= 1000 ? `${m / 1000} km` : `${m} m`);
 
+/** The classic interval table, kept for the coach's "replace". */
+const SHORT_REPS_OLD: [number, number][] = [[5, 800], [6, 800], [5, 1000], [6, 1000], [5, 1200]];
+
 /** Interval-pace repeats of `m` metres (the classic session; kept for the coach's "replace"). */
 export function intervals(level: number, distance: RaceDistance, ctx: BuildContext, o: Shrink = {}): BuiltWorkout {
   const table = distance === "5k" || distance === "10k" ? SHORT_REPS_OLD : LONG_REPS;
   const [times, m] = at(table, level);
   return repeatsWorkout("intervals", Math.max(2, times - (o.cut ?? 0)), m, "interval", ctx, o);
 }
-const SHORT_REPS_OLD: [number, number][] = [[5, 800], [6, 800], [5, 1000], [6, 1000], [5, 1200]];
 
 /** Short and sharp, for taper weeks. */
 export function sharpener(ctx: BuildContext): BuiltWorkout {
@@ -305,9 +307,8 @@ function makeQuality(kind: QualityKind, level: number, distance: RaceDistance, c
  * The biggest version of a quality session (at or below `level`) that fits `budgetKm`.
  * Falls back to short warm-up/cool-down and fewer repeats for small weeks.
  */
-export function qualityFor(kind: QualityKind | QualityType, level: number, distance: RaceDistance, ctx: BuildContext, budgetKm: number): BuiltWorkout {
-  const k: QualityKind = kind === "intervals" ? "long" : kind;
-  const make = (l: number, o?: Shrink) => makeQuality(k, l, distance, ctx, o);
+export function qualityFor(kind: QualityKind, level: number, distance: RaceDistance, ctx: BuildContext, budgetKm: number): BuiltWorkout {
+  const make = (l: number, o?: Shrink) => makeQuality(kind, l, distance, ctx, o);
   for (let l = Math.max(0, level); l >= 0; l--) {
     const w = make(l);
     if (w.plannedKm <= budgetKm * 1.1) return w;

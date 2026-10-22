@@ -1250,6 +1250,7 @@ export type Database = {
           id: string
           long_run_weekday: number
           race_date: string | null
+          recent_longest_km: number | null
           runs_per_week: number
           start_date: string
           start_km_per_week: number
@@ -1271,6 +1272,7 @@ export type Database = {
           id?: string
           long_run_weekday: number
           race_date?: string | null
+          recent_longest_km?: number | null
           runs_per_week: number
           start_date: string
           start_km_per_week: number
@@ -1292,6 +1294,7 @@ export type Database = {
           id?: string
           long_run_weekday?: number
           race_date?: string | null
+          recent_longest_km?: number | null
           runs_per_week?: number
           start_date?: string
           start_km_per_week?: number

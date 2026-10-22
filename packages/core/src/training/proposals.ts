@@ -1,8 +1,8 @@
 import { addDays, weekday, type ISODate } from "../dates";
 import { mondayOf } from "./generate";
-import { pacesFor, vdotFrom, vo2AtSpeed } from "./vdot";
+import { pacesFor, predictTimeS, vdotFrom, vo2AtSpeed } from "./vdot";
 import { blocksFromSteps, buildByType, defaultTitle, measure, repaceBlocks, rescaleBlocks, resizeQuality, type BuildContext } from "./workouts";
-import { HARD_TYPES, KEY_TYPES, type PlanWorkout, type ProposalChange, type RaceDistance, type WorkoutType } from "./types";
+import { HARD_TYPES, KEY_TYPES, RACE_KM, type PlanWorkout, type ProposalChange, type RaceDistance, type WorkoutType } from "./types";
 
 export interface PlanContext {
   weekdays: number[];
@@ -10,6 +10,8 @@ export interface PlanContext {
   racePaceS: number | null;
   distance: RaceDistance | null;
   today: ISODate;
+  /** Race pace follows fitness (no target time, e.g. a build plan's focus): a repace recomputes it. */
+  racePaceFromVdot?: boolean;
 }
 
 export interface Proposal {
@@ -105,12 +107,23 @@ const TEST_MIN_M = 4800;
 const TEST_MAX_M = 5400;
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
 
-/** The 5 km effort inside a test run: its fastest ~5 km lap, else the whole run if it was just the test. */
+/**
+ * The 5 km effort inside a test run: the fastest stretch of consecutive laps adding up to 4.8–5.4 km (one
+ * 5 km step lap from the pushed workout, or five 1 km auto-laps), else the whole run if it was just the test.
+ * Never an average over warm-up and cool-down: that would read too slow.
+ */
 export function testEffort(run: TestRun): { distanceM: number; timeS: number } | null {
-  const lap = run.laps
-    .filter((l) => l.distanceM >= TEST_MIN_M && l.distanceM <= TEST_MAX_M && l.timeS > 0)
-    .sort((a, b) => a.timeS / a.distanceM - b.timeS / b.distanceM)[0];
-  if (lap) return lap;
+  let best: { distanceM: number; timeS: number } | null = null;
+  for (let i = 0; i < run.laps.length; i++) {
+    let d = 0;
+    let t = 0;
+    for (let j = i; j < run.laps.length && d < TEST_MIN_M; j++) {
+      d += run.laps[j]!.distanceM;
+      t += run.laps[j]!.timeS;
+    }
+    if (d >= TEST_MIN_M && d <= TEST_MAX_M && t > 0 && (!best || t / d < best.timeS / best.distanceM)) best = { distanceM: d, timeS: t };
+  }
+  if (best) return best;
   return run.distanceM >= TEST_MIN_M && run.distanceM <= TEST_MAX_M && run.timeS > 0 ? { distanceM: run.distanceM, timeS: run.timeS } : null;
 }
 
@@ -206,14 +219,16 @@ export function applyChanges(all: PlanWorkout[], changes: ProposalChange[], ctx:
   const byId = new Map(list.map((w) => [w.id, w]));
   const changed = new Set<string>();
   let vdot = ctx.vdot;
-  const build = (): BuildContext => ({ paces: pacesFor(vdot), racePaceS: ctx.racePaceS ?? undefined });
+  let racePaceS = ctx.racePaceS ?? undefined;
+  const build = (): BuildContext => ({ paces: pacesFor(vdot), racePaceS });
 
   for (const c of changes) {
     if (c.op === "repace") {
       vdot = c.vdot;
+      if (ctx.racePaceFromVdot && ctx.distance) racePaceS = Math.round(predictTimeS(RACE_KM[ctx.distance] * 1000, vdot) / RACE_KM[ctx.distance]);
       for (const w of list)
         if (w.status === "planned" && w.date >= ctx.today) {
-          w.blocks = repaceBlocks(w.blocks, build().paces, ctx.racePaceS ?? undefined);
+          w.blocks = repaceBlocks(w.blocks, build().paces, racePaceS);
           const m = measure(w.blocks, build().paces);
           w.plannedDurationS = m.s;
           changed.add(w.id);

@@ -272,8 +272,8 @@ export function PlanWizard({ minDate }: { minDate: string }) {
             </div>
             {preview.predictedTimeS != null && (
               <div>
-                <p className="text-muted-foreground">{targetS ? tt("target") : tt("predicted")}</p>
-                <p className="num text-2xl font-extrabold">{fmtClock(targetS ?? preview.predictedTimeS)}</p>
+                <p className="text-muted-foreground">{isRace && targetS ? tt("target") : tt("predicted")}</p>
+                <p className="num text-2xl font-extrabold">{fmtClock((isRace ? targetS : null) ?? preview.predictedTimeS)}</p>
               </div>
             )}
           </div>

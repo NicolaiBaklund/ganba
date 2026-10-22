@@ -88,6 +88,7 @@ describe("plan variety: build plans", () => {
       expect(ws.some((w) => w.type === "long")).toBe(true);
       for (const w of ws) expect([2, 6]).toContain(weekday(w.date));
     }
+    expect(p.workouts.some((w) => w.type === "test")).toBe(false); // too small a week for an 8.5 km test
   });
 });
 
@@ -102,5 +103,9 @@ describe("plan variety: fitness test → paces", () => {
     const slower = testProposal(50, run([{ distanceM: 5000, timeS: 1500 }]));
     expect((slower!.changes[0] as { vdot: number }).vdot).toBe(47); // capped at 3 down
     expect(testProposal(42, run([{ distanceM: 1000, timeS: 300 }]))).toBeNull(); // no 5 km effort found
+    // Garmin's 1 km auto-laps: the fastest five in a row, not the warm-up.
+    const auto = [360, 355, 258, 256, 259, 257, 262, 350, 352].map((t) => ({ distanceM: 1000, timeS: t }));
+    const fromAuto = testProposal(42, run(auto, 9000, 2709));
+    expect(fromAuto!.summary).toContain("5 km in 21:32");
   });
 });
