@@ -244,17 +244,22 @@ export async function todaysWorkout(userId: string, today: ISODate): Promise<{ p
 }
 
 /** First planned session after `after` in the active plan (for the rest-day bib). */
-export async function nextWorkout(userId: string, after: ISODate): Promise<{ date: ISODate; type: WorkoutType; title: string; plannedKm: number } | null> {
+export async function nextWorkout(
+  userId: string,
+  after: ISODate,
+): Promise<{ date: ISODate; type: WorkoutType; title: string; plannedKm: number; plannedDurationS: number; sport: "run" | "ride" } | null> {
   const plan = await activePlan(userId);
   if (!plan) return null;
   const { data } = await createAdminSupabase()
     .from("planned_workouts")
-    .select("date, type, title, planned_km")
+    .select("date, type, title, planned_km, planned_duration_s")
     .eq("plan_id", plan.id)
     .gt("date", after)
     .eq("status", "planned")
     .order("date")
     .limit(1)
     .maybeSingle();
-  return data ? { date: data.date, type: data.type, title: data.title, plannedKm: Number(data.planned_km) } : null;
+  return data
+    ? { date: data.date, type: data.type, title: data.title, plannedKm: Number(data.planned_km), plannedDurationS: data.planned_duration_s, sport: plan.sport as "run" | "ride" }
+    : null;
 }

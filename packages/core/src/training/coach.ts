@@ -66,6 +66,8 @@ export interface CheckResult {
 const MAX_STEPS = 30;
 const MAX_REPEAT = 30;
 const KM = { min: 1, max: 60 };
+/** Cycling sessions are bounded in time; their km are estimates. */
+const RIDE_MIN = { min: 20, max: 420 };
 const HORIZON_DAYS = 60;
 const mondayOf = (d: ISODate) => addDays(d, -((weekday(d) + 6) % 7));
 const live = (w: PlanWorkout) => w.status !== "removed" && w.status !== "missed";
@@ -183,8 +185,11 @@ export function checkChanges(all: PlanWorkout[], changes: ProposalChange[], ctx:
     const stop = stopReason(state, c, ctx);
     if (stop) return errors.push({ index, reason: stop });
     const res = applyChanges(state, [c], ctx);
-    const bad = res.workouts.find((w) => res.changedIds.has(w.id) && w.status === "planned" && (w.plannedKm < KM.min || w.plannedKm > KM.max));
-    if (bad) return errors.push({ index, reason: `a session must be ${KM.min}–${KM.max} km` });
+    const ride = ctx.sport === "ride";
+    const outOfRange = (w: PlanWorkout) =>
+      ride ? w.plannedDurationS / 60 < RIDE_MIN.min || w.plannedDurationS / 60 > RIDE_MIN.max : w.plannedKm < KM.min || w.plannedKm > KM.max;
+    const bad = res.workouts.find((w) => res.changedIds.has(w.id) && w.status === "planned" && w.type !== "race" && outOfRange(w));
+    if (bad) return errors.push({ index, reason: ride ? `a ride must be ${RIDE_MIN.min}–${RIDE_MIN.max} min` : `a session must be ${KM.min}–${KM.max} km` });
     for (const w of [...state, ...res.workouts]) if (res.changedIds.has(w.id)) touched.add(mondayOf(w.date));
     valid.push(c);
     state = res.workouts;

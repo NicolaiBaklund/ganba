@@ -31,12 +31,14 @@ export async function buildCoachContext(userId: string, threadId: string, opts: 
   const plan = await activePlan(userId);
   if (!plan) return null;
   const today = await todayFor(userId);
-  const [workouts, runs, notes, history, consent] = await Promise.all([
+  const ride = plan.sport === "ride";
+  const [workouts, runs, notes, history, consent, allRides] = await Promise.all([
     planWorkoutsWithKm(plan),
-    recentRuns(userId, today),
+    ride ? Promise.resolve([]) : recentRuns(userId, today),
     listNotes(userId, today),
     recentMessages(threadId, CONTEXT_MESSAGES + 1),
     getAiHealthConsent(userId),
+    ride ? recentRides(userId, today) : Promise.resolve([]),
   ]);
   // A retry: the same message is already the last one stored; it goes in once, as the new message.
   if (history.at(-1)?.role === "user" && history.at(-1)?.text === opts.message) history.pop();
@@ -54,7 +56,7 @@ export async function buildCoachContext(userId: string, threadId: string, opts: 
   });
   const last21 = runs.filter((r) => r.date >= addDays(today, -21));
   // The long-run warning compares with the longest recent session of the plan's own sport.
-  const sessions = plan.sport === "ride" ? await recentRides(userId, today) : runs;
+  const sessions = ride ? allRides : runs;
   const recentLongestKm = Math.max(0, ...sessions.filter((r) => r.date >= addDays(today, -28)).map((r) => r.distanceM / 1000));
   const weeks: string[] = [];
   for (let i = -4; i < 4; i++) {
@@ -90,8 +92,7 @@ export async function buildCoachContext(userId: string, threadId: string, opts: 
   }
 
   const aboutRef = opts.aboutWorkoutId ? refOf.get(opts.aboutWorkoutId) : undefined;
-  const ride = plan.sport === "ride";
-  const rides = ride ? (await recentRides(userId, today)).filter((r) => r.date >= addDays(today, -21)) : [];
+  const rides = allRides.filter((r) => r.date >= addDays(today, -21));
   const lthr = plan.lthr ?? 165;
   // Cycling plans: time and heart rate, never pace (and no watts unless the plan has them).
   const planLines = ride

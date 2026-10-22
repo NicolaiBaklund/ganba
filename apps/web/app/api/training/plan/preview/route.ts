@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { weekMinutes } from "@loop/core";
 import { apiUser } from "@/lib/api/user";
 import { PlanInputSchema, raceDateOk } from "@/lib/validation/training";
 import { previewPlan, previewRidePlan, todayFor } from "@/lib/training/service";
@@ -17,7 +18,7 @@ export async function POST(req: Request) {
       sport: "ride",
       rideFitness: fitness,
       indoor,
-      weeks: plan.weeks.map((w) => ({ ...w, minutes: Math.round(plan.workouts.filter((x) => x.week === w.week).reduce((s, x) => s + x.plannedDurationS, 0) / 60) })),
+      weeks: plan.weeks.map((w) => ({ ...w, minutes: weekMinutes(plan, w.week) })),
       predictedTimeS: plan.predictedTimeS,
       firstWeek: plan.workouts.slice(0, parsed.data.runsPerWeek).map((w) => ({ date: w.date, type: w.type, title: w.title, km: w.plannedKm, minutes: Math.round(w.plannedDurationS / 60) })),
     });

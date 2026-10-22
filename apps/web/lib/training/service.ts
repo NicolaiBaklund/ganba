@@ -208,11 +208,15 @@ export async function recentRides(userId: string, today: ISODate): Promise<RideR
 
 /** Garmin's lactate threshold heart rates; empty when unavailable (the zones then come from rides or a default). */
 async function thresholdsFor(userId: string, source: GarminSource): Promise<{ lthrCycling?: number | null; lthrRunning?: number | null }> {
+  // Once a day is plenty: previews (every toggle) and creation then agree on the same zones.
+  const { data: acct } = await db().from("garmin_accounts").select("lthr_running, lthr_cycling, thresholds_at").eq("user_id", userId).maybeSingle();
+  if (acct?.thresholds_at && Date.now() - Date.parse(acct.thresholds_at) < 86_400_000) return { lthrCycling: acct.lthr_cycling, lthrRunning: acct.lthr_running };
   const tokens = await loadTokens(userId);
   if (!tokens) return {};
   try {
     const r = await source.fetchThresholds(tokens);
     if (r.tokens) await updateTokens(userId, r.tokens);
+    await db().from("garmin_accounts").update({ lthr_running: r.lthrRunning, lthr_cycling: r.lthrCycling, thresholds_at: new Date().toISOString() }).eq("user_id", userId);
     return { lthrCycling: r.lthrCycling, lthrRunning: r.lthrRunning };
   } catch {
     return {};
@@ -350,7 +354,7 @@ async function createRidePlan(userId: string, input: CreatePlanInput, source: Ga
 }
 
 /** The ride plan as stored, regenerated with indoor on or off (same dates, goal and start). */
-async function rideFromPlan(userId: string, plan: PlanRow, indoor: boolean, today: ISODate) {
+async function rideFromPlan(userId: string, plan: PlanRow, indoor: boolean, today: ISODate, untilDate?: ISODate) {
   return generateRidePlan({
     goal: plan.goal_kind === "race" && plan.race_date && plan.event_km != null
       ? { kind: "event", date: plan.race_date, km: Number(plan.event_km), elevationM: plan.event_elevation_m }
@@ -367,7 +371,7 @@ async function rideFromPlan(userId: string, plan: PlanRow, indoor: boolean, toda
     hills: plan.hills,
     indoor,
     experienced: plan.experienced,
-    untilDate: plan.goal_kind === "build" ? plan.generated_until : undefined,
+    untilDate: plan.goal_kind === "build" ? (untilDate ?? plan.generated_until) : undefined,
   });
 }
 
@@ -383,16 +387,26 @@ export async function setRideIndoor(userId: string, indoor: boolean): Promise<bo
   const full = await rideFromPlan(userId, plan, indoor, today);
   const rows = await planWorkouts(plan.id);
   const doneDays = new Set(rows.filter((w) => w.status === "done").map((w) => w.date));
-  const old = rows.filter((w) => w.status === "planned" && w.date >= today).map((w) => w.id);
+  const old = rows.filter((w) => w.status === "planned" && w.date >= today);
   const fresh = full.workouts.filter((w) => w.date >= today && !doneDays.has(w.date));
-  if (old.length) {
-    const { error } = await d.from("planned_workouts").update({ status: "removed" }).in("id", old);
-    if (error) throw error;
-  }
-  if (fresh.length) {
-    const { error } = await d.from("planned_workouts").insert(fresh.map((w) => workoutRow(userId, plan.id, w)));
-    if (error) throw error;
-  }
+  const fields = (w: WorkoutSpec, status: string) => ({
+    date: w.date,
+    status,
+    type: w.type,
+    title: w.title,
+    blocks: w.blocks,
+    planned_km: w.plannedKm,
+    planned_duration_s: w.plannedDurationS,
+  });
+  // One transaction: the old rides go and the rebuilt ones come, or nothing changes.
+  const { error } = await db().rpc("save_plan_changes", {
+    p_user: userId,
+    p_plan: plan.id,
+    p_vdot: null as unknown as number,
+    p_updates: old.map((w) => ({ id: w.id, ...fields(toPlanWorkout(w), "removed") })) as unknown as Json,
+    p_inserts: fresh.map((w) => ({ ...fields(w, "planned"), week: w.week, phase: w.phase })) as unknown as Json,
+  });
+  if (error) throw error;
   await d.from("training_plans").update({ indoor }).eq("id", plan.id);
   // Suggestions about sessions that no longer exist are out of date.
   await d.from("plan_proposals").update({ status: "stale" }).eq("plan_id", plan.id).eq("status", "pending");
@@ -452,22 +466,7 @@ export async function reconcilePlan(userId: string, today: ISODate): Promise<voi
 
   if (plan.goal_kind === "build" && plan.generated_until < addDays(today, BUILD_EXTEND_AHEAD_DAYS)) {
     const until = addDays(plan.generated_until, BUILD_EXTEND_WEEKS * 7);
-    const full = plan.sport === "ride" ? generateRidePlan({
-      goal: { kind: "build" },
-      startDate: plan.start_date,
-      weekdays: plan.weekdays,
-      longRideWeekday: plan.long_run_weekday,
-      ridesPerWeek: plan.runs_per_week,
-      lthr: plan.lthr ?? 165,
-      speedKmh: Number(plan.ride_speed_kmh ?? 25),
-      startMinPerWeek: plan.start_min_per_week ?? 180,
-      deficitKcal: await deficitKcal(userId, today),
-      recentLongestMin: plan.recent_longest_min ?? undefined,
-      hills: plan.hills,
-      indoor: plan.indoor,
-      experienced: plan.experienced,
-      untilDate: until,
-    }) : generatePlan({
+    const full = plan.sport === "ride" ? await rideFromPlan(userId, plan, plan.indoor, today, until) : generatePlan({
       // Same focus and hills as when the plan was made, so new weeks continue the same rotation.
       goal: goalOf(plan),
       hills: plan.hills,
@@ -501,6 +500,7 @@ export function planContext(plan: PlanRow, today: ISODate): PlanContext {
     sport: plan.sport as "run" | "ride",
     lthr: plan.lthr,
     rideSpeedKmh: plan.ride_speed_kmh == null ? null : Number(plan.ride_speed_kmh),
+    indoor: plan.indoor,
   };
 }
 

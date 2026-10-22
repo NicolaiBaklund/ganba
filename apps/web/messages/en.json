@@ -373,7 +373,8 @@
       "test": "Ride test"
     },
     "rideAbout": "{time}, about {km} km",
-    "bibMetaRide": "{time}, about {km} km"
+    "bibMetaRide": "{time}, about {km} km",
+    "nextTextRide": "{day}, {type} {time}"
   },
   "training": {
     "title": "Training",

@@ -13,7 +13,7 @@ export async function TodayBib({
 }: {
   workout: WorkoutListItem | null;
   kg: number;
-  next: { date: string; type: WorkoutType; title: string; plannedKm: number } | null;
+  next: { date: string; type: WorkoutType; title: string; plannedKm: number; plannedDurationS: number; sport: "run" | "ride" } | null;
 }) {
   const t = await getTranslations("workout");
   const tf = await getTranslations("fuel");
@@ -25,7 +25,17 @@ export async function TodayBib({
       <RestBib
         title={t("rest")}
         nextLabel={t("next")}
-        next={next ? { type: next.type, text: t("nextText", { day: weekday, type: t(`types.${next.type}`).toLowerCase(), km: next.plannedKm }) } : null}
+        next={
+          next
+            ? {
+                type: next.type,
+                text:
+                  next.sport === "ride"
+                    ? t("nextTextRide", { day: weekday, type: t(typeKey(next.type, "ride")).toLowerCase(), time: fmtMinutes(next.plannedDurationS) })
+                    : t("nextText", { day: weekday, type: t(`types.${next.type}`).toLowerCase(), km: next.plannedKm }),
+              }
+            : null
+        }
       />
     );
   }

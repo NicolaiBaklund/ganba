@@ -242,10 +242,10 @@ const RIDE_LABEL: Record<WorkoutType, string> = {
 export const rideDefaultTitle = (type: WorkoutType, minutes: number) => `${RIDE_LABEL[type]} ${fmtRideDuration(minutes)}`;
 
 /** Rebuild a ride session of a type and length (coach "replace", volume changes). */
-export function rideByType(type: WorkoutType, minutes: number, level: number, ctx: RideContext): BuiltWorkout {
+export function rideByType(type: WorkoutType, minutes: number, level: number, ctx: RideContext, indoor = false): BuiltWorkout {
   switch (type) {
     case "long":
-      return longRide(minutes, ctx);
+      return longRide(indoor ? Math.min(INDOOR.longMaxMin, minutes) : minutes, ctx, 0, indoor);
     case "intervals":
       return rideQuality("vo2", level, ctx, false);
     case "threshold":
@@ -253,7 +253,7 @@ export function rideByType(type: WorkoutType, minutes: number, level: number, ct
     case "tempo":
       return rideQuality("sweetspot", level, ctx, false);
     default:
-      return enduranceRide(minutes, ctx);
+      return enduranceRide(indoor ? Math.min(INDOOR.easyMaxMin, minutes) : minutes, ctx);
   }
 }
 
@@ -478,6 +478,22 @@ export function rideTestProposal(planLthr: number, run: RideTestRun): Proposal |
   };
 }
 
-export const RIDE_TYPES = new Set(["cycling", "road_biking", "mountain_biking", "gravel_cycling", "indoor_cycling", "virtual_ride", "e_bike_fitness", "e_bike_mountain"]);
+export const RIDE_TYPES = new Set([
+  "cycling",
+  "road_biking",
+  "mountain_biking",
+  "gravel_cycling",
+  "cyclocross",
+  "track_cycling",
+  "recumbent_cycling",
+  "downhill_biking",
+  "bmx",
+  "hand_cycling",
+  "indoor_cycling",
+  "virtual_ride",
+  "e_bike_fitness",
+  "e_bike_mountain",
+  "e_enduro_mtb",
+]);
 export const isRide = (typeKey: string) => RIDE_TYPES.has(typeKey);
 export const weekdayOf = weekday;

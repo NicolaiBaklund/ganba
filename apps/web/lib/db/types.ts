@@ -572,6 +572,8 @@ export type Database = {
           iv: string
           last_synced_at: string | null
           last_synced_date: string | null
+          lthr_cycling: number | null
+          lthr_running: number | null
           race_predictions: Json | null
           race_predictions_at: string | null
           recovery_backfilled_until: string | null
@@ -580,6 +582,7 @@ export type Database = {
           recovery_synced_until: string | null
           status: Database["public"]["Enums"]["garmin_status"]
           sync_started_at: string | null
+          thresholds_at: string | null
           updated_at: string
           user_id: string
         }
@@ -592,6 +595,8 @@ export type Database = {
           iv: string
           last_synced_at?: string | null
           last_synced_date?: string | null
+          lthr_cycling?: number | null
+          lthr_running?: number | null
           race_predictions?: Json | null
           race_predictions_at?: string | null
           recovery_backfilled_until?: string | null
@@ -600,6 +605,7 @@ export type Database = {
           recovery_synced_until?: string | null
           status?: Database["public"]["Enums"]["garmin_status"]
           sync_started_at?: string | null
+          thresholds_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -612,6 +618,8 @@ export type Database = {
           iv?: string
           last_synced_at?: string | null
           last_synced_date?: string | null
+          lthr_cycling?: number | null
+          lthr_running?: number | null
           race_predictions?: Json | null
           race_predictions_at?: string | null
           recovery_backfilled_until?: string | null
@@ -620,6 +628,7 @@ export type Database = {
           recovery_synced_until?: string | null
           status?: Database["public"]["Enums"]["garmin_status"]
           sync_started_at?: string | null
+          thresholds_at?: string | null
           updated_at?: string
           user_id?: string
         }

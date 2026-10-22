@@ -53,7 +53,9 @@ export const paceFromSpeed = (mps: number | null | undefined): number | null => 
 /** Big bib number for a session: "5×1" + "km" from "Intervals 5 × 1 km", else the planned km. */
 export function bibNumber(title: string, km: number, ride?: { durationS: number }): { big: string; unit: string } {
   const m = title.match(/(\d+)\s*[×x]\s*(\d+(?:\.\d+)?)\s*(km|m|min)\b/);
-  if (m) return { big: `${m[1]}×${m[2]}`, unit: m[3]! };
+  // Endurance and long rides are about their length, even with "3 × 10 min tempo" inside.
+  const lengthRide = ride && /^(Endurance|Recovery|Long)/.test(title);
+  if (m && !lengthRide) return { big: `${m[1]}×${m[2]}`, unit: m[3]! };
   // Rides are time-based: the big number is the duration.
   if (ride) {
     const min = Math.round(ride.durationS / 300) * 5;

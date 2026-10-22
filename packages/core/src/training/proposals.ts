@@ -2,7 +2,7 @@ import { addDays, weekday, type ISODate } from "../dates";
 import { mondayOf } from "./generate";
 import { pacesFor, predictTimeS, vdotFrom, vo2AtSpeed } from "./vdot";
 import { blocksFromSteps, buildByType, defaultTitle, measure, repaceBlocks, rescaleBlocks, resizeQuality, type BuildContext } from "./workouts";
-import { enduranceRide, longRide, rezoneBlocks, rideByType, rideContext, rideDefaultTitle } from "./ride";
+import { enduranceRide, INDOOR, longRide, rezoneBlocks, rideByType, rideContext, rideDefaultTitle } from "./ride";
 import { HARD_TYPES, KEY_TYPES, RACE_KM, type Sport, type PlanWorkout, type ProposalChange, type RaceDistance, type WorkoutType } from "./types";
 
 export interface PlanContext {
@@ -17,6 +17,8 @@ export interface PlanContext {
   sport?: Sport;
   lthr?: number | null;
   rideSpeedKmh?: number | null;
+  /** Cycling plans in the indoor season: rebuilt rides keep the trainer caps. */
+  indoor?: boolean;
 }
 
 export interface Proposal {
@@ -261,7 +263,10 @@ export function applyChanges(all: PlanWorkout[], changes: ProposalChange[], ctx:
           if (ride) {
             // Rides are time-based: rebuild at the scaled length.
             const minutes = (w.plannedDurationS / 60) * c.factor;
-            const b = w.type === "long" ? longRide(minutes, rideContext(lthr, speed)) : enduranceRide(minutes, rideContext(lthr, speed), /^Recovery/.test(w.title));
+            const b =
+              w.type === "long"
+                ? longRide(ctx.indoor ? Math.min(INDOOR.longMaxMin, minutes) : minutes, rideContext(lthr, speed), 0, !!ctx.indoor)
+                : enduranceRide(ctx.indoor ? Math.min(INDOOR.easyMaxMin, minutes) : minutes, rideContext(lthr, speed), /^Recovery/.test(w.title));
             Object.assign(w, { title: b.title, blocks: b.blocks, plannedKm: b.plannedKm, plannedDurationS: b.plannedDurationS });
             changed.add(w.id);
             continue;
@@ -309,7 +314,7 @@ export function applyChanges(all: PlanWorkout[], changes: ProposalChange[], ctx:
       w.status = "removed";
     } else if (c.op === "replace" && ride) {
       // km from the coach is an estimate: turn it into minutes at the usual speed.
-      const b = rideByType(c.type, (c.km / speed) * 60, 2, rideContext(lthr, speed));
+      const b = rideByType(c.type, (c.km / speed) * 60, 2, rideContext(lthr, speed), !!ctx.indoor);
       Object.assign(w, { type: b.type, title: b.title, blocks: b.blocks, plannedKm: b.plannedKm, plannedDurationS: b.plannedDurationS });
     } else if (c.op === "replace") {
       const sameQuality = c.type === w.type && (c.type === "intervals" || c.type === "threshold" || c.type === "tempo");

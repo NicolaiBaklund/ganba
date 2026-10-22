@@ -3,6 +3,7 @@ import {
   activityKcal,
   addDays,
   applyChanges,
+  checkChanges,
   blocksFromSteps,
   generateRidePlan,
   rideContext,
@@ -141,6 +142,17 @@ describe("cycling: Garmin, zones, coach steps, energy", () => {
     expect(r.lthr).toBe(176);
     const z4 = steps(r.workouts[0]!.blocks).find((s) => s.target.kind === "hr" && s.target.zone === "z4")!.target as { maxBpm: number };
     expect(z4.maxBpm).toBe(Math.round(176 * 0.99));
+  });
+
+  it("the coach can move a long ride (its km is only an estimate); indoor changes keep the trainer caps", () => {
+    const long = generateRidePlan(base({ startMinPerWeek: 600, recentLongestMin: 200 })).workouts.find((w) => w.type === "long" && w.plannedKm > 60)!;
+    const pw: PlanWorkout = { ...long, id: "l1", status: "planned" };
+    const ctx = { weekdays: [2, 4, 6, 0], vdot: 40, racePaceS: null, distance: null, today: addDays(long.date, -7), sport: "ride" as const, lthr: 170, rideSpeedKmh: 27 };
+    const moved = checkChanges([pw], [{ op: "move", workoutId: "l1", toDate: addDays(long.date, 1) }], ctx, { recentLongestKm: 80 });
+    expect(moved.errors).toEqual([]);
+    const indoor = applyChanges([pw], [{ op: "rescale", fromDate: ctx.today, factor: 1.5 }], { ...ctx, indoor: true });
+    expect(indoor.workouts[0]!.plannedDurationS / 60).toBeLessThanOrEqual(150);
+    expect(indoor.workouts[0]!.title).toMatch(/^Long indoor ride/);
   });
 
   it("coach steps with z4 and minutes become heart-rate steps on a ride plan", () => {
