@@ -1,5 +1,5 @@
 import "server-only";
-import type { PlanWarning, ProposalChange } from "@loop/core";
+import type { PlanWarning, PreviewWeek, ProposalChange } from "@loop/core";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import type { Json } from "@/lib/db/types";
 
@@ -14,6 +14,8 @@ export interface CoachOption {
   /** What the option does, one line per change ("Tue 10-06 easy 6.4 km → 8.4 km"). */
   lines: string[];
   warnings: PlanWarning[];
+  /** The touched weeks before and after, day by day (options made before this existed have none). */
+  weeks?: PreviewWeek[];
   status: "pending" | "applied" | "not_used" | "stale" | "invalid";
   /** Why an option can no longer be applied. */
   reason?: string;
