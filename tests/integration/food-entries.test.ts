@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { localDate, localHour } from "@loop/core";
+import { addDays, localDate, localHour } from "@loop/core";
 import { createFoodEntry, updateFoodEntry } from "@/lib/food/entries";
 import { CreateEntry, UpdateEntry } from "@/lib/validation/food";
 // @ts-expect-error — plain JS helper shared with the smoke scripts
@@ -73,6 +73,20 @@ describe("food entries: alcohol and meal time", () => {
     expect(localDate(tz, at)).toBe(e!.local_date);
     expect(localHour(tz, at)).toBe(21);
     expect(e!.local_date).toBe(today);
+  });
+
+  it("a time picked while logging places the meal on its own day, also for a past day", async () => {
+    const day = addDays(today, -1);
+    const id = await createFoodEntry(
+      u.client,
+      u.id,
+      CreateEntry.parse({ source: "quick", mealType: "lunch", localDate: day, time: "12:15", loggedAt: new Date().toISOString(), items: [{ name: "Soup", grams: null, kcal: 300, protein_g: 10, carbs_g: 30, fat_g: 10, confidence: "high" }] }),
+    );
+    const { data: e } = await u.client.from("food_entries").select("logged_at, local_date").eq("id", id).single();
+    const at = new Date(e!.logged_at);
+    expect(e!.local_date).toBe(day);
+    expect(localDate(tz, at)).toBe(day); // the time is known, so late-meal questions can use it
+    expect(localHour(tz, at)).toBe(12);
   });
 
   it("rejects a bad time", () => {

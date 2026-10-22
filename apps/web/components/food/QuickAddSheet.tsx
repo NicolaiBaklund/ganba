@@ -9,6 +9,7 @@ import { BottomSheet } from "@/components/common/BottomSheet";
 import { Chip } from "@/components/common/Chip";
 import { NumberField, parseNum } from "@/components/common/NumberField";
 import { MEAL_ORDER, mealTypeForHour } from "@/lib/dates";
+import { MealTimeField, nowHHMM } from "@/components/food/MealTimeField";
 import { postOrQueue } from "@/lib/offline-queue";
 import type { MealType } from "@/lib/db/today";
 
@@ -32,11 +33,13 @@ export function QuickAddSheet({
   const [name, setName] = useState("");
   const [showMacros, setShowMacros] = useState(false);
   const [meal, setMeal] = useState<MealType>("snack");
+  const [time, setTime] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
       setMeal(mealTypeForHour(new Date().getHours()));
+      setTime(date ? "" : nowHHMM());
       setKcal("");
       setProtein("");
       setCarbs("");
@@ -44,7 +47,7 @@ export function QuickAddSheet({
       setName("");
       setShowMacros(false);
     }
-  }, [open]);
+  }, [open, date]);
 
   const kcalNum = parseNum(kcal);
 
@@ -55,6 +58,7 @@ export function QuickAddSheet({
       source: "quick",
       mealType: meal,
       loggedAt: new Date().toISOString(),
+      ...(time ? { time } : {}),
       ...(date ? { localDate: date } : {}),
       items: [
         {
@@ -102,6 +106,13 @@ export function QuickAddSheet({
             </Chip>
           ))}
         </div>
+        <MealTimeField
+          value={time}
+          onChange={(v) => {
+            setTime(v);
+            if (v) setMeal(mealTypeForHour(Number(v.slice(0, 2))));
+          }}
+        />
         <Button size="lg" className="h-14 text-base" disabled={kcalNum == null || saving} onClick={save}>
           {t("save")}
         </Button>

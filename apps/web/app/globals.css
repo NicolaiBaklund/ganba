@@ -139,3 +139,13 @@
     outline-offset: 2px;
   }
 }
+
+/* iOS Safari zooms the page into any text field under 16px when it gets focus (and stays zoomed).
+   Unlayered on purpose: it must win over text-sm and friends on fields. Touch screens only. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: max(16px, 1em);
+  }
+}

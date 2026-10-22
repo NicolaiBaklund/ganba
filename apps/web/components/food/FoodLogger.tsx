@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/common/Chip";
 import { PhotoPicker } from "@/components/photos/PhotoPicker";
 import { QuickAddSheet } from "@/components/food/QuickAddSheet";
+import { MealTimeField, nowHHMM } from "@/components/food/MealTimeField";
 import { ItemRow, type EditableItem } from "@/components/food/ItemRow";
 import { uploadPhoto } from "@/lib/photos";
 import { createClient } from "@/lib/supabase/client";
@@ -38,6 +39,7 @@ export function FoodLogger({ hasKey, mode, date }: { hasKey: boolean; mode: "pho
   const [estimateId, setEstimateId] = useState<string | null>(null);
   const [correction, setCorrection] = useState("");
   const [meal, setMeal] = useState<MealType>("snack");
+  const [time, setTime] = useState("");
   const [error, setError] = useState<ErrorKind | null>(null);
   const [quickOpen, setQuickOpen] = useState(false);
 
@@ -59,6 +61,7 @@ export function FoodLogger({ hasKey, mode, date }: { hasKey: boolean; mode: "pho
 
   useEffect(() => {
     setMeal(mealTypeForHour(new Date().getHours()));
+    if (!date) setTime(nowHHMM()); // back-dated meals start without a time
     try {
       // Restore the draft without overwriting anything typed before hydration finished.
       const stored = sessionStorage.getItem(DRAFT_KEY) ?? "";
@@ -133,6 +136,7 @@ export function FoodLogger({ hasKey, mode, date }: { hasKey: boolean; mode: "pho
         source: "ai",
         mealType: meal,
         loggedAt: new Date().toISOString(),
+        ...(time ? { time } : {}),
         items: items.map(({ name, grams, kcal, protein_g, carbs_g, fat_g, alcohol_g, confidence }) => ({
           name: name.trim() || t("unnamed"),
           grams,
@@ -271,6 +275,13 @@ export function FoodLogger({ hasKey, mode, date }: { hasKey: boolean; mode: "pho
               </Chip>
             ))}
           </div>
+          <MealTimeField
+            value={time}
+            onChange={(v) => {
+              setTime(v);
+              if (v) setMeal(mealTypeForHour(Number(v.slice(0, 2))));
+            }}
+          />
           <Button size="lg" className="h-14 text-base" disabled={!items.length || busy} onClick={save}>
             {t("save")}
           </Button>

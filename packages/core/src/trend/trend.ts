@@ -14,7 +14,12 @@ export interface TrendPoint {
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
-/** One point per weighed day (first weigh-in that day), exponentially smoothed. Unweighed days don't move the trend. */
+/**
+ * One point per weighed day (first weigh-in that day), exponentially smoothed with `alpha` per *day*:
+ * a weigh-in after a gap of g days counts 1 − (1 − alpha)^g, so sparse logging catches up instead of lagging.
+ * Warm-up: the n-th weigh-in counts at least 1/n, so the trend starts as the average of the first weigh-ins
+ * rather than leaning on the very first one.
+ */
 export function trendSeries(points: WeightPoint[], alpha = 0.1): TrendPoint[] {
   const firstPerDay = new Map<ISODate, WeightPoint>();
   for (const p of points) {
@@ -24,10 +29,14 @@ export function trendSeries(points: WeightPoint[], alpha = 0.1): TrendPoint[] {
   const days = [...firstPerDay.values()].sort((a, b) => a.localDate.localeCompare(b.localDate));
   const out: TrendPoint[] = [];
   let trend: number | null = null;
-  for (const d of days) {
-    trend = trend == null ? d.weightKg : trend + alpha * (d.weightKg - trend);
+  let prev: ISODate | null = null;
+  days.forEach((d, i) => {
+    const gap = prev ? Math.max(1, daysBetween(prev, d.localDate)) : 1;
+    const weight = Math.max(1 / (i + 1), 1 - Math.pow(1 - alpha, gap));
+    trend = trend == null ? d.weightKg : trend + weight * (d.weightKg - trend);
+    prev = d.localDate;
     out.push({ date: d.localDate, weightKg: d.weightKg, trendKg: round2(trend) });
-  }
+  });
   return out;
 }
 
