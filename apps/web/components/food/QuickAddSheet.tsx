@@ -9,7 +9,7 @@ import { BottomSheet } from "@/components/common/BottomSheet";
 import { Chip } from "@/components/common/Chip";
 import { NumberField, parseNum } from "@/components/common/NumberField";
 import { MEAL_ORDER, mealTypeForHour } from "@/lib/dates";
-import { MealTimeField, nowHHMM } from "@/components/food/MealTimeField";
+import { MealTimeField, useMealTime } from "@/components/food/MealTimeField";
 import { postOrQueue } from "@/lib/offline-queue";
 import type { MealType } from "@/lib/db/today";
 
@@ -33,13 +33,13 @@ export function QuickAddSheet({
   const [name, setName] = useState("");
   const [showMacros, setShowMacros] = useState(false);
   const [meal, setMeal] = useState<MealType>("snack");
-  const [time, setTime] = useState("");
+  const mealTime = useMealTime({ backDated: !!date, onMeal: setMeal });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
       setMeal(mealTypeForHour(new Date().getHours()));
-      setTime(date ? "" : nowHHMM());
+      mealTime.reset();
       setKcal("");
       setProtein("");
       setCarbs("");
@@ -47,7 +47,8 @@ export function QuickAddSheet({
       setName("");
       setShowMacros(false);
     }
-  }, [open, date]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when the sheet opens
+  }, [open]);
 
   const kcalNum = parseNum(kcal);
 
@@ -58,7 +59,7 @@ export function QuickAddSheet({
       source: "quick",
       mealType: meal,
       loggedAt: new Date().toISOString(),
-      ...(time ? { time } : {}),
+      ...(mealTime.sent ? { time: mealTime.sent } : {}),
       ...(date ? { localDate: date } : {}),
       items: [
         {
@@ -101,18 +102,12 @@ export function QuickAddSheet({
         />
         <div className="flex flex-wrap gap-2">
           {MEAL_ORDER.map((m) => (
-            <Chip key={m} selected={meal === m} onClick={() => setMeal(m)} className="h-9 px-3">
+            <Chip key={m} selected={meal === m} onClick={() => { setMeal(m); mealTime.pickedMeal(); }} className="h-9 px-3">
               {tm(m)}
             </Chip>
           ))}
         </div>
-        <MealTimeField
-          value={time}
-          onChange={(v) => {
-            setTime(v);
-            if (v) setMeal(mealTypeForHour(Number(v.slice(0, 2))));
-          }}
-        />
+        <MealTimeField value={mealTime.time} onChange={mealTime.change} />
         <Button size="lg" className="h-14 text-base" disabled={kcalNum == null || saving} onClick={save}>
           {t("save")}
         </Button>

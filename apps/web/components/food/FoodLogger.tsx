@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/common/Chip";
 import { PhotoPicker } from "@/components/photos/PhotoPicker";
 import { QuickAddSheet } from "@/components/food/QuickAddSheet";
-import { MealTimeField, nowHHMM } from "@/components/food/MealTimeField";
+import { MealTimeField, useMealTime } from "@/components/food/MealTimeField";
 import { ItemRow, type EditableItem } from "@/components/food/ItemRow";
 import { uploadPhoto } from "@/lib/photos";
 import { createClient } from "@/lib/supabase/client";
@@ -39,7 +39,7 @@ export function FoodLogger({ hasKey, mode, date }: { hasKey: boolean; mode: "pho
   const [estimateId, setEstimateId] = useState<string | null>(null);
   const [correction, setCorrection] = useState("");
   const [meal, setMeal] = useState<MealType>("snack");
-  const [time, setTime] = useState("");
+  const mealTime = useMealTime({ backDated: !!date, onMeal: setMeal });
   const [error, setError] = useState<ErrorKind | null>(null);
   const [quickOpen, setQuickOpen] = useState(false);
 
@@ -61,7 +61,6 @@ export function FoodLogger({ hasKey, mode, date }: { hasKey: boolean; mode: "pho
 
   useEffect(() => {
     setMeal(mealTypeForHour(new Date().getHours()));
-    if (!date) setTime(nowHHMM()); // back-dated meals start without a time
     try {
       // Restore the draft without overwriting anything typed before hydration finished.
       const stored = sessionStorage.getItem(DRAFT_KEY) ?? "";
@@ -136,7 +135,7 @@ export function FoodLogger({ hasKey, mode, date }: { hasKey: boolean; mode: "pho
         source: "ai",
         mealType: meal,
         loggedAt: new Date().toISOString(),
-        ...(time ? { time } : {}),
+        ...(mealTime.sent ? { time: mealTime.sent } : {}),
         items: items.map(({ name, grams, kcal, protein_g, carbs_g, fat_g, alcohol_g, confidence }) => ({
           name: name.trim() || t("unnamed"),
           grams,
@@ -260,7 +259,7 @@ export function FoodLogger({ hasKey, mode, date }: { hasKey: boolean; mode: "pho
               onChange={(e) => setCorrection(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && correct()}
               placeholder={t("correctionPlaceholder")}
-              className="h-12 min-w-0 flex-1 rounded-md border border-border bg-card px-4 text-sm outline-none focus:border-primary"
+              className="h-12 min-w-0 flex-1 rounded-md border border-border bg-card px-4 text-base outline-none focus:border-primary"
             />
             <Button variant="secondary" className="h-12" disabled={!correction.trim() || busy} onClick={correct}>
               {phase === "estimating" ? <Loader2 className="size-4 animate-spin" /> : t("update")}
@@ -270,18 +269,12 @@ export function FoodLogger({ hasKey, mode, date }: { hasKey: boolean; mode: "pho
 
           <div className="flex flex-wrap gap-2">
             {MEAL_ORDER.map((m) => (
-              <Chip key={m} selected={meal === m} onClick={() => setMeal(m)} className="h-9 px-3">
+              <Chip key={m} selected={meal === m} onClick={() => { setMeal(m); mealTime.pickedMeal(); }} className="h-9 px-3">
                 {tm(m)}
               </Chip>
             ))}
           </div>
-          <MealTimeField
-            value={time}
-            onChange={(v) => {
-              setTime(v);
-              if (v) setMeal(mealTypeForHour(Number(v.slice(0, 2))));
-            }}
-          />
+          <MealTimeField value={mealTime.time} onChange={mealTime.change} />
           <Button size="lg" className="h-14 text-base" disabled={!items.length || busy} onClick={save}>
             {t("save")}
           </Button>

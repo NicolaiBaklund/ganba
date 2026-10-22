@@ -13,6 +13,7 @@ export interface TrendPoint {
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
+const MAX_GAP_DAYS = 7;
 
 /**
  * One point per weighed day (first weigh-in that day), exponentially smoothed with `alpha` per *day*:
@@ -31,7 +32,8 @@ export function trendSeries(points: WeightPoint[], alpha = 0.1): TrendPoint[] {
   let trend: number | null = null;
   let prev: ISODate | null = null;
   days.forEach((d, i) => {
-    const gap = prev ? Math.max(1, daysBetween(prev, d.localDate)) : 1;
+    // A long break counts as at most a week: one reading after a holiday must not replace the trend.
+    const gap = prev ? Math.min(MAX_GAP_DAYS, daysBetween(prev, d.localDate)) : 1;
     const weight = Math.max(1 / (i + 1), 1 - Math.pow(1 - alpha, gap));
     trend = trend == null ? d.weightKg : trend + weight * (d.weightKg - trend);
     prev = d.localDate;

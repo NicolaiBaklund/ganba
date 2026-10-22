@@ -48,7 +48,8 @@ export function ItemRow({
   onRemove: () => void;
 }) {
   const t = useTranslations("foodLog");
-  const numInput = "num w-full bg-transparent text-right text-sm font-bold outline-none";
+  // 16px: iOS zooms into any field smaller than that.
+  const numInput = "num w-full bg-transparent text-right text-base font-bold outline-none";
   return (
     <div className="border-b border-border py-3">
       <div className="flex items-center gap-2">

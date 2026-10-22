@@ -184,7 +184,7 @@ export function CoachSheet({ aboutWorkoutId, draft, onClose }: { aboutWorkoutId?
                 maxLength={2000}
                 placeholder={t("placeholder")}
                 aria-label={t("placeholder")}
-                className="min-h-[52px] flex-1 resize-none rounded-md bg-muted p-3 text-[15px] outline-none focus:ring-2 focus:ring-primary"
+                className="min-h-[52px] flex-1 resize-none rounded-md bg-muted p-3 text-base outline-none focus:ring-2 focus:ring-primary"
               />
               <Button type="submit" className="h-12 w-12 p-0" disabled={busy || !text.trim()} aria-label={t("send")}>
                 <Send className="size-5" />
