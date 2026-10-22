@@ -26,7 +26,10 @@ export interface Fitness {
   runCount: number;
   /** True when there is too little history to trust the numbers. */
   sparse: boolean;
-  /** Start volume for a plan: the higher of the 4- and 2-week averages, at most 20 % above the 4-week one. */
+  /**
+   * Start volume for a plan: the best single week of the last four (a sick or busy week doesn't drag it down),
+   * at most 30 % above the 4-week average so one odd big week doesn't set the bar. Week 1 of a plan matches it.
+   */
   baseKmPerWeek: number;
   /** Ran consistently the last 4 weeks (≥ 10 runs, ≥ 15 km/week): no base phase needed. */
   experienced: boolean;
@@ -59,6 +62,8 @@ function lapsVdot(r: RunRecord): number | null {
 const EXPERIENCED_RUNS = 10;
 const EXPERIENCED_KM = 15;
 const QUALITY_LAP_M = 300;
+/** The start volume (best recent week) is at most this times the 4-week average. */
+const BEST_WEEK_CAP = 1.3;
 
 export const DEFAULT_VDOT = 30;
 const MIN_PACE_S_PER_KM = 150; // faster than 2:30/km is a GPS error, not a run
@@ -90,6 +95,13 @@ export function fitnessFrom(runs: RunRecord[], today: ISODate, garmin?: { time10
 
   const km4 = last4.reduce((s, r) => s + r.distanceM / 1000, 0) / 4;
   const km2 = valid.filter((r) => r.date >= addDays(today, -14) && r.date < today).reduce((s, r) => s + r.distanceM / 1000, 0) / 2;
+  // Rolling 7-day weeks back from today.
+  const bestWeek = Math.max(
+    0,
+    ...[0, 1, 2, 3].map((i) =>
+      last4.filter((r) => r.date >= addDays(today, -7 * (i + 1)) && r.date < addDays(today, -7 * i)).reduce((s, r) => s + r.distanceM / 1000, 0),
+    ),
+  );
   const thresholdPace = pacesFor(vdot).threshold;
   const didQuality = last4.some((r) =>
     (r.laps ?? []).some((l) => l.distanceM >= QUALITY_LAP_M && l.timeS > 0 && l.timeS / (l.distanceM / 1000) <= thresholdPace + 5),
@@ -101,7 +113,7 @@ export function fitnessFrom(runs: RunRecord[], today: ISODate, garmin?: { time10
     longestKm: r1(Math.max(0, ...last4.map((r) => r.distanceM / 1000))),
     runCount: last4.length,
     sparse: last4.length < 4,
-    baseKmPerWeek: r1(Math.min(Math.max(km4, km2), km4 * 1.2)),
+    baseKmPerWeek: r1(Math.min(Math.max(km4, km2, bestWeek), km4 * BEST_WEEK_CAP)),
     experienced: last4.length >= EXPERIENCED_RUNS && km4 >= EXPERIENCED_KM,
     didQuality,
     source: best.source,

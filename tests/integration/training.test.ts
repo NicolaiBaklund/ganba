@@ -41,7 +41,7 @@ describe("training plan: create, push, reconcile, proposals", () => {
     expect(plan).not.toBeNull();
     expect(Number(plan!.vdot)).toBeGreaterThan(38); // best effort: 5 km in 24 min ≈ VDOT 40
     expect(Number(plan!.start_km_per_week)).toBeGreaterThan(20);
-    // Six weeks of steady running: no base phase, and week 1 already steps up from the recent average.
+    // Six weeks of steady running: no base phase; week 1 matches the best recent week.
     expect(plan!.experienced).toBe(true);
 
     const ws = await planWorkouts(plan!.id);
