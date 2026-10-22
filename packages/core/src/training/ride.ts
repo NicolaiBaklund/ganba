@@ -1,7 +1,7 @@
 import { addDays, daysBetween, weekday, weekStartOn, type ISODate } from "../dates";
 import { assignDays } from "./schedule";
 import type { GeneratedPlan, WeekSummary } from "./generate";
-import { HR_ZONE_PCT, measure, type BuildContext, type BuiltWorkout } from "./workouts";
+import { HR_ZONE_PCT, POWER_ZONE_PCT, measure, rideZoneTarget, type BuildContext, type BuiltWorkout } from "./workouts";
 import { HR_ZONES, type Block, type HrZone, type Paces, type Phase, type Step, type Target, type WorkoutSpec, type WorkoutType } from "./types";
 import type { Proposal } from "./proposals";
 
@@ -21,8 +21,10 @@ export function hrTarget(zone: HrZone, lthr: number): Target {
   return { kind: "hr", zone, minBpm: Math.round(lthr * lo), maxBpm: Math.round(lthr * hi) };
 }
 
-/** Zone table for the UI and the coach. */
+/** Zone tables for the UI and the coach. */
 export const rideZones = (lthr: number) => HR_ZONES.map((z) => ({ zone: z, ...(hrTarget(z, lthr) as { minBpm: number; maxBpm: number }) }));
+export const powerZones = (ftp: number) =>
+  HR_ZONES.map((z) => ({ zone: z, minW: Math.round(ftp * POWER_ZONE_PCT[z][0]), maxW: Math.round(ftp * POWER_ZONE_PCT[z][1]) }));
 
 /** One "pace" for every zone: the rider's usual speed. `measure` then turns minutes into km estimates. */
 export function ridePaces(speedKmh: number): Paces {
@@ -34,11 +36,18 @@ export interface RideContext extends BuildContext {
   lthr: number;
   speedKmh: number;
 }
-export const rideContext = (lthr: number, speedKmh: number): RideContext => ({ paces: ridePaces(speedKmh), lthr, speedKmh });
+/** `ftp` only when the plan uses power targets; heart rate otherwise. */
+export const rideContext = (lthr: number, speedKmh: number, ftp?: number | null): RideContext => ({
+  paces: ridePaces(speedKmh),
+  lthr,
+  speedKmh,
+  ...(ftp ? { ftp } : {}),
+});
+const zt = (zone: HrZone, ctx: RideContext) => rideZoneTarget(zone, ctx);
 
-/** Re-target every heart-rate step for a new LTHR (structure and times unchanged). */
-export function rezoneBlocks(blocks: Block[], lthr: number): Block[] {
-  const fix = (s: Step): Step => (s.target.kind === "hr" ? { ...s, target: hrTarget(s.target.zone, lthr) } : s);
+/** Re-target every zone step for the context (new LTHR/FTP, or power on/off); structure and times unchanged. */
+export function retargetRide(blocks: Block[], ctx: RideContext): Block[] {
+  const fix = (s: Step): Step => (s.target.kind === "hr" || s.target.kind === "power" ? { ...s, target: zt(s.target.zone, ctx) } : s);
   return blocks.map((b) => (b.kind === "repeat" ? { ...b, steps: b.steps.map(fix) } : fix(b)));
 }
 
@@ -50,6 +59,9 @@ export interface RideRecord {
   timeS: number;
   indoor?: boolean;
   avgPower?: number | null;
+  /** Garmin's best 20 and 60 min average power on the ride (W). */
+  best20W?: number | null;
+  best60W?: number | null;
   maxHr?: number | null;
 }
 
@@ -62,8 +74,11 @@ export interface RideFitness {
   speedKmh: number;
   lthr: number;
   lthrSource: "garmin_cycling" | "garmin_running" | "max_hr" | "default";
-  /** Rides with power in the last 8 weeks (watts come in part 2). */
+  /** Rides with power in the last 8 weeks: power targets are on by default. */
   powerSeen: boolean;
+  /** Functional threshold power (W), null when unknown (then heart rate only). */
+  ftp: number | null;
+  ftpSource: "garmin" | "rides" | null;
   experienced: boolean;
   rideCount: number;
 }
@@ -71,7 +86,24 @@ export interface RideFitness {
 const DEFAULT_SPEED = 25;
 const NO_RIDES_MIN = 180;
 
-export function rideFitnessFrom(rides: RideRecord[], today: ISODate, garmin: { lthrCycling?: number | null; lthrRunning?: number | null } = {}): RideFitness {
+export interface RideThresholds {
+  lthrCycling?: number | null;
+  lthrRunning?: number | null;
+  /** Garmin's cycling FTP and the day it was set (ignored when stale or older than 180 days). */
+  ftp?: number | null;
+  ftpDate?: ISODate | null;
+}
+const FTP_FRESH_DAYS = 180;
+
+/** FTP: Garmin's when fresh, else from the best 20/60 min power on rides in the last 8 weeks. */
+export function ftpFrom(rides: RideRecord[], today: ISODate, garmin: RideThresholds): { ftp: number | null; source: RideFitness["ftpSource"] } {
+  if (garmin.ftp && garmin.ftpDate && garmin.ftpDate >= addDays(today, -FTP_FRESH_DAYS)) return { ftp: Math.round(garmin.ftp), source: "garmin" };
+  const recent = rides.filter((r) => r.date < today && r.date >= addDays(today, -56));
+  const est = Math.max(0, ...recent.map((r) => Math.max(0.95 * (r.best20W ?? 0), r.best60W ?? 0)));
+  return est >= 80 ? { ftp: Math.round(est), source: "rides" } : { ftp: null, source: null };
+}
+
+export function rideFitnessFrom(rides: RideRecord[], today: ISODate, garmin: RideThresholds = {}): RideFitness {
   const valid = rides.filter((r) => r.timeS > 0 && r.date < today && r.date >= addDays(today, -56));
   const last4 = valid.filter((r) => r.date >= addDays(today, -28));
   const weeks = [0, 0, 0, 0];
@@ -94,7 +126,10 @@ export function rideFitnessFrom(rides: RideRecord[], today: ISODate, garmin: { l
         ? [Math.round(maxHr * 0.9), "max_hr"]
         : [165, "default"];
   const r1 = (n: number) => Math.round(n * 10) / 10;
+  const ftp = ftpFrom(rides, today, garmin);
   return {
+    ftp: ftp.ftp,
+    ftpSource: ftp.source,
     hoursPerWeek: r1(avg4 / 60),
     baseMinPerWeek: Math.round(Math.max(90, base)),
     longestMin: Math.round(Math.max(0, ...last4.map((r) => r.timeS / 60))),
@@ -128,7 +163,7 @@ function finish(type: WorkoutType, title: string, blocks: Block[], ctx: RideCont
 
 export function enduranceRide(minutes: number, ctx: RideContext, recovery = false): BuiltWorkout {
   const m = Math.max(20, Math.round(minutes / 5) * 5);
-  return finish("easy", `${recovery ? "Recovery ride" : "Endurance ride"} ${fmtRideDuration(m)}`, [step("run", min(m), hrTarget(recovery ? "z1" : "z2", ctx.lthr))], ctx);
+  return finish("easy", `${recovery ? "Recovery ride" : "Endurance ride"} ${fmtRideDuration(m)}`, [step("run", min(m), zt(recovery ? "z1" : "z2", ctx))], ctx);
 }
 
 export function longRide(minutes: number, ctx: RideContext, climbM = 0, indoor = false): BuiltWorkout {
@@ -140,14 +175,14 @@ export function longRide(minutes: number, ctx: RideContext, climbM = 0, indoor =
       "long",
       `Long indoor ride ${fmtRideDuration(m)} with 3 × 10 min tempo`,
       [
-        step("run", min(z2), hrTarget("z2", ctx.lthr)),
-        { kind: "repeat", times: 3, steps: [step("run", min(10), hrTarget("z3", ctx.lthr)), step("recover", min(z2), hrTarget("z2", ctx.lthr))] },
+        step("run", min(z2), zt("z2", ctx)),
+        { kind: "repeat", times: 3, steps: [step("run", min(10), zt("z3", ctx)), step("recover", min(z2), zt("z2", ctx))] },
       ],
       ctx,
     );
   }
   const title = `${indoor ? "Long indoor ride" : "Long ride"} ${fmtRideDuration(m)}${climbM >= 100 ? `, about ${climbM} m climbing` : ""}`;
-  return finish("long", title, [step("run", min(m), hrTarget("z2", ctx.lthr))], ctx);
+  return finish("long", title, [step("run", min(m), zt("z2", ctx))], ctx);
 }
 
 /** Indoors: a long ride of at most 2.5 h, easy rides of at most 90 min, about 15 % less weekly time. */
@@ -159,9 +194,9 @@ function repeats(type: WorkoutType, title: string, times: number, onMin: number,
     type,
     title,
     [
-      step("warmup", min(small ? 10 : 15), hrTarget("z2", ctx.lthr)),
-      { kind: "repeat", times, steps: [step("run", min(onMin), hrTarget(zone, ctx.lthr)), step("recover", min(offMin), hrTarget("z1", ctx.lthr))] },
-      step("cooldown", min(small ? 5 : 10), hrTarget("z1", ctx.lthr)),
+      step("warmup", min(small ? 10 : 15), zt("z2", ctx)),
+      { kind: "repeat", times, steps: [step("run", min(onMin), zt(zone, ctx)), step("recover", min(offMin), zt("z1", ctx))] },
+      step("cooldown", min(small ? 5 : 10), zt("z1", ctx)),
     ],
     ctx,
   );
@@ -186,7 +221,7 @@ export function rideQuality(kind: RideKind, level: number, ctx: RideContext, hil
       return finish(
         "tempo",
         `Tempo ${fmtRideDuration(m)}`,
-        [step("warmup", min(small ? 10 : 15), hrTarget("z2", ctx.lthr)), step("run", min(m), hrTarget("z3", ctx.lthr)), step("cooldown", min(10), hrTarget("z1", ctx.lthr))],
+        [step("warmup", min(small ? 10 : 15), zt("z2", ctx)), step("run", min(m), zt("z3", ctx)), step("cooldown", min(10), zt("z1", ctx))],
         ctx,
       );
     }
@@ -212,10 +247,10 @@ export function rideTest(ctx: RideContext): BuiltWorkout {
     "test",
     "Ride test: 30 min",
     [
-      step("warmup", min(15), hrTarget("z2", ctx.lthr)),
-      step("warmup", min(10), hrTarget("z3", ctx.lthr)),
+      step("warmup", min(15), zt("z2", ctx)),
+      step("warmup", min(10), zt("z3", ctx)),
       step("run", min(30), { kind: "none" }),
-      step("cooldown", min(10), hrTarget("z1", ctx.lthr)),
+      step("cooldown", min(10), zt("z1", ctx)),
     ],
     ctx,
   );
@@ -287,6 +322,8 @@ export interface RidePlanInput {
   longRideWeekday: number;
   ridesPerWeek: number;
   lthr: number;
+  /** Power targets from this FTP (null/unset = heart rate). */
+  ftp?: number | null;
   speedKmh: number;
   /** Minutes per week to start from (week 1 matches it). */
   startMinPerWeek: number;
@@ -331,7 +368,7 @@ function eventPhases(n: number, taper: number, experienced: boolean): Phase[] {
 export const eventMinutes = (km: number, speedKmh: number, profile: RideProfile) => (km / (speedKmh * PROFILE_SPEED[profile])) * 60;
 
 export function generateRidePlan(input: RidePlanInput): GeneratedPlan {
-  const ctx = rideContext(input.lthr, input.speedKmh);
+  const ctx = rideContext(input.lthr, input.speedKmh, input.ftp);
   const isEvent = input.goal.kind === "event";
   const ev = input.goal.kind === "event" ? input.goal : null;
   const profile = rideProfile(ev?.km ?? null, ev?.elevationM ?? null);
@@ -453,7 +490,7 @@ export function generateRidePlan(input: RidePlanInput): GeneratedPlan {
     }
 
     const kept = built.filter((b) => b.date >= input.startDate).sort((a, b) => (a.date < b.date ? -1 : 1));
-    for (const b of kept) workouts.push({ ...b.w, date: b.date, week: w + 1, phase });
+    for (const b of kept) workouts.push({ ...b.w, sport: "ride", date: b.date, week: w + 1, phase });
     weeks.push({ week: w + 1, startDate: monday, phase, km: r1(kept.reduce((s, b) => s + b.w.plannedKm, 0)) });
   }
   return { workouts, weeks, peakKm: r1((peak / 60) * input.speedKmh), predictedTimeS: ev ? Math.round(expected * 60) : null, racePaceS: null };
@@ -467,19 +504,29 @@ export const weekMinutes = (plan: GeneratedPlan, week: number) =>
 
 export interface RideTestRun {
   date: ISODate;
-  laps: { timeS: number; avgHr: number | null }[];
+  laps: { timeS: number; avgHr: number | null; avgPower?: number | null }[];
 }
 
-/** LTHR from the 30 min test lap (≈ average of the last 20 min + 1): proposed when it moves 2 bpm or more. */
-export function rideTestProposal(planLthr: number, run: RideTestRun): Proposal | null {
+/**
+ * The 30 min test lap sets the zones: LTHR ≈ its average heart rate + 1 (average of the last 20 min), FTP ≈ its
+ * average power (Friel). Proposed when LTHR moves 2 bpm or more, or FTP 3 % or more (or is new).
+ */
+export function rideTestProposal(plan: { lthr: number; ftp: number | null }, run: RideTestRun): Proposal | null {
   const lap = run.laps.filter((l) => l.timeS >= 1080 && l.timeS <= 1920 && (l.avgHr ?? 0) > 100).sort((a, b) => (b.avgHr ?? 0) - (a.avgHr ?? 0))[0];
   if (!lap) return null;
   const lthr = Math.round(lap.avgHr! + 1);
-  if (Math.abs(lthr - planLthr) < 2) return null;
+  const ftp = (lap.avgPower ?? 0) >= 80 ? Math.round(lap.avgPower!) : null;
+  const lthrMoved = Math.abs(lthr - plan.lthr) >= 2;
+  const ftpMoved = ftp != null && (plan.ftp == null || Math.abs(ftp - plan.ftp) / plan.ftp >= 0.03);
+  if (!lthrMoved && !ftpMoved) return null;
+  const parts = [
+    lthrMoved ? `threshold heart rate ${lthr} (plan ${plan.lthr})` : null,
+    ftpMoved ? `FTP ${ftp} W${plan.ftp ? ` (plan ${plan.ftp} W)` : ""}` : null,
+  ].filter(Boolean);
   return {
     kind: "paces",
-    summary: `Ride test (${run.date}): threshold heart rate ${lthr} (plan ${planLthr}). Update your zones?`,
-    changes: [{ op: "rezone", lthr }],
+    summary: `Ride test (${run.date}): ${parts.join(", ")}. Update your zones?`,
+    changes: [{ op: "rezone", ...(lthrMoved ? { lthr } : {}), ...(ftpMoved ? { ftp: ftp! } : {}) }],
   };
 }
 

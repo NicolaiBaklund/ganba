@@ -180,7 +180,7 @@ export function generatePlan(input: PlanInput): GeneratedPlan {
     else if (phase === "recovery") km = level * RECOVERY_FACTOR;
     else {
       // Week 1 matches the start volume (already the best recent week); growth starts in week 2.
-      if (growthIdx > 0 || input.week1Grows) level = Math.min(peakKm, level * (1 + growth));
+      if (growthIdx > 0) level = Math.min(peakKm, level * (1 + growth));
       km = level;
       growthIdx++;
       peakReached = Math.max(peakReached, level);
@@ -288,7 +288,7 @@ export function generatePlan(input: PlanInput): GeneratedPlan {
     }
 
     const kept = built.filter((b) => b.date >= input.startDate).sort((a, b) => (a.date < b.date ? -1 : 1));
-    for (const b of kept) workouts.push({ ...b.w, date: b.date, week: w + 1, phase });
+    for (const b of kept) workouts.push({ ...b.w, sport: "run", date: b.date, week: w + 1, phase });
     weeks.push({ week: w + 1, startDate: monday, phase, km: r1(kept.reduce((s, b) => s + b.w.plannedKm, 0)) });
   }
 

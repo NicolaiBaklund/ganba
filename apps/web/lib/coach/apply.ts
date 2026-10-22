@@ -31,6 +31,7 @@ export async function applyOption(userId: string, messageId: string, optionId: s
     const plan = await activePlan(userId);
     if (!plan) return { ok: false as const, error: "no_plan" as ApplyError };
     const today = await todayFor(userId);
+    // The long-session warning compares with the main sport's longest recent session.
     const [workouts, runs] = await Promise.all([planWorkoutsWithKm(plan), plan.sport === "ride" ? recentRides(userId, today) : recentRuns(userId, today)]);
     const recentLongestKm = Math.max(0, ...runs.filter((r) => r.date >= addDays(today, -28)).map((r) => r.distanceM / 1000));
     const res = checkChanges(workouts, o.changes, planContext(plan, today), { recentLongestKm });

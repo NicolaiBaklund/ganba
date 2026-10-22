@@ -5,7 +5,8 @@ import { formatPace } from "@loop/core";
 import { requireUser } from "@/lib/supabase/server";
 import { loadTrainingView } from "@/lib/training/view";
 import { fmtClock, hrZoneLabel } from "@/lib/training/format";
-import { IndoorSwitch } from "@/components/training/IndoorSwitch";
+import { PlanSwitch } from "@/components/training/PlanSwitch";
+import { CrossDays } from "@/components/training/CrossDays";
 import { ProposalCard } from "@/components/training/ProposalCard";
 import { CoachButton } from "@/components/coach/CoachButton";
 import { TrainingMap } from "@/components/training/TrainingMap";
@@ -39,21 +40,29 @@ export default async function TrainingPage() {
 
   const p = v.plan;
   const ride = p.ride;
+  const rides = p.rides;
   const race = p.goal === "race" && (ride ? true : !!p.distance) && p.raceDate;
   const raceDate = race ? new Date(`${p.raceDate}T00:00:00Z`) : null;
   const stats = ride
     ? [
         ...(p.weeksLeft != null ? [{ value: p.weeksLeft, label: t("weeksLeftLabel") }] : []),
         ...(ride.expectedS != null ? [{ value: fmtClock(ride.expectedS), label: t("expected") }] : []),
-        { value: ride.lthr, label: t("lthr") },
+        rides!.power ? { value: `${rides!.ftp} W`, label: t("ftp") } : { value: rides!.lthr, label: t("lthr") },
       ]
     : [
         ...(p.weeksLeft != null ? [{ value: p.weeksLeft, label: t("weeksLeftLabel") }] : []),
         ...(p.predictedTimeS != null ? [{ value: fmtClock(p.targetTimeS ?? p.predictedTimeS), label: p.targetTimeS ? t("target") : t("predicted") }] : []),
         { value: p.vdot, label: t("vdot") },
       ];
-  // Cycling: the heart-rate zones the sessions use (no watts without a power meter).
-  const zones = ride ? ride.zones.filter((z) => ["z2", "ss", "z4", "z5"].includes(z.zone)).map((z) => ({ value: `${z.minBpm}–${z.maxBpm}`, label: hrZoneLabel(z.zone) })) : [];
+  // Rides: the zones the sessions use, in watts with power targets on (no watts mentioned otherwise).
+  const KEY_ZONES = ["z2", "ss", "z4", "z5"];
+  const zones = !rides
+    ? []
+    : rides.power
+      ? rides.powerZones.filter((z) => KEY_ZONES.includes(z.zone)).map((z) => ({ value: `${z.minW}–${z.maxW}`, label: hrZoneLabel(z.zone) }))
+      : rides.zones.filter((z) => KEY_ZONES.includes(z.zone)).map((z) => ({ value: `${z.minBpm}–${z.maxBpm}`, label: hrZoneLabel(z.zone) }));
+  const zonesTitle = rides?.power ? t("powerZones") : t("zones");
+  const crossZonesTitle = rides?.power ? t("ridePowerZones") : t("rideHrZones");
   const bigLabel = ride ? (ride.eventKm != null ? `${Math.round(ride.eventKm)}K` : t("buildShort")) : p.distance ? BIG_DISTANCE[p.distance] : t("buildShort");
   const paces = [
     { value: `${formatPace(p.paces.easy.min)}–${formatPace(p.paces.easy.max)}`, label: t("paceZones.easy") },
@@ -85,7 +94,13 @@ export default async function TrainingPage() {
         </p>
       </div>
       <StatRow items={stats} />
-      {ride && <IndoorSwitch indoor={ride.indoor} />}
+      {rides && (
+        <div className="mt-5">
+          <PlanSwitch field="indoor" on={rides.indoor} label={t("indoor")} hint={t("indoorHint")} />
+          {rides.ftp != null && <PlanSwitch field="power" on={rides.power} label={t("power")} hint={t("powerHint", { ftp: rides.ftp })} />}
+        </div>
+      )}
+      <CrossDays sport={p.sport} weekdays={p.weekdays} cross={p.crossWeekdays} />
 
       {v.proposals.length > 0 && (
         <div className="mt-5 flex flex-col gap-3">
@@ -104,10 +119,18 @@ export default async function TrainingPage() {
         raceDateLabel={raceDate ? format.dateTime(raceDate, { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }) : null}
       />
 
-      <SectionHead title={ride ? t("zones") : t("paces")} />
+      <SectionHead title={ride ? zonesTitle : t("paces")} />
       <div className="mt-2">
         <StatRow items={ride ? zones : paces} ruled={false} />
       </div>
+      {!ride && rides && (
+        <>
+          <SectionHead title={crossZonesTitle} />
+          <div className="mt-2">
+            <StatRow items={zones} ruled={false} />
+          </div>
+        </>
+      )}
     </main>
   );
 }

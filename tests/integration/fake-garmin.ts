@@ -42,7 +42,7 @@ export class FakeGarmin implements GarminSource {
       tokens: null,
     };
   }
-  thresholds = { lthrRunning: 180 as number | null, lthrCycling: null as number | null };
+  thresholds = { lthrRunning: 180 as number | null, lthrCycling: null as number | null, ftp: null as number | null, ftpDate: null as string | null };
   async fetchThresholds(_tokens: string) {
     return { ...this.thresholds, tokens: null };
   }
@@ -59,7 +59,7 @@ export class FakeGarmin implements GarminSource {
 }
 
 let seq = 1;
-export function run(date: string, km: number, opts: { steps?: number | null; minutes?: number; type?: string } = {}): GarminActivityRaw {
+export function run(date: string, km: number, opts: { steps?: number | null; minutes?: number; type?: string; extra?: Record<string, unknown> } = {}): GarminActivityRaw {
   const id = 7_000_000 + seq++;
   return {
     activityId: id,
@@ -75,6 +75,7 @@ export function run(date: string, km: number, opts: { steps?: number | null; min
     steps: opts.steps === undefined ? Math.round(km * 850) : opts.steps,
     elevationGain: 20,
     calories: Math.round(km * 70),
+    ...opts.extra,
   };
 }
 

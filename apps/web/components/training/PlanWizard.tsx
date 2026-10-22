@@ -6,7 +6,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/common/Chip";
-import { cn } from "@/lib/utils";
+import { SwitchRow } from "@/components/common/SwitchRow";
 import { clockInput, fmtClock, parseClock, typeColor } from "@/lib/training/format";
 import type { WorkoutType } from "@loop/core";
 
@@ -37,17 +37,41 @@ interface Preview {
   predictedTimeS: number | null;
   racePaceS: number | null;
   firstWeek: { date: string; type: WorkoutType; title: string; km: number }[];
+  /** Rides on cross days: the cycling side (null without them). */
+  rideFitness: RideFitness | null;
+  power: boolean;
+  cross: CrossSession[];
 }
 
-/** Cycling preview (time and heart rate). */
+interface RideFitness {
+  baseMinPerWeek: number;
+  lthr: number;
+  lthrSource: "garmin_cycling" | "garmin_running" | "max_hr" | "default";
+  rideCount: number;
+  ftp: number | null;
+  ftpSource: "garmin" | "rides" | null;
+}
+interface CrossSession {
+  date: string;
+  sport: "run" | "ride";
+  title: string;
+  km: number;
+  minutes: number;
+}
+
+/** Cycling preview (time and heart rate, or watts). */
 interface RidePreview {
   sport: "ride";
-  rideFitness: { baseMinPerWeek: number; lthr: number; lthrSource: "garmin_cycling" | "garmin_running" | "max_hr" | "default"; rideCount: number };
+  rideFitness: RideFitness;
   indoor: boolean;
+  power: boolean;
+  cross: CrossSession[];
   weeks: { week: number; phase: string; km: number; minutes: number }[];
   predictedTimeS: number | null;
   firstWeek: { date: string; type: WorkoutType; title: string; km: number; minutes: number }[];
 }
+
+type Over = { indoor?: boolean; power?: boolean };
 
 export function PlanWizard({ minDate }: { minDate: string }) {
   const t = useTranslations("planWizard");
@@ -75,6 +99,11 @@ export function PlanWizard({ minDate }: { minDate: string }) {
   const [eventElev, setEventElev] = useState("");
   /** Where the rider rides right now: the rider says, the app doesn't guess. */
   const [indoor, setIndoor] = useState(false);
+  /** Power targets: unset = the app's default (on when recent rides had power). */
+  const [power, setPower] = useState<boolean | undefined>(undefined);
+  /** Optional easy sessions of the other sport; closed and empty unless the user asks. */
+  const [cross, setCross] = useState<number[]>([]);
+  const [crossOpen, setCrossOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const isRace = goal !== "build";
@@ -88,14 +117,12 @@ export function PlanWizard({ minDate }: { minDate: string }) {
       : !isRace || (raceDate >= minDate && (targetTime.trim() === "" || targetS != null));
   const daysValid = days.length >= 2 && runs <= days.length && days.includes(longDay);
 
-  const body = (over: { indoor?: boolean } = {}) => ({
+  const body = (over: Over = {}) => ({
     sport,
-    ...(sport === "ride"
-      ? {
-          ride: { goal: rideGoal === "event" ? { kind: "event", date: raceDate, km: kmNum, elevationM: elevNum } : { kind: "build" } },
-          indoor: over.indoor ?? indoor,
-        }
-      : {}),
+    ...(sport === "ride" ? { ride: { goal: rideGoal === "event" ? { kind: "event", date: raceDate, km: kmNum, elevationM: elevNum } : { kind: "build" } } } : {}),
+    indoor: over.indoor ?? indoor,
+    power: over.power ?? power,
+    crossWeekdays: cross,
     goal: sport === "ride" ? { kind: "build" } : isRace ? { kind: "race", distance: goal, raceDate, targetTimeS: targetS } : { kind: "build", focus },
     hills,
     weekdays: days,
@@ -107,11 +134,12 @@ export function PlanWizard({ minDate }: { minDate: string }) {
   function toggleDay(d: number) {
     const next = days.includes(d) ? days.filter((x) => x !== d) : [...days, d];
     setDays(next);
+    setCross(cross.filter((x) => !next.includes(x)));
     if (runs > next.length) setRuns(Math.max(2, next.length));
     if (!next.includes(longDay) && next.length) setLongDay(next.includes(0) ? 0 : next.includes(6) ? 6 : next[next.length - 1]!);
   }
 
-  async function post(url: string, over: { indoor?: boolean } = {}) {
+  async function post(url: string, over: Over = {}) {
     setBusy(true);
     const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body(over)) }).catch(() => null);
     setBusy(false);
@@ -124,7 +152,7 @@ export function PlanWizard({ minDate }: { minDate: string }) {
     return json;
   }
 
-  async function toPreview(over: { indoor?: boolean } = {}) {
+  async function toPreview(over: Over = {}) {
     const p = await post("/api/training/plan/preview", over);
     if (p) {
       if (p.sport === "ride") {
@@ -155,6 +183,36 @@ export function PlanWizard({ minDate }: { minDate: string }) {
         : s.kind === "garmin"
           ? t("source.garmin", { time: fmtClock(s.time10kS) })
           : t(`source.${s.kind}`);
+
+  /** Power targets: only offered when the FTP is known. */
+  const powerSwitch = (f: RideFitness, on: boolean) =>
+    f.ftp ? (
+      <SwitchRow
+        className="-mt-5"
+        label={t("power")}
+        hint={t("powerHint", { ftp: f.ftp, source: t(`ftpSource.${f.ftpSource}`) })}
+        on={on}
+        disabled={busy}
+        onToggle={() => {
+          setPower(!on);
+          void toPreview({ power: !on });
+        }}
+      />
+    ) : null;
+
+  const crossList = (list: CrossSession[]) =>
+    list.length ? (
+      <div>
+        <p className="mb-1 text-sm font-medium">{t(list[0]!.sport === "ride" ? "crossWeekRides" : "crossWeekRuns")}</p>
+        {list.map((w) => (
+          <div key={w.date} className="flex items-center gap-3 py-1.5 text-sm">
+            <span className="w-16 text-muted-foreground">{format.dateTime(new Date(`${w.date}T00:00:00Z`), { weekday: "short", day: "numeric" })}</span>
+            <span className="h-4 w-1.5 -skew-x-[18deg]" style={{ background: typeColor("easy") }} />
+            <span className="flex-1 truncate">{w.title}</span>
+          </div>
+        ))}
+      </div>
+    ) : null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -267,22 +325,7 @@ export function PlanWizard({ minDate }: { minDate: string }) {
               <p className="text-xs text-muted-foreground">{focus ? t("focusDistanceHint") : t("focusGeneralHint")}</p>
             </div>
           )}
-          <div className="flex items-center justify-between gap-4 border-y border-border py-3">
-            <span>
-              <span className="block text-[15px] font-semibold">{t("hills")}</span>
-              <span className="block text-xs text-muted-foreground">{t("hillsHint")}</span>
-            </span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={hills}
-              aria-label={t("hills")}
-              onClick={() => setHills(!hills)}
-              className={cn("relative h-7 w-12 shrink-0 rounded-full transition-colors", hills ? "bg-primary" : "bg-muted")}
-            >
-              <span className={cn("absolute top-1 size-5 rounded-full bg-card shadow transition-[left]", hills ? "left-6" : "left-1")} />
-            </button>
-          </div>
+          <SwitchRow label={t("hills")} hint={t("hillsHint")} on={hills} onToggle={() => setHills(!hills)} />
           <Button className="h-12" disabled={!goalValid} onClick={() => setStep(1)}>
             {t("next")}
           </Button>
@@ -335,6 +378,31 @@ export function PlanWizard({ minDate }: { minDate: string }) {
               ))}
             </div>
           </div>
+          <div>
+            {crossOpen || cross.length ? (
+              <>
+                <p className="mb-2 text-sm text-muted-foreground">{t(sport === "ride" ? "crossRuns" : "crossRides")}</p>
+                <div className="grid grid-cols-7 gap-1.5">
+                  {WEEK.map((d) => (
+                    <Chip
+                      key={d}
+                      selected={cross.includes(d)}
+                      disabled={days.includes(d)}
+                      onClick={() => setCross(cross.includes(d) ? cross.filter((x) => x !== d) : [...cross, d])}
+                      className="h-11 px-0 text-xs"
+                    >
+                      {tw(String(d))}
+                    </Chip>
+                  ))}
+                </div>
+                <p className="mt-1.5 text-xs text-muted-foreground">{t(sport === "ride" ? "crossRunsHint" : "crossRidesHint")}</p>
+              </>
+            ) : (
+              <button type="button" className="text-sm font-semibold text-primary" onClick={() => setCrossOpen(true)}>
+                {t(sport === "ride" ? "addCrossRuns" : "addCrossRides")}
+              </button>
+            )}
+          </div>
           {sport === "run" && (
           <div className="border-t border-border pt-4">
             <p className="mb-2 text-sm font-bold">{t("recentTitle")}</p>
@@ -384,26 +452,17 @@ export function PlanWizard({ minDate }: { minDate: string }) {
             )}
           </div>
           <p className="-mt-2 text-xs text-muted-foreground">{t("startHours", { h: Math.round(ridePreview.rideFitness.baseMinPerWeek / 6) / 10 })}</p>
-          <div className="flex items-center justify-between gap-4 border-y border-border py-3">
-            <span>
-              <span className="block text-[15px] font-semibold">{t("indoorPreset")}</span>
-              <span className="block text-xs text-muted-foreground">{t("indoorPresetHint")}</span>
-            </span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={ridePreview.indoor}
-              aria-label={t("indoorPreset")}
-              disabled={busy}
-              onClick={() => {
-                setIndoor(!ridePreview.indoor);
-                void toPreview({ indoor: !ridePreview.indoor });
-              }}
-              className={cn("relative h-7 w-12 shrink-0 rounded-full transition-colors", ridePreview.indoor ? "bg-primary" : "bg-muted")}
-            >
-              <span className={cn("absolute top-1 size-5 rounded-full bg-card shadow transition-[left]", ridePreview.indoor ? "left-6" : "left-1")} />
-            </button>
-          </div>
+          <SwitchRow
+            label={t("indoorPreset")}
+            hint={t("indoorPresetHint")}
+            on={ridePreview.indoor}
+            disabled={busy}
+            onToggle={() => {
+              setIndoor(!ridePreview.indoor);
+              void toPreview({ indoor: !ridePreview.indoor });
+            }}
+          />
+          {powerSwitch(ridePreview.rideFitness, ridePreview.power)}
           <div>
             <div className="mb-1 flex justify-between text-xs text-muted-foreground">
               <span>{t("weeks", { n: ridePreview.weeks.length })}</span>
@@ -435,6 +494,7 @@ export function PlanWizard({ minDate }: { minDate: string }) {
               </div>
             ))}
           </div>
+          {crossList(ridePreview.cross)}
           <div className="flex gap-2">
             <Button variant="secondary" className="h-12 flex-1" onClick={() => setStep(1)}>
               {t("back")}
@@ -470,6 +530,22 @@ export function PlanWizard({ minDate }: { minDate: string }) {
               {preview.fitness.didQuality && ` ${t("didQuality")}`}
             </p>
           )}
+          {preview.rideFitness && (
+            <>
+              {!preview.power && <p className="text-xs text-muted-foreground">{t("crossRideZones", { lthr: preview.rideFitness.lthr })}</p>}
+              <SwitchRow
+                label={t("indoorPreset")}
+                hint={t("indoorPresetHint")}
+                on={indoor}
+                disabled={busy}
+                onToggle={() => {
+                  setIndoor(!indoor);
+                  void toPreview({ indoor: !indoor });
+                }}
+              />
+              {powerSwitch(preview.rideFitness, preview.power)}
+            </>
+          )}
           <div>
             <div className="mb-1 flex justify-between text-xs text-muted-foreground">
               <span>{t("weeks", { n: preview.weeks.length })}</span>
@@ -501,6 +577,7 @@ export function PlanWizard({ minDate }: { minDate: string }) {
               </div>
             ))}
           </div>
+          {crossList(preview.cross)}
           <div className="flex gap-2">
             <Button variant="secondary" className="h-12 flex-1" onClick={() => setStep(1)}>
               {t("back")}

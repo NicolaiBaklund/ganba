@@ -126,12 +126,18 @@ describe("start volume", () => {
     expect(f.baseKmPerWeek).toBe(20); // the 4-week average, not 26
   });
 
-  it("week 1 matches the start volume; older plans keep their week-1 growth", () => {
+  it("week 1 matches the start volume", () => {
     const input = { goal: { kind: "build" as const }, startDate: MONDAY, weekdays: [1, 3, 5, 0], longRunWeekday: 0, runsPerWeek: 4, vdot: 43, startKmPerWeek: 40, deficitKcal: 0, experienced: true, recentLongestKm: 16 };
     // Session sizes round and have floors/caps, so the week lands near (not exactly on) its target.
-    const matched = generatePlan(input).weeks[0]!.km;
-    const grown = generatePlan({ ...input, week1Grows: true }).weeks[0]!.km;
-    expect(Math.abs(matched - 40)).toBeLessThan(2.5);
-    expect(grown).toBeGreaterThan(matched + 1.5);
+    expect(Math.abs(generatePlan(input).weeks[0]!.km - 40)).toBeLessThan(2.5);
+  });
+
+  it("the volume ceiling comes from the goal, not from a multiple of the start", () => {
+    const race = (distance: "5k" | "10k" | "marathon", start: number, runs: number, weeks: number) =>
+      generatePlan({ goal: { kind: "race", distance, raceDate: addDays(MONDAY, weeks * 7 - 1) }, startDate: MONDAY, weekdays: [1, 2, 3, 5, 6, 0].slice(0, runs), longRunWeekday: 0, runsPerWeek: runs, vdot: 45, startKmPerWeek: start, deficitKcal: 0 }).peakKm;
+    expect(race("10k", 39.4, 4, 16)).toBeCloseTo(44, 0); // 11 km × 4 runs
+    expect(race("marathon", 35, 4, 25)).toBe(60); // 15 km × 4
+    expect(race("10k", 15, 3, 16)).toBe(30); // goal 33, but at most 2 × start
+    expect(race("5k", 50, 4, 10)).toBe(50); // already above the goal: never down
   });
 });

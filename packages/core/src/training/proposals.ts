@@ -2,7 +2,7 @@ import { addDays, weekday, type ISODate } from "../dates";
 import { mondayOf } from "./generate";
 import { pacesFor, predictTimeS, vdotFrom, vo2AtSpeed } from "./vdot";
 import { blocksFromSteps, buildByType, defaultTitle, measure, repaceBlocks, rescaleBlocks, resizeQuality, type BuildContext } from "./workouts";
-import { enduranceRide, INDOOR, longRide, rezoneBlocks, rideByType, rideContext, rideDefaultTitle } from "./ride";
+import { enduranceRide, INDOOR, longRide, retargetRide, rideByType, rideContext, rideDefaultTitle } from "./ride";
 import { HARD_TYPES, KEY_TYPES, RACE_KM, type Sport, type PlanWorkout, type ProposalChange, type RaceDistance, type WorkoutType } from "./types";
 
 export interface PlanContext {
@@ -13,11 +13,16 @@ export interface PlanContext {
   today: ISODate;
   /** Race pace follows fitness (no target time, e.g. a build plan's focus): a repace recomputes it. */
   racePaceFromVdot?: boolean;
-  /** Cycling plans: heart-rate targets from LTHR, km estimated from the usual speed. */
+  /** The plan's main sport (the goal's); each session also carries its own. */
   sport?: Sport;
+  /** Days for easy sessions of the other sport (cross-training). */
+  crossWeekdays?: number[];
+  /** Rides: heart-rate targets from LTHR (or watts from FTP when power is on), km estimated from the usual speed. */
   lthr?: number | null;
+  ftp?: number | null;
+  power?: boolean;
   rideSpeedKmh?: number | null;
-  /** Cycling plans in the indoor season: rebuilt rides keep the trainer caps. */
+  /** Indoor season: rebuilt rides keep the trainer caps. */
   indoor?: boolean;
 }
 
@@ -38,6 +43,9 @@ const LABEL: Record<WorkoutType, string> = {
   race: "race",
   test: "fitness test",
 };
+
+const RIDE_LABEL: Partial<Record<WorkoutType, string>> = { easy: "endurance ride", long: "long ride", tempo: "sweet spot ride", test: "ride test", race: "event" };
+const label = (w: PlanWorkout) => (w.sport === "ride" ? (RIDE_LABEL[w.type] ?? LABEL[w.type]) : LABEL[w.type]);
 
 const active = (w: PlanWorkout) => w.status !== "removed";
 const isHard = (w: PlanWorkout) => HARD_TYPES.has(w.type);
@@ -82,10 +90,11 @@ export function missedProposal(all: PlanWorkout[], ctx: PlanContext, alreadyProp
       taken.add(target);
       changes.push({ op: "move", workoutId: m.id, toDate: target });
       if (swapWith && swapWith.date === target) changes.push({ op: "drop", workoutId: swapWith.id });
-      lines.push(`Move ${DAY[weekday(m.date)]}'s ${LABEL[m.type]} to ${DAY[weekday(target)]}${swapWith && swapWith.date === target ? " (replaces the easy run)" : ""}.`);
+      const easy = swapWith?.sport === "ride" ? "easy ride" : "easy run";
+      lines.push(`Move ${DAY[weekday(m.date)]}'s ${label(m)} to ${DAY[weekday(target)]}${swapWith && swapWith.date === target ? ` (replaces the ${easy})` : ""}.`);
     } else {
       changes.push({ op: "drop", workoutId: m.id });
-      lines.push(`No room this week for ${DAY[weekday(m.date)]}'s ${LABEL[m.type]}. Skip it.`);
+      lines.push(`No room this week for ${DAY[weekday(m.date)]}'s ${label(m)}. Skip it.`);
     }
   }
   return { kind: "missed", summary: lines.join(" "), changes };
@@ -198,7 +207,8 @@ export function volumeProposal(all: PlanWorkout[], ctx: PlanContext): Proposal |
   for (const back of [1, 2]) {
     const start = addDays(thisMonday, -7 * back);
     const end = addDays(start, 6);
-    const inWeek = all.filter((w) => active(w) && w.date >= start && w.date <= end);
+    // Main sport only: cross sessions are optional extras.
+    const inWeek = all.filter((w) => active(w) && w.sport === (ctx.sport ?? "run") && w.date >= start && w.date <= end);
     const planned = inWeek.reduce((s, w) => s + w.plannedKm, 0);
     if (planned <= 0) return null;
     const done = inWeek.filter((w) => w.status === "done").reduce((s, w) => s + (w.activityKm ?? w.plannedKm), 0);
@@ -218,8 +228,9 @@ export interface ApplyResult {
   workouts: PlanWorkout[];
   changedIds: Set<string>;
   vdot: number;
-  /** Cycling plans: the threshold heart rate after the changes. */
+  /** Rides: threshold heart rate and FTP after the changes. */
   lthr: number | null;
+  ftp: number | null;
 }
 
 /** Applies changes to copies of the workouts. Only future, planned (or missed, for moves) sessions change. */
@@ -229,18 +240,23 @@ export function applyChanges(all: PlanWorkout[], changes: ProposalChange[], ctx:
   const changed = new Set<string>();
   let vdot = ctx.vdot;
   let racePaceS = ctx.racePaceS ?? undefined;
-  const ride = ctx.sport === "ride";
+  const main: Sport = ctx.sport ?? "run";
   let lthr = ctx.lthr ?? 165;
+  let ftp = ctx.ftp ?? null;
   const speed = ctx.rideSpeedKmh ?? 25;
-  const build = (): BuildContext => (ride ? rideContext(lthr, speed) : { paces: pacesFor(vdot), racePaceS });
-  const title = (type: PlanWorkout["type"], m: { km: number; s: number }) => (ride ? rideDefaultTitle(type, m.s / 60) : defaultTitle(type, m.km));
+  const rideCtx = () => rideContext(lthr, speed, ctx.power ? ftp : null);
+  const build = (sport: Sport): BuildContext => (sport === "ride" ? rideCtx() : { paces: pacesFor(vdot), racePaceS });
+  const title = (sport: Sport, type: PlanWorkout["type"], m: { km: number; s: number }) =>
+    sport === "ride" ? rideDefaultTitle(type, m.s / 60) : defaultTitle(type, m.km);
+  const upcoming = (w: PlanWorkout) => w.status === "planned" && w.date >= ctx.today;
 
   for (const c of changes) {
     if (c.op === "rezone") {
-      lthr = c.lthr;
+      lthr = c.lthr ?? lthr;
+      ftp = c.ftp ?? ftp;
       for (const w of list)
-        if (w.status === "planned" && w.date >= ctx.today) {
-          w.blocks = rezoneBlocks(w.blocks, lthr);
+        if (upcoming(w) && w.sport === "ride") {
+          w.blocks = retargetRide(w.blocks, rideCtx());
           changed.add(w.id);
         }
       continue;
@@ -249,9 +265,9 @@ export function applyChanges(all: PlanWorkout[], changes: ProposalChange[], ctx:
       vdot = c.vdot;
       if (ctx.racePaceFromVdot && ctx.distance) racePaceS = Math.round(predictTimeS(RACE_KM[ctx.distance] * 1000, vdot) / RACE_KM[ctx.distance]);
       for (const w of list)
-        if (w.status === "planned" && w.date >= ctx.today) {
-          w.blocks = repaceBlocks(w.blocks, build().paces, racePaceS);
-          const m = measure(w.blocks, build().paces);
+        if (upcoming(w) && w.sport === "run") {
+          w.blocks = repaceBlocks(w.blocks, build("run").paces, racePaceS);
+          const m = measure(w.blocks, build("run").paces);
           w.plannedDurationS = m.s;
           changed.add(w.id);
         }
@@ -259,20 +275,21 @@ export function applyChanges(all: PlanWorkout[], changes: ProposalChange[], ctx:
     }
     if (c.op === "rescale") {
       for (const w of list)
-        if (w.status === "planned" && w.date >= c.fromDate && (w.type === "easy" || w.type === "long" || w.type === "strides")) {
-          if (ride) {
+        // Volume changes are about the main sport; cross sessions keep their own gentle growth.
+        if (w.status === "planned" && w.sport === main && w.date >= c.fromDate && (w.type === "easy" || w.type === "long" || w.type === "strides")) {
+          if (w.sport === "ride") {
             // Rides are time-based: rebuild at the scaled length.
             const minutes = (w.plannedDurationS / 60) * c.factor;
             const b =
               w.type === "long"
-                ? longRide(ctx.indoor ? Math.min(INDOOR.longMaxMin, minutes) : minutes, rideContext(lthr, speed), 0, !!ctx.indoor)
-                : enduranceRide(ctx.indoor ? Math.min(INDOOR.easyMaxMin, minutes) : minutes, rideContext(lthr, speed), /^Recovery/.test(w.title));
+                ? longRide(ctx.indoor ? Math.min(INDOOR.longMaxMin, minutes) : minutes, rideCtx(), 0, !!ctx.indoor)
+                : enduranceRide(ctx.indoor ? Math.min(INDOOR.easyMaxMin, minutes) : minutes, rideCtx(), /^Recovery/.test(w.title));
             Object.assign(w, { title: b.title, blocks: b.blocks, plannedKm: b.plannedKm, plannedDurationS: b.plannedDurationS });
             changed.add(w.id);
             continue;
           }
           w.blocks = rescaleBlocks(w.blocks, c.factor);
-          const m = measure(w.blocks, build().paces);
+          const m = measure(w.blocks, build("run").paces);
           w.plannedKm = m.km;
           w.plannedDurationS = m.s;
           w.title = w.title.replace(/\d+(\.\d+)? km/, `${m.km} km`);
@@ -281,8 +298,9 @@ export function applyChanges(all: PlanWorkout[], changes: ProposalChange[], ctx:
       continue;
     }
     if (c.op === "add") {
-      const blocks = blocksFromSteps(c.steps, build());
-      const m = measure(blocks, build().paces);
+      const sport = c.sport ?? main;
+      const blocks = blocksFromSteps(c.steps, build(sport));
+      const m = measure(blocks, build(sport).paces);
       // Week and phase from a session in the same calendar week, else the nearest one before.
       const near =
         list.find((x) => x.status !== "removed" && mondayOf(x.date) === mondayOf(c.date)) ??
@@ -290,9 +308,10 @@ export function applyChanges(all: PlanWorkout[], changes: ProposalChange[], ctx:
         list[0];
       const nw: PlanWorkout = {
         id: `new:${changed.size}:${c.date}`,
+        sport,
         date: c.date,
         type: c.type,
-        title: c.title?.trim() || title(c.type, m),
+        title: c.title?.trim() || title(sport, c.type, m),
         blocks,
         plannedKm: m.km,
         plannedDurationS: m.s,
@@ -312,30 +331,31 @@ export function applyChanges(all: PlanWorkout[], changes: ProposalChange[], ctx:
       w.status = "planned";
     } else if (c.op === "drop") {
       w.status = "removed";
-    } else if (c.op === "replace" && ride) {
+    } else if (c.op === "replace" && w.sport === "ride") {
       // km from the coach is an estimate: turn it into minutes at the usual speed.
-      const b = rideByType(c.type, (c.km / speed) * 60, 2, rideContext(lthr, speed), !!ctx.indoor);
+      const b = rideByType(c.type, (c.km / speed) * 60, 2, rideCtx(), !!ctx.indoor);
       Object.assign(w, { type: b.type, title: b.title, blocks: b.blocks, plannedKm: b.plannedKm, plannedDurationS: b.plannedDurationS });
     } else if (c.op === "replace") {
       const sameQuality = c.type === w.type && (c.type === "intervals" || c.type === "threshold" || c.type === "tempo");
       if (sameQuality) {
         // Same session, different size: keep the reps, change the easy cool-down.
-        w.blocks = resizeQuality(w.blocks, c.km - w.plannedKm, build().paces);
-        const m = measure(w.blocks, build().paces);
+        w.blocks = resizeQuality(w.blocks, c.km - w.plannedKm, build("run").paces);
+        const m = measure(w.blocks, build("run").paces);
         w.plannedKm = m.km;
         w.plannedDurationS = m.s;
       } else {
-        const b = buildByType(c.type, c.km, ctx.distance ?? "10k", 2, build());
+        const b = buildByType(c.type, c.km, ctx.distance ?? "10k", 2, build("run"));
         Object.assign(w, { type: b.type, title: b.title, blocks: b.blocks, plannedKm: b.plannedKm, plannedDurationS: b.plannedDurationS });
       }
     } else if (c.op === "edit") {
-      const blocks = blocksFromSteps(c.steps, build());
-      const m = measure(blocks, build().paces);
+      const blocks = blocksFromSteps(c.steps, build(w.sport));
+      const m = measure(blocks, build(w.sport).paces);
       const type = c.type ?? w.type;
-      Object.assign(w, { type, title: c.title?.trim() || title(type, m), blocks, plannedKm: m.km, plannedDurationS: m.s });
+      Object.assign(w, { type, title: c.title?.trim() || title(w.sport, type, m), blocks, plannedKm: m.km, plannedDurationS: m.s });
     }
     changed.add(w.id);
   }
-  return { workouts: list, changedIds: changed, vdot, lthr: ride ? lthr : null };
+  const rides = main === "ride" || list.some((w) => w.sport === "ride");
+  return { workouts: list, changedIds: changed, vdot, lthr: rides ? lthr : null, ftp: rides ? ftp : null };
 }
 

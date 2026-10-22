@@ -6,6 +6,7 @@ const paces = pacesFor(45);
 const ctx: PlanContext = { weekdays: [2, 4, 0], vdot: 45, racePaceS: null, distance: "10k", today: "2026-10-05" };
 const mk = (id: string, date: string, type: WorkoutType, km: number, status: PlanWorkout["status"] = "planned", week = date < "2026-10-12" ? 1 : date < "2026-10-19" ? 2 : 3): PlanWorkout => ({
   id,
+  sport: "run",
   date,
   status,
   week,

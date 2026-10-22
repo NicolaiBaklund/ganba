@@ -39,7 +39,7 @@ const ctxOf = (p: CoachParams) => {
 /** "sN" ref of the first upcoming session of a type, read from the context the coach got. */
 const refFor = (p: CoachParams, type: string) => {
   const text = ctxOf(p);
-  return text.match(new RegExp(`^(s\\d+) \\| \\S+ \\S+ \\| ${type} \\|`, "m"))![1]!;
+  return text.match(new RegExp(`^(s\\d+) \\| \\S+ \\S+ \\| (?:run|ride) \\| ${type} \\|`, "m"))![1]!;
 };
 
 describe("coach: tool loop, options, memory, consent", () => {

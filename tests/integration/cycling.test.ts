@@ -125,7 +125,7 @@ describe("cycling plans", () => {
 describe("cycling: Garmin, zones, coach steps, energy", () => {
   it("rides go to Garmin as cycling workouts with heart-rate targets", () => {
     const w = generateRidePlan(base()).workouts.find((x) => x.type === "threshold")!;
-    const json = toGarminWorkout(w, "ride") as { sportType: { sportTypeKey: string }; workoutSegments: { workoutSteps: Record<string, unknown>[] }[] };
+    const json = toGarminWorkout(w) as { sportType: { sportTypeKey: string }; workoutSegments: { workoutSteps: Record<string, unknown>[] }[] };
     expect(json.sportType.sportTypeKey).toBe("cycling");
     const flat = JSON.stringify(json);
     expect(flat).toContain('"workoutTargetTypeKey":"heart.rate.zone"');
@@ -133,7 +133,7 @@ describe("cycling: Garmin, zones, coach steps, energy", () => {
   });
 
   it("a ride test proposes new zones, and applying them re-targets upcoming rides", () => {
-    const prop = rideTestProposal(170, { date: "2026-12-26", laps: [{ timeS: 900, avgHr: 140 }, { timeS: 600, avgHr: 160 }, { timeS: 1800, avgHr: 175 }, { timeS: 600, avgHr: 130 }] })!;
+    const prop = rideTestProposal({ lthr: 170, ftp: null }, { date: "2026-12-26", laps: [{ timeS: 900, avgHr: 140 }, { timeS: 600, avgHr: 160 }, { timeS: 1800, avgHr: 175 }, { timeS: 600, avgHr: 130 }] })!;
     expect(prop.changes).toEqual([{ op: "rezone", lthr: 176 }]);
     const w = generateRidePlan(base()).workouts.find((x) => x.type === "threshold")!;
     const pw: PlanWorkout = { ...w, id: "w1", status: "planned" };

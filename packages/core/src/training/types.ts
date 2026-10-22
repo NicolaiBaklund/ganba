@@ -18,6 +18,8 @@ export const HR_ZONES: readonly HrZone[] = ["z1", "z2", "z3", "ss", "z4", "z5"];
 export type Target =
   | { kind: "pace"; zone: PaceZone; minSecPerKm: number; maxSecPerKm: number }
   | { kind: "hr"; zone: HrZone; minBpm: number; maxBpm: number }
+  /** Cycling with a power meter or smart trainer: watts from FTP (same zone names as heart rate). */
+  | { kind: "power"; zone: HrZone; minW: number; maxW: number }
   | { kind: "none" };
 
 export type Sport = "run" | "ride";
@@ -49,6 +51,8 @@ export interface CoachStep {
 export type CoachBlock = CoachStep | { repeat: number; steps: CoachStep[] };
 
 export interface WorkoutSpec {
+  /** Each session has its own sport: a running plan can carry rides and the other way round. */
+  sport: Sport;
   date: ISODate;
   type: WorkoutType;
   title: string;
@@ -92,8 +96,6 @@ export interface PlanInput {
   recentLongestKm?: number;
   /** Hills nearby: hill repeats take the place of fartlek. */
   hills?: boolean;
-  /** Plans made before 2026-10-23 grew already in week 1; their extensions must keep doing so. */
-  week1Grows?: boolean;
 }
 
 export interface Paces {
@@ -110,6 +112,7 @@ export type ProposalChange =
   | { op: "replace"; workoutId: string; type: WorkoutType; km: number }
   | { op: "rescale"; fromDate: ISODate; factor: number }
   | { op: "repace"; vdot: number }
-  | { op: "rezone"; lthr: number }
+  /** Cycling zones from a new threshold heart rate and/or FTP. */
+  | { op: "rezone"; lthr?: number; ftp?: number }
   | { op: "edit"; workoutId: string; type?: WorkoutType; title?: string; steps: CoachBlock[] }
-  | { op: "add"; date: ISODate; type: WorkoutType; title?: string; steps: CoachBlock[] };
+  | { op: "add"; date: ISODate; type: WorkoutType; title?: string; steps: CoachBlock[]; sport?: Sport };

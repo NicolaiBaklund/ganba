@@ -1,5 +1,22 @@
 import "server-only";
-import { addDays, eventMinutes, mondayOf, pacesFor, predictTimeS, RACE_KM, rideProfile, rideZones, trendSeries, type Block, type FuelAdvice, type ISODate, type Paces, type WorkoutType } from "@loop/core";
+import {
+  addDays,
+  eventMinutes,
+  mondayOf,
+  pacesFor,
+  powerZones,
+  predictTimeS,
+  RACE_KM,
+  rideProfile,
+  rideZones,
+  trendSeries,
+  type Block,
+  type FuelAdvice,
+  type ISODate,
+  type Paces,
+  type Sport,
+  type WorkoutType,
+} from "@loop/core";
 import { getGarminStatus } from "@/lib/garmin/accounts";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { activePlan, distanceOf, planWorkouts, todayFor } from "./service";
@@ -14,14 +31,15 @@ export interface WorkoutListItem {
   status: "planned" | "done" | "missed" | "removed";
   push: "none" | "pending" | "pushed" | "failed";
   actualKm: number | null;
-  /** Running or cycling plan: labels, units and targets differ. */
-  sport: "run" | "ride";
+  /** Running or cycling session: labels, units and targets differ. */
+  sport: Sport;
 }
 
 export interface WeekView {
   week: number;
   monday: ISODate;
   phase: string;
+  /** Totals of the main sport (cross sessions are extras and not counted). */
   plannedKm: number;
   doneKm: number;
   /** Planned minutes (cycling weeks show hours). */
@@ -47,14 +65,25 @@ export interface TrainingView {
     vdot: number;
     paces: Paces;
     weeksLeft: number | null;
-    sport: "run" | "ride";
-    /** Cycling plans. */
+    /** The main sport (the goal's). */
+    sport: Sport;
+    weekdays: number[];
+    /** Days for easy sessions of the other sport. */
+    crossWeekdays: number[];
+    /** Cycling plans: the event. */
     ride: null | {
       eventKm: number | null;
       elevationM: number | null;
       expectedS: number | null;
+    };
+    /** Any plan with rides (a cycling plan, or rides on cross days): zones and the ride switches. */
+    rides: null | {
       lthr: number;
       zones: { zone: string; minBpm: number; maxBpm: number }[];
+      /** FTP when known (the power switch shows then); watt zones when power targets are on. */
+      ftp: number | null;
+      power: boolean;
+      powerZones: { zone: string; minW: number; maxW: number }[];
       indoor: boolean;
     };
   };
@@ -95,13 +124,14 @@ export async function loadTrainingView(userId: string): Promise<TrainingView> {
       status: r.status,
       push: r.garmin_push_status,
       actualKm: r.activity_id ? (km.get(r.activity_id) ?? null) : null,
-      sport: plan.sport as "run" | "ride",
+      sport: r.sport as Sport,
     };
     w.workouts.push(item);
+    weeks.set(monday, w);
+    if (item.sport !== plan.sport) continue;
     w.plannedMin += Math.round(item.plannedDurationS / 60);
     w.plannedKm = Math.round((w.plannedKm + item.plannedKm) * 10) / 10;
     if (item.status === "done") w.doneKm = Math.round((w.doneKm + (item.actualKm ?? item.plannedKm)) * 10) / 10;
-    weeks.set(monday, w);
   }
   const thisMonday = mondayOf(today);
   const thisWeek = weeks.get(thisMonday) ?? null;
@@ -121,7 +151,9 @@ export async function loadTrainingView(userId: string): Promise<TrainingView> {
       vdot,
       paces: pacesFor(vdot),
       weeksLeft: plan.race_date ? Math.max(0, Math.ceil((Date.parse(plan.race_date) - Date.parse(addDays(today, 0))) / (7 * 86_400_000))) : null,
-      sport: plan.sport as "run" | "ride",
+      sport: plan.sport as Sport,
+      weekdays: plan.weekdays,
+      crossWeekdays: plan.cross_weekdays,
       ride:
         plan.sport === "ride"
           ? {
@@ -131,8 +163,16 @@ export async function loadTrainingView(userId: string): Promise<TrainingView> {
                 plan.event_km == null
                   ? null
                   : Math.round(eventMinutes(Number(plan.event_km), Number(plan.ride_speed_kmh ?? 25), rideProfile(Number(plan.event_km), plan.event_elevation_m)) * 60),
+            }
+          : null,
+      rides:
+        plan.sport === "ride" || plan.cross_weekdays.length
+          ? {
               lthr: plan.lthr ?? 165,
               zones: rideZones(plan.lthr ?? 165),
+              ftp: plan.ftp,
+              power: plan.power && !!plan.ftp,
+              powerZones: plan.ftp ? powerZones(plan.ftp) : [],
               indoor: plan.indoor,
             }
           : null,
@@ -196,7 +236,7 @@ export async function loadWorkout(userId: string, id: string): Promise<WorkoutDe
     fuelAdvice: (r.fuel_advice as { advice?: FuelAdvice } | null)?.advice ?? null,
     upcoming: r.status === "planned" && r.date >= (await todayFor(userId)),
     activity,
-    sport: ((await db.from("training_plans").select("sport").eq("id", r.plan_id).maybeSingle()).data?.sport ?? "run") as "run" | "ride",
+    sport: r.sport as Sport,
   };
 }
 
@@ -214,10 +254,12 @@ export async function todaysWorkout(userId: string, today: ISODate): Promise<{ p
   if (!plan) return { plan: false, workout: null };
   const { data } = await createAdminSupabase()
     .from("planned_workouts")
-    .select("id, date, type, title, planned_km, planned_duration_s, status, garmin_push_status, activity_id")
+    .select("id, date, type, title, planned_km, planned_duration_s, status, garmin_push_status, activity_id, sport")
     .eq("plan_id", plan.id)
     .eq("date", today)
     .neq("status", "removed")
+    // The main sport's session first when a cross session shares the day.
+    .order("sport", { ascending: plan.sport === "ride" })
     .limit(1)
     .maybeSingle();
   if (!data) return { plan: true, workout: null };
@@ -238,7 +280,7 @@ export async function todaysWorkout(userId: string, today: ISODate): Promise<{ p
       status: data.status,
       push: data.garmin_push_status,
       actualKm,
-      sport: plan.sport as "run" | "ride",
+      sport: data.sport as Sport,
     },
   };
 }
@@ -247,12 +289,12 @@ export async function todaysWorkout(userId: string, today: ISODate): Promise<{ p
 export async function nextWorkout(
   userId: string,
   after: ISODate,
-): Promise<{ date: ISODate; type: WorkoutType; title: string; plannedKm: number; plannedDurationS: number; sport: "run" | "ride" } | null> {
+): Promise<{ date: ISODate; type: WorkoutType; title: string; plannedKm: number; plannedDurationS: number; sport: Sport } | null> {
   const plan = await activePlan(userId);
   if (!plan) return null;
   const { data } = await createAdminSupabase()
     .from("planned_workouts")
-    .select("date, type, title, planned_km, planned_duration_s")
+    .select("date, type, title, planned_km, planned_duration_s, sport")
     .eq("plan_id", plan.id)
     .gt("date", after)
     .eq("status", "planned")
@@ -260,6 +302,6 @@ export async function nextWorkout(
     .limit(1)
     .maybeSingle();
   return data
-    ? { date: data.date, type: data.type, title: data.title, plannedKm: Number(data.planned_km), plannedDurationS: data.planned_duration_s, sport: plan.sport as "run" | "ride" }
+    ? { date: data.date, type: data.type, title: data.title, plannedKm: Number(data.planned_km), plannedDurationS: data.planned_duration_s, sport: data.sport as Sport }
     : null;
 }

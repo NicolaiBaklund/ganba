@@ -14,13 +14,19 @@ export function fmtClock(totalS: number): string {
 /** Rough duration for lists: "45 min", "1 h 20 min". */
 export function fmtMinutes(totalS: number): string {
   const m = Math.round(totalS / 60);
-  return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`;
+  return m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ""}` : `${m} min`;
 }
 
 const HR_LABEL: Record<string, string> = { z1: "Z1", z2: "Z2", z3: "Z3", ss: "Sweet spot", z4: "Z4", z5: "Z5" };
-/** Pace range for running steps, heart-rate range for cycling steps. */
+/** Pace range for running steps; heart-rate or power range for cycling steps. */
 export const fmtPaceRange = (t: Target): string | null =>
-  t.kind === "pace" ? `${formatPace(t.minSecPerKm)}–${formatPace(t.maxSecPerKm)} /km` : t.kind === "hr" ? `${HR_LABEL[t.zone]} ${t.minBpm}–${t.maxBpm} bpm` : null;
+  t.kind === "pace"
+    ? `${formatPace(t.minSecPerKm)}–${formatPace(t.maxSecPerKm)} /km`
+    : t.kind === "hr"
+      ? `${HR_LABEL[t.zone]} ${t.minBpm}–${t.maxBpm} bpm`
+      : t.kind === "power"
+        ? `${HR_LABEL[t.zone]} ${t.minW}–${t.maxW} W`
+        : null;
 export const hrZoneLabel = (zone: string) => HR_LABEL[zone] ?? zone;
 
 /** "1:45:00", "45:30" or "45" (minutes) → seconds; null when invalid. */
