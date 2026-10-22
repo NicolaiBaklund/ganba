@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import type { PreviewCell, PreviewWeek } from "@loop/core";
+import { changedWeek, type PreviewCell, type PreviewWeek } from "@loop/core";
 import { typeColor } from "@/lib/training/format";
 import { cn } from "@/lib/utils";
 
@@ -28,7 +28,7 @@ function Cell({ cells, changed, faded }: { cells: PreviewCell[]; changed?: boole
 /** The week an option changes: "Now" over "New", one column per day, changed days outlined. */
 export function WeekPreview({ weeks }: { weeks: PreviewWeek[] }) {
   const t = useTranslations("coach");
-  const wk = weeks.find((w) => w.days.some((d) => d.changed)) ?? weeks[0];
+  const wk = changedWeek(weeks);
   if (!wk) return null;
   return (
     <div className="mt-2.5">

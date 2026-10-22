@@ -30,6 +30,13 @@ export function CoachSheet({ aboutWorkoutId, draft, onClose }: { aboutWorkoutId?
   // "Ask the coach" from a session: only the first message is about that session.
   const [aboutUsed, setAboutUsed] = useState(false);
   const end = useRef<HTMLDivElement>(null);
+  const box = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+  }, [text]);
 
   const load = () =>
     fetch("/api/coach")
@@ -48,6 +55,7 @@ export function CoachSheet({ aboutWorkoutId, draft, onClose }: { aboutWorkoutId?
     setBusy(true);
     setFailed(null);
     setText("");
+    setShowAll(false);
     const about = aboutUsed ? null : (aboutWorkoutId ?? null);
     const optimistic: CoachMessage = { id: `local-${Date.now()}`, role: "user", text: msg, aboutWorkoutId: about, options: [], usedHealth: false, createdAt: new Date().toISOString() };
     // A retry reuses the message already shown (and stored).
@@ -72,6 +80,7 @@ export function CoachSheet({ aboutWorkoutId, draft, onClose }: { aboutWorkoutId?
 
   async function newConversation() {
     setMenu(false);
+    setShowAll(false);
     const res = await fetch("/api/coach/new", { method: "POST" }).catch(() => null);
     if (res?.status === 409) return toast(t("busy"));
     await load();
@@ -98,7 +107,7 @@ export function CoachSheet({ aboutWorkoutId, draft, onClose }: { aboutWorkoutId?
     setData({
       ...data,
       messages: data.messages.map((x) =>
-        x.id === messageId ? { ...x, options: x.options.map((y) => (y.id === next.id ? next : next.status === "applied" && y.status === "pending" ? { ...y, status: "not_used" } : y)) } : x,
+        x.id === messageId ? { ...x, options: x.options.map((y) => (y.id === next.id ? next : next.status === "applied" && (y.status === "pending" || y.status === "stale") ? { ...y, status: "not_used" } : y)) } : x,
       ),
     });
   return (
@@ -155,7 +164,6 @@ export function CoachSheet({ aboutWorkoutId, draft, onClose }: { aboutWorkoutId?
           {data && !shown.length && (
             <div className="text-[13px] text-muted-foreground">
               <p>{t("empty")}</p>
-              <p className="mt-2 text-[12px]">{t("cost")}</p>
             </div>
           )}
           {!!earlier.length && (
@@ -168,8 +176,12 @@ export function CoachSheet({ aboutWorkoutId, draft, onClose }: { aboutWorkoutId?
               {earlier.map((m) =>
                 m.role === "user" ? (
                   <p key={m.id} className="truncate pt-2 text-[13px] text-muted-foreground">{m.text}</p>
-                ) : (
+                ) : m.options.length ? (
                   m.options.map((o) => <OptionCard key={o.id} messageId={m.id} option={o} readOnly={!!reading} collapsed onChange={update(m.id)} />)
+                ) : (
+                  <p key={m.id} className="truncate pt-1 text-[13px]">
+                    <span className="font-semibold">{t("title")}:</span> {m.text}
+                  </p>
                 ),
               )}
             </div>
@@ -181,10 +193,9 @@ export function CoachSheet({ aboutWorkoutId, draft, onClose }: { aboutWorkoutId?
               <div key={m.id} className="mb-3">
                 <p className="mb-1 text-[12px] font-semibold text-muted-foreground">{t("title")}</p>
                 <RichText text={m.text} />
-                {m.options.map((o, i) => {
-                  const firstOpen = m.options.findIndex((x) => x.status === "pending" || x.status === "stale");
-                  return <OptionCard key={o.id} messageId={m.id} option={o} readOnly={!!reading} collapsed={i !== firstOpen} onChange={update(m.id)} />;
-                })}
+                {m.options.map((o, i, all) => (
+                  <OptionCard key={o.id} messageId={m.id} option={o} readOnly={!!reading} collapsed={i !== all.findIndex((x) => x.status === "pending" || x.status === "stale")} onChange={update(m.id)} />
+                ))}
               </div>
             ),
           )}
@@ -225,11 +236,8 @@ export function CoachSheet({ aboutWorkoutId, draft, onClose }: { aboutWorkoutId?
               >
                 <textarea
                   value={text}
-                  onChange={(e) => {
-                    setText(e.target.value);
-                    e.target.style.height = "auto";
-                    e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
-                  }}
+                  ref={box}
+                  onChange={(e) => setText(e.target.value)}
                   rows={1}
                   maxLength={2000}
                   placeholder={t("placeholder")}
@@ -240,6 +248,7 @@ export function CoachSheet({ aboutWorkoutId, draft, onClose }: { aboutWorkoutId?
                   <ArrowUp className="size-5" />
                 </button>
               </form>
+              <p className="pt-1 text-center text-[11px] text-muted-foreground">{t("cost")}</p>
             </div>
           ) : (
             <p className="border-t border-border pt-3 text-[13px] text-muted-foreground">{data.hasPlan ? t("noKey") : t("noPlan")}</p>

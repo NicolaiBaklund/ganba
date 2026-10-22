@@ -756,8 +756,6 @@
     "back": "Back",
     "endPlan": "End plan",
     "endConfirm": "Yes, end the plan",
-    "apply": "Apply",
-    "applyAnyway": "Apply anyway",
     "applied": "Applied",
     "notUsed": "Not used",
     "changed": "The plan changed since this was suggested. Check the warnings again.",

@@ -16,7 +16,7 @@ export async function POST(req: Request, ctx: RouteContext<"/api/coach/options/[
   const r = await applyOption(u.user.id, messageId, optionId, body.data);
   if (!r.ok)
     return NextResponse.json(
-      { error: r.error, warnings: "warnings" in r ? r.warnings : [], reason: "reason" in r ? r.reason : undefined },
+      { error: r.error, warnings: "warnings" in r ? r.warnings : [], weeks: "weeks" in r ? r.weeks : undefined, reason: "reason" in r ? r.reason : undefined },
       { status: r.error === "not_found" ? 404 : 409 },
     );
   const today = await todayFor(u.user.id);

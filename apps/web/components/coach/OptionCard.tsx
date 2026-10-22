@@ -5,7 +5,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
-import type { PlanWarning } from "@loop/core";
+import { changedWeek, type PlanWarning } from "@loop/core";
 import { Button } from "@/components/ui/button";
 import type { CoachOption } from "@/lib/coach/store";
 import { cn } from "@/lib/utils";
@@ -33,7 +33,9 @@ export function OptionCard({
   const format = useFormatter();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const [open, setOpen] = useState(!collapsed);
+  // Opened by hand, or not folded (the folded flag can move here when the option above it goes away).
+  const [opened, setOpened] = useState(false);
+  const open = !collapsed || opened;
   const [details, setDetails] = useState(false);
   const day = (d?: string) => (d ? format.dateTime(new Date(`${d}T00:00:00Z`), { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }) : "");
   const text = (w: PlanWarning) => t(`warning.${w.code}`, { date: day(w.date), week: day(w.week), before: w.before ?? 0, after: w.after ?? 0, pct: w.pct ?? 0 });
@@ -53,7 +55,7 @@ export function OptionCard({
       return;
     }
     if (res?.status === 409 && body?.error === "changed") {
-      onChange({ ...option, status: "stale", warnings: body.warnings ?? [] });
+      onChange({ ...option, status: "stale", warnings: body.warnings ?? [], weeks: body.weeks ?? option.weeks });
       return toast(t("changed"));
     }
     if (res?.status === 409 && body?.error === "invalid") return onChange({ ...option, status: "invalid", reason: body.reason });
@@ -74,7 +76,7 @@ export function OptionCard({
     );
   }
 
-  const week = option.weeks?.find((w) => w.days.some((d) => d.changed)) ?? option.weeks?.[0];
+  const week = changedWeek(option.weeks);
   const serious = option.warnings.some((w) => w.severity === "serious");
   const careful = serious || option.status === "stale";
   return (
@@ -116,7 +118,7 @@ export function OptionCard({
             </button>
           )
         ) : (
-          <button type="button" onClick={() => setOpen(true)} className="text-[13px] font-semibold text-muted-foreground">
+          <button type="button" onClick={() => setOpened(true)} className="text-[13px] font-semibold text-muted-foreground">
             {t("showWeek")}
           </button>
         )}

@@ -145,6 +145,19 @@ export interface PreviewWeek {
 const cellsOn = (list: readonly PlanWorkout[], date: ISODate): PreviewCell[] =>
   list.filter((w) => live(w) && w.date === date).map((w) => ({ type: w.type, km: Math.round(w.plannedKm * 10) / 10, done: w.status === "done" }));
 
+/** Everything about a day's sessions (id, type, km, title, steps), in a fixed order: any edit shows. */
+const daySig = (list: readonly PlanWorkout[], date: ISODate) =>
+  JSON.stringify(
+    list
+      .filter((w) => live(w) && w.date === date)
+      .map((w) => [w.id, w.type, w.plannedKm, w.title, w.blocks, w.status])
+      .sort((x, y) => String(x[0]).localeCompare(String(y[0]))),
+  );
+
+/** The week an option changes most visibly: the first with a changed day, else the first. */
+export const changedWeek = (weeks: readonly PreviewWeek[] | undefined): PreviewWeek | undefined =>
+  weeks?.find((w) => w.days.some((d) => d.changed)) ?? weeks?.[0];
+
 /** Day-by-day before/after for the weeks an option touches. */
 export function weekPreview(before: readonly PlanWorkout[], after: readonly PlanWorkout[], weeks: readonly { monday: ISODate; before: number; after: number }[]): PreviewWeek[] {
   return weeks.map((wk) => ({
@@ -153,9 +166,7 @@ export function weekPreview(before: readonly PlanWorkout[], after: readonly Plan
     afterKm: wk.after,
     days: Array.from({ length: 7 }, (_, i) => {
       const date = addDays(wk.monday, i);
-      const b = cellsOn(before, date);
-      const a = cellsOn(after, date);
-      return { date, before: b, after: a, changed: JSON.stringify(b) !== JSON.stringify(a) };
+      return { date, before: cellsOn(before, date), after: cellsOn(after, date), changed: daySig(before, date) !== daySig(after, date) };
     }),
   }));
 }

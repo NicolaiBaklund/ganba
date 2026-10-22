@@ -24,8 +24,7 @@ export function NotesPanel({ notes, onChange }: { notes: CoachNote[]; onChange: 
   return (
     <div className="border-b border-border">
       <p className="pt-1 text-[13px] font-semibold">{t("remembers")}</p>
-      {(
-        <ul className="pb-2">
+      <ul className="pb-2">
           {!notes.length && <li className="py-1 text-[13px] text-muted-foreground">{t("noNotes")}</li>}
           {notes.map((n) => (
             <li key={n.id} className="flex items-start gap-2 py-1 text-[13px]">
@@ -47,7 +46,6 @@ export function NotesPanel({ notes, onChange }: { notes: CoachNote[]; onChange: 
             </li>
           ))}
         </ul>
-      )}
     </div>
   );
 }
