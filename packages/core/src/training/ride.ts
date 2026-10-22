@@ -347,9 +347,14 @@ export function generateRidePlan(input: RidePlanInput): GeneratedPlan {
     : Array.from({ length: nWeeks }, (_, i) => (i % BLOCK === BLOCK - 1 ? "recovery" : "build"));
 
   const start = Math.max(rides * MIN_EASY_MIN, input.startMinPerWeek * (indoor ? INDOOR.volume : 1));
-  const peak = Math.min(MAX_WEEK_MIN, Math.max(start, start * (isEvent ? 1.5 : 1.3)));
   const growth = input.deficitKcal > 500 ? 0.05 : 0.08;
   const expected = ev ? eventMinutes(ev.km, input.speedKmh, profile) : 0;
+  // The ceiling comes from the goal (as for running): ~1.6 × the event time per week, or 90 min per ride
+  // for build plans. The start decides how fast the plan gets there and how far it can go (≤ 2 × start).
+  const goalMin =
+    clamp(ev ? Math.max(rides * 75, expected * 1.6) : rides * 90, rides * MIN_EASY_MIN, Math.min(rides * 150, MAX_WEEK_MIN)) *
+    (indoor ? INDOOR.volume : 1);
+  const peak = Math.max(start, Math.min(Math.max(goalMin, start * 1.1), start * 2, MAX_WEEK_MIN));
   const longTarget = Math.min(indoor ? INDOOR.longMaxMin : 360, ev ? Math.max(90, expected * 0.8) : 210);
   const share = rides <= 2 ? 0.5 : rides === 3 ? 0.4 : 0.3;
   const longStart = Math.min(longTarget, Math.max(60, start * share, input.recentLongestMin ?? 0));

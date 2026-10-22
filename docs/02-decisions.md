@@ -119,3 +119,4 @@ Format: dato — beslutning — begrunnelse.
 
 ## Åpne spørsmål
 - (Teknisk fase) Garmin-tilgang. Offisielt program er kun for bedrifter og muligens pauset (se research-notes). Sannsynlig vei: uoffisielt bibliotek i personlig fase, bak adapter-lag; offisielt når/om appen blir produkt.
+| 2026-10-23 | **Volumtaket kommer fra målet**, ikke fra en multiplikator på start: løp km per økt for distansen × økter i uka (5K 9, 10K 11, halv 13, maraton 15, bygg form General 12), innenfor distansens spenn. Startvolumet styrer bare farten dit (8 %/uke, lette uker) og en sikkerhetsgrense på 2 × start; er man allerede over målet, blir taket 1,1 × start (aldri ned). Sykkel: ~1,6 × forventet rittid per uke (minst 75 min per tur), bygg form 90 min per tur, maks 150 min per tur og 15 t/uke; innendørs × 0,85 | Brukeren: «Bør ikke volumtak komme fra hva man trener til?» Tidligere 1,3 × (bygg) / 1,5 × (løp) av start uansett mål |
