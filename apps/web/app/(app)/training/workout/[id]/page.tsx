@@ -5,7 +5,7 @@ import { ChevronLeft, Watch } from "lucide-react";
 import { formatPace, fuelingFor, type Block, type Step, type WorkoutType } from "@loop/core";
 import { requireUser } from "@/lib/supabase/server";
 import { loadWorkout } from "@/lib/training/view";
-import { bibNumber, fmtClock, fmtMinutes, fmtPaceRange, paceFromSpeed } from "@/lib/training/format";
+import { bibNumber, fmtClock, fmtMinutes, fmtPaceRange, paceFromSpeed, typeKey } from "@/lib/training/format";
 import { FuelSection } from "@/components/training/FuelSection";
 import { CoachButton } from "@/components/coach/CoachButton";
 import { Bib } from "@/components/tasuki/Bib";
@@ -60,7 +60,8 @@ export default async function WorkoutPage({ params }: PageProps<"/training/worko
 
   const a = w.activity;
   const pace = a && a.distanceKm > 0 ? formatPace((a.movingS ?? a.durationS) / a.distanceKm) : null;
-  const { big, unit } = bibNumber(w.title, w.plannedKm);
+  const ride = w.sport === "ride";
+  const { big, unit } = bibNumber(w.title, w.plannedKm, ride ? { durationS: w.plannedDurationS } : undefined);
   const date = format.dateTime(new Date(`${w.date}T00:00:00Z`), { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
   const status = w.status === "removed" ? null : t(w.status);
   const watch = w.push === "pushed" ? t("onWatch") : w.push === "failed" ? t("pushFailed") : t("notOnWatch");
@@ -74,7 +75,7 @@ export default async function WorkoutPage({ params }: PageProps<"/training/worko
 
       <Bib
         type={w.type}
-        label={t(`types.${w.type}`)}
+        label={t(typeKey(w.type, w.sport))}
         big={big}
         unit={unit}
         meta={
@@ -89,7 +90,7 @@ export default async function WorkoutPage({ params }: PageProps<"/training/worko
               <Watch className="size-4 shrink-0" />
               <span>{watch}</span>
               <span className="num ml-auto font-bold">
-                {w.plannedKm} km, {fmtMinutes(w.plannedDurationS)}
+                {ride ? t("rideAbout", { time: fmtMinutes(w.plannedDurationS), km: w.plannedKm }) : `${w.plannedKm} km, ${fmtMinutes(w.plannedDurationS)}`}
               </span>
             </>
           ) : undefined
@@ -118,12 +119,12 @@ export default async function WorkoutPage({ params }: PageProps<"/training/worko
               <p className="num pt-1 font-extrabold text-primary">{t("repeat", { times: b.times })}</p>
               <div className="border-l-2 border-foreground pl-3">
                 {b.steps.map((s, j) => (
-                  <StepRow key={j} s={s} label={t(`step.${s.kind}`)} open={t("open")} />
+                  <StepRow key={j} s={s} label={t(ride && s.kind === "run" ? "step.ride" : `step.${s.kind}`)} open={t("open")} />
                 ))}
               </div>
             </div>
           ) : (
-            <StepRow key={i} s={b} label={t(`step.${b.kind}`)} open={t("open")} />
+            <StepRow key={i} s={b} label={t(ride && b.kind === "run" ? "step.ride" : `step.${b.kind}`)} open={t("open")} />
           ),
         )}
       </div>
@@ -131,7 +132,7 @@ export default async function WorkoutPage({ params }: PageProps<"/training/worko
       {w.status !== "removed" && (
         <FuelSection
           workoutId={w.id}
-          fueling={fuelingFor({ type: w.type, plannedDurationS: w.plannedDurationS }, w.kg)}
+          fueling={fuelingFor({ type: w.type, plannedDurationS: w.plannedDurationS }, w.kg, w.sport)}
           initialAdvice={w.fuelAdvice}
           canSuggest={w.upcoming}
         />

@@ -39,6 +39,16 @@ interface Preview {
   firstWeek: { date: string; type: WorkoutType; title: string; km: number }[];
 }
 
+/** Cycling preview (time and heart rate). */
+interface RidePreview {
+  sport: "ride";
+  rideFitness: { baseMinPerWeek: number; lthr: number; lthrSource: "garmin_cycling" | "garmin_running" | "max_hr" | "default"; rideCount: number };
+  indoor: boolean;
+  weeks: { week: number; phase: string; km: number; minutes: number }[];
+  predictedTimeS: number | null;
+  firstWeek: { date: string; type: WorkoutType; title: string; km: number; minutes: number }[];
+}
+
 export function PlanWizard({ minDate }: { minDate: string }) {
   const t = useTranslations("planWizard");
   const tt = useTranslations("training");
@@ -58,16 +68,35 @@ export function PlanWizard({ minDate }: { minDate: string }) {
   const [recentDist, setRecentDist] = useState<Distance | null>(null);
   const [recentTime, setRecentTime] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
+  const [ridePreview, setRidePreview] = useState<RidePreview | null>(null);
+  const [sport, setSport] = useState<"run" | "ride">("run");
+  const [rideGoal, setRideGoal] = useState<"event" | "build">("event");
+  const [eventKm, setEventKm] = useState("");
+  const [eventElev, setEventElev] = useState("");
+  /** Where the rider rides right now: the rider says, the app doesn't guess. */
+  const [indoor, setIndoor] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const isRace = goal !== "build";
   const targetS = targetTime.trim() ? parseClock(targetTime) : null;
   const recentS = recentTime.trim() ? parseClock(recentTime) : null;
-  const goalValid = !isRace || (raceDate >= minDate && (targetTime.trim() === "" || targetS != null));
+  const kmNum = Number(eventKm.replace(",", "."));
+  const elevNum = eventElev.trim() ? Number(eventElev) : null;
+  const goalValid =
+    sport === "ride"
+      ? rideGoal === "build" || (raceDate >= minDate && kmNum >= 10 && kmNum <= 1500 && (elevNum == null || (Number.isInteger(elevNum) && elevNum >= 0)))
+      : !isRace || (raceDate >= minDate && (targetTime.trim() === "" || targetS != null));
   const daysValid = days.length >= 2 && runs <= days.length && days.includes(longDay);
 
-  const body = () => ({
-    goal: isRace ? { kind: "race", distance: goal, raceDate, targetTimeS: targetS } : { kind: "build", focus },
+  const body = (over: { indoor?: boolean } = {}) => ({
+    sport,
+    ...(sport === "ride"
+      ? {
+          ride: { goal: rideGoal === "event" ? { kind: "event", date: raceDate, km: kmNum, elevationM: elevNum } : { kind: "build" } },
+          indoor: over.indoor ?? indoor,
+        }
+      : {}),
+    goal: sport === "ride" ? { kind: "build" } : isRace ? { kind: "race", distance: goal, raceDate, targetTimeS: targetS } : { kind: "build", focus },
     hills,
     weekdays: days,
     longRunWeekday: longDay,
@@ -82,9 +111,9 @@ export function PlanWizard({ minDate }: { minDate: string }) {
     if (!next.includes(longDay) && next.length) setLongDay(next.includes(0) ? 0 : next.includes(6) ? 6 : next[next.length - 1]!);
   }
 
-  async function post(url: string) {
+  async function post(url: string, over: { indoor?: boolean } = {}) {
     setBusy(true);
-    const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body()) }).catch(() => null);
+    const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body(over)) }).catch(() => null);
     setBusy(false);
     const json = await res?.json().catch(() => ({}));
     if (!res?.ok) {
@@ -95,10 +124,16 @@ export function PlanWizard({ minDate }: { minDate: string }) {
     return json;
   }
 
-  async function toPreview() {
-    const p = await post("/api/training/plan/preview");
+  async function toPreview(over: { indoor?: boolean } = {}) {
+    const p = await post("/api/training/plan/preview", over);
     if (p) {
-      setPreview(p);
+      if (p.sport === "ride") {
+        setRidePreview(p);
+        setPreview(null);
+      } else {
+        setPreview(p);
+        setRidePreview(null);
+      }
       setStep(2);
     }
   }
@@ -125,7 +160,61 @@ export function PlanWizard({ minDate }: { minDate: string }) {
     <div className="flex flex-col gap-4">
       {step === 0 && (
         <section className="flex flex-col gap-5">
+          <div className="flex gap-2">
+            {(["run", "ride"] as const).map((s) => (
+              <Chip key={s} selected={sport === s} onClick={() => setSport(s)} className="px-4">
+                {t(s === "run" ? "sportRun" : "sportRide")}
+              </Chip>
+            ))}
+          </div>
           <h2 className="cond text-[22px] leading-tight">{t("goalTitle")}</h2>
+          {sport === "ride" && (
+            <>
+              <div className="flex flex-wrap gap-2">
+                <Chip selected={rideGoal === "event"} onClick={() => setRideGoal("event")}>
+                  {t("rideEvent")}
+                </Chip>
+                <Chip selected={rideGoal === "build"} onClick={() => setRideGoal("build")}>
+                  {t("build")}
+                </Chip>
+              </div>
+              {rideGoal === "event" && (
+                <>
+                  <label className="flex flex-col gap-1.5 text-sm text-muted-foreground">
+                    {t("eventDate")}
+                    <input
+                      type="date"
+                      min={minDate}
+                      value={raceDate}
+                      onChange={(e) => setRaceDate(e.target.value)}
+                      className="h-14 rounded-md border border-border bg-card px-4 text-base text-foreground outline-none focus:border-primary"
+                    />
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="flex flex-col gap-1.5 text-sm text-muted-foreground">
+                      {t("eventKm")}
+                      <input
+                        inputMode="decimal"
+                        value={eventKm}
+                        onChange={(e) => setEventKm(e.target.value)}
+                        className="num h-14 rounded-md border border-border bg-card px-4 text-base text-foreground outline-none focus:border-primary"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1.5 text-sm text-muted-foreground">
+                      {t("eventElev")}
+                      <input
+                        inputMode="numeric"
+                        value={eventElev}
+                        onChange={(e) => setEventElev(e.target.value.replace(/\D/g, ""))}
+                        className="num h-14 rounded-md border border-border bg-card px-4 text-base text-foreground outline-none focus:border-primary"
+                      />
+                    </label>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+          {sport === "run" && (<>
           <div className="flex flex-wrap gap-2">
             {DISTANCES.map((d) => (
               <Chip key={d} selected={goal === d} onClick={() => setGoal(d)}>
@@ -161,7 +250,8 @@ export function PlanWizard({ minDate }: { minDate: string }) {
               </label>
             </>
           )}
-          {!isRace && (
+          </>)}
+          {sport === "run" && !isRace && (
             <div className="flex flex-col gap-2">
               <p className="text-sm text-muted-foreground">{t("focus")}</p>
               <div className="flex flex-wrap gap-2">
@@ -213,7 +303,20 @@ export function PlanWizard({ minDate }: { minDate: string }) {
             </div>
           </div>
           <div>
-            <p className="mb-2 text-sm text-muted-foreground">{t("runs")}</p>
+            {sport === "ride" && (
+              <div className="mb-5">
+                <p className="mb-2 text-sm text-muted-foreground">{t("whereRide")}</p>
+                <div className="flex flex-wrap gap-2">
+                  <Chip selected={!indoor} onClick={() => setIndoor(false)} className="px-4">
+                    {t("outdoors")}
+                  </Chip>
+                  <Chip selected={indoor} onClick={() => setIndoor(true)} className="px-4">
+                    {t("indoors")}
+                  </Chip>
+                </div>
+              </div>
+            )}
+            <p className="mb-2 text-sm text-muted-foreground">{t(sport === "ride" ? "rides" : "runs")}</p>
             <div className="flex flex-wrap gap-2">
               {[2, 3, 4, 5, 6].map((n) => (
                 <Chip key={n} selected={runs === n} disabled={n > days.length} onClick={() => setRuns(n)} className="w-12 px-0">
@@ -223,7 +326,7 @@ export function PlanWizard({ minDate }: { minDate: string }) {
             </div>
           </div>
           <div>
-            <p className="mb-2 text-sm text-muted-foreground">{t("longDay")}</p>
+            <p className="mb-2 text-sm text-muted-foreground">{t(sport === "ride" ? "longRide" : "longDay")}</p>
             <div className="flex flex-wrap gap-2">
               {WEEK.filter((d) => days.includes(d)).map((d) => (
                 <Chip key={d} selected={longDay === d} onClick={() => setLongDay(d)} className="px-3">
@@ -232,6 +335,7 @@ export function PlanWizard({ minDate }: { minDate: string }) {
               ))}
             </div>
           </div>
+          {sport === "run" && (
           <div className="border-t border-border pt-4">
             <p className="mb-2 text-sm font-bold">{t("recentTitle")}</p>
             <div className="flex flex-wrap gap-2">
@@ -251,12 +355,92 @@ export function PlanWizard({ minDate }: { minDate: string }) {
               />
             )}
           </div>
+          )}
           <div className="flex gap-2">
             <Button variant="secondary" className="h-12 flex-1" onClick={() => setStep(0)}>
               {t("back")}
             </Button>
-            <Button className="h-12 flex-1" disabled={!daysValid || busy || (!!recentDist && recentS == null)} onClick={toPreview}>
+            <Button className="h-12 flex-1" disabled={!daysValid || busy || (sport === "run" && !!recentDist && recentS == null)} onClick={() => toPreview()}>
               {t("next")}
+            </Button>
+          </div>
+        </section>
+      )}
+
+      {step === 2 && ridePreview && (
+        <section className="flex flex-col gap-5">
+          <h2 className="cond text-[22px] leading-tight">{t("previewTitle")}</h2>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <p className="text-muted-foreground">{t("lthr")}</p>
+              <p className="num text-2xl font-extrabold">{ridePreview.rideFitness.lthr}</p>
+              <p className="text-xs text-muted-foreground">{t(`lthrSource.${ridePreview.rideFitness.lthrSource}`)}</p>
+            </div>
+            {ridePreview.predictedTimeS != null && (
+              <div>
+                <p className="text-muted-foreground">{t("expected")}</p>
+                <p className="num text-2xl font-extrabold">{fmtClock(ridePreview.predictedTimeS)}</p>
+              </div>
+            )}
+          </div>
+          <p className="-mt-2 text-xs text-muted-foreground">{t("startHours", { h: Math.round(ridePreview.rideFitness.baseMinPerWeek / 6) / 10 })}</p>
+          <div className="flex items-center justify-between gap-4 border-y border-border py-3">
+            <span>
+              <span className="block text-[15px] font-semibold">{t("indoorPreset")}</span>
+              <span className="block text-xs text-muted-foreground">{t("indoorPresetHint")}</span>
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={ridePreview.indoor}
+              aria-label={t("indoorPreset")}
+              disabled={busy}
+              onClick={() => {
+                setIndoor(!ridePreview.indoor);
+                void toPreview({ indoor: !ridePreview.indoor });
+              }}
+              className={cn("relative h-7 w-12 shrink-0 rounded-full transition-colors", ridePreview.indoor ? "bg-primary" : "bg-muted")}
+            >
+              <span className={cn("absolute top-1 size-5 rounded-full bg-card shadow transition-[left]", ridePreview.indoor ? "left-6" : "left-1")} />
+            </button>
+          </div>
+          <div>
+            <div className="mb-1 flex justify-between text-xs text-muted-foreground">
+              <span>{t("weeks", { n: ridePreview.weeks.length })}</span>
+              <span>{t("peakHours", { h: Math.round(Math.max(...ridePreview.weeks.map((w) => w.minutes)) / 6) / 10 })}</span>
+            </div>
+            <div className="flex h-20 items-end gap-0.5">
+              {ridePreview.weeks.map((w) => (
+                <div
+                  key={w.week}
+                  title={`${Math.round(w.minutes / 6) / 10} h`}
+                  className="flex-1 rounded-t-sm"
+                  style={{
+                    height: `${Math.max(4, (w.minutes / Math.max(1, ...ridePreview.weeks.map((x) => x.minutes))) * 100)}%`,
+                    background: w.phase === "taper" ? "var(--w-race)" : w.phase === "recovery" ? "var(--muted)" : "var(--primary)",
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="mb-1 text-sm font-medium">{t("firstWeek")}</p>
+            {ridePreview.firstWeek.map((w) => (
+              <div key={w.date + w.title} className="flex items-center gap-3 py-1.5 text-sm">
+                <span className="w-16 text-muted-foreground">
+                  {format.dateTime(new Date(`${w.date}T00:00:00Z`), { weekday: "short", day: "numeric" })}
+                </span>
+                <span className="h-4 w-1.5 -skew-x-[18deg]" style={{ background: typeColor(w.type) }} />
+                <span className="flex-1 truncate">{w.title}</span>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="secondary" className="h-12 flex-1" onClick={() => setStep(1)}>
+              {t("back")}
+            </Button>
+            <Button className="h-12 flex-1" disabled={busy} onClick={create}>
+              {busy ? t("creating") : t("create")}
             </Button>
           </div>
         </section>

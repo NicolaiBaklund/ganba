@@ -1,4 +1,4 @@
-import type { Block, CoachBlock, CoachStep, PaceZone, Paces, RaceDistance, Step, Target, WorkoutType } from "./types";
+import type { Block, CoachBlock, CoachStep, HrZone, PaceZone, Paces, RaceDistance, Step, Target, WorkoutType } from "./types";
 
 export interface BuiltWorkout {
   type: WorkoutType;
@@ -12,7 +12,26 @@ export interface BuildContext {
   paces: Paces;
   /** Goal race pace (s/km) for race-day workouts. */
   racePaceS?: number;
+  /** Cycling plans: heart-rate targets from this LTHR instead of pace targets. */
+  lthr?: number;
 }
+
+/** Friel zones as share of LTHR (cycling); "ss" = sweet spot. Shared with ride.ts. */
+export const HR_ZONE_PCT: Record<HrZone, [number, number]> = {
+  z1: [0.65, 0.81],
+  z2: [0.81, 0.89],
+  z3: [0.9, 0.93],
+  ss: [0.93, 0.97],
+  z4: [0.94, 0.99],
+  z5: [1.0, 1.06],
+};
+const hrFor = (zone: HrZone, lthr: number): Target => ({
+  kind: "hr",
+  zone,
+  minBpm: Math.round(lthr * HR_ZONE_PCT[zone][0]),
+  maxBpm: Math.round(lthr * HR_ZONE_PCT[zone][1]),
+});
+const HR_SET = new Set<string>(["z1", "z2", "z3", "ss", "z4", "z5"]);
 
 const BAND = 5; // ± s/km around a single pace
 
@@ -389,8 +408,15 @@ export const defaultTitle = (type: WorkoutType, km: number) => `${TYPE_LABEL[typ
 /** Coach steps → blocks. No zone: easy (recover: no target). km wins over minutes; neither = lap button. */
 export function blocksFromSteps(steps: readonly CoachBlock[], ctx: BuildContext): Block[] {
   const one = (s: CoachStep): Step => {
-    const zone = s.zone ?? (s.kind === "recover" ? "none" : "easy");
-    const target: Target = zone === "none" ? { kind: "none" } : targetFor(zone, ctx.paces, ctx.racePaceS);
+    // Cycling plans: heart-rate zones (a pace zone falls back to Z2, recoveries to Z1).
+    if (ctx.lthr) {
+      const z = s.zone == null ? (s.kind === "recover" || s.kind === "cooldown" ? "z1" : "z2") : s.zone;
+      const target: Target = z === "none" ? { kind: "none" } : hrFor(HR_SET.has(z) ? (z as HrZone) : "z2", ctx.lthr);
+      const duration: Step["duration"] = s.minutes != null && s.minutes > 0 ? time(Math.round(s.minutes * 60)) : s.km != null && s.km > 0 ? dist(s.km) : { kind: "open" };
+      return step(s.kind, duration, target);
+    }
+    const zone = (s.zone && !HR_SET.has(s.zone) ? s.zone : null) ?? (s.kind === "recover" ? "none" : "easy");
+    const target: Target = zone === "none" ? { kind: "none" } : targetFor(zone as PaceZone, ctx.paces, ctx.racePaceS);
     const duration: Step["duration"] =
       s.km != null && s.km > 0 ? dist(s.km) : s.minutes != null && s.minutes > 0 ? time(Math.round(s.minutes * 60)) : { kind: "open" };
     return step(s.kind, duration, target);
@@ -406,7 +432,7 @@ export const stepCount = (steps: readonly CoachBlock[]): number =>
 export function describeBlocks(blocks: readonly Block[]): string {
   const one = (s: Step) => {
     const d = s.duration.kind === "distance" ? `${r1(s.duration.m / 1000)} km` : s.duration.kind === "time" ? `${r1(s.duration.s / 60)} min` : "open";
-    return `${s.kind} ${d}${s.target.kind === "pace" ? ` ${s.target.zone}` : ""}`;
+    return `${s.kind} ${d}${s.target.kind === "pace" || s.target.kind === "hr" ? ` ${s.target.zone}` : ""}`;
   };
   return blocks.map((b) => (b.kind === "repeat" ? `${b.times}× (${b.steps.map(one).join(", ")})` : one(b))).join("; ");
 }

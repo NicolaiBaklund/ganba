@@ -11,7 +11,16 @@ export type Phase = "base" | "build" | "peak" | "taper" | "recovery";
 
 export type PaceZone = "easy" | "marathon" | "threshold" | "interval" | "rep" | "race";
 
-export type Target = { kind: "pace"; zone: PaceZone; minSecPerKm: number; maxSecPerKm: number } | { kind: "none" };
+/** Cycling heart-rate zones (Friel, % of LTHR); "ss" = sweet spot. */
+export type HrZone = "z1" | "z2" | "z3" | "ss" | "z4" | "z5";
+export const HR_ZONES: readonly HrZone[] = ["z1", "z2", "z3", "ss", "z4", "z5"];
+
+export type Target =
+  | { kind: "pace"; zone: PaceZone; minSecPerKm: number; maxSecPerKm: number }
+  | { kind: "hr"; zone: HrZone; minBpm: number; maxBpm: number }
+  | { kind: "none" };
+
+export type Sport = "run" | "ride";
 
 export type Duration = { kind: "distance"; m: number } | { kind: "time"; s: number } | { kind: "open" };
 
@@ -34,7 +43,8 @@ export interface CoachStep {
   kind: "warmup" | "run" | "recover" | "cooldown";
   km?: number | null;
   minutes?: number | null;
-  zone?: PaceZone | "none" | null;
+  /** Pace zones for running plans, heart-rate zones for cycling plans. */
+  zone?: PaceZone | HrZone | "none" | null;
 }
 export type CoachBlock = CoachStep | { repeat: number; steps: CoachStep[] };
 
@@ -100,5 +110,6 @@ export type ProposalChange =
   | { op: "replace"; workoutId: string; type: WorkoutType; km: number }
   | { op: "rescale"; fromDate: ISODate; factor: number }
   | { op: "repace"; vdot: number }
+  | { op: "rezone"; lthr: number }
   | { op: "edit"; workoutId: string; type?: WorkoutType; title?: string; steps: CoachBlock[] }
   | { op: "add"; date: ISODate; type: WorkoutType; title?: string; steps: CoachBlock[] };

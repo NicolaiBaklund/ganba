@@ -7,6 +7,8 @@ export interface ActivityLike {
   distanceM: number | null;
   durationS: number | null;
   steps: number | null;
+  /** Garmin's calories for the activity (gross, incl. resting burn), when synced. */
+  kcal?: number | null;
 }
 
 export interface DayActivity {
@@ -55,8 +57,12 @@ const runSteps = (a: ActivityLike): number =>
 export const walkingKcalForSteps = (steps: number, kg: number): number =>
   (Math.max(0, steps - C.BASELINE_STEPS) / 1000) * C.WALK_KCAL_PER_KG_PER_1000_STEPS * kg;
 
+/** Resting burn during an activity, already counted in the base (≈ 1 kcal per kg per hour). */
+const restingKcal = (durationS: number, kg: number) => (durationS / 3600) * kg;
+
 /**
- * Activity energy for one day from raw Garmin data (own formulas, not Garmin's calories).
+ * Activity energy for one day. Runs use the app's own formula (distance × weight). Other workouts (cycling,
+ * swimming …) use Garmin's heart-rate-based calories minus the resting burn when synced, else a MET estimate.
  * Running steps are taken out of the step count so a run is not counted twice.
  */
 export function activityKcal(day: DayActivity, kg: number): ActivityKcal {
@@ -65,7 +71,14 @@ export function activityKcal(day: DayActivity, kg: number): ActivityKcal {
   const walkSteps = Math.max(0, (day.steps ?? 0) - runs.reduce((s, a) => s + runSteps(a), 0));
   const walkingKcal = walkingKcalForSteps(walkSteps, kg);
   const run = runs.reduce((s, a) => s + runKcal((a.distanceM ?? 0) / 1000, kg), 0);
-  const other = others.reduce((s, a) => s + ((a.durationS ?? 0) / 3600) * (metFor(a.typeKey) - 1) * kg, 0);
+  const other = others.reduce(
+    (s, a) =>
+      s +
+      (a.kcal != null && a.kcal > 0
+        ? Math.max(0, a.kcal - restingKcal(a.durationS ?? 0, kg))
+        : ((a.durationS ?? 0) / 3600) * (metFor(a.typeKey) - 1) * kg),
+    0,
+  );
   const r = Math.round;
   return { walkingKcal: r(walkingKcal), runKcal: r(run), otherKcal: r(other), total: r(walkingKcal + run + other) };
 }

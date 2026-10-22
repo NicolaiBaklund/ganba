@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { Sash } from "@/components/tasuki/Sash";
 import { cn } from "@/lib/utils";
+import { bibNumber } from "@/lib/training/format";
 import type { WorkoutListItem } from "@/lib/training/view";
 
 export function WorkoutRow({ w, today }: { w: WorkoutListItem; today: string }) {
@@ -33,7 +34,7 @@ export function WorkoutRow({ w, today }: { w: WorkoutListItem; today: string }) 
         <span className="block truncate font-bold">{w.title}</span>
         {sub && <span className={cn("block text-xs", w.status === "done" ? "text-success" : "text-muted-foreground")}>{sub}</span>}
       </span>
-      <span className="num font-extrabold">{w.plannedKm}</span>
+      <span className="num font-extrabold">{w.sport === "ride" ? bibNumber("", 0, { durationS: w.plannedDurationS }).big : w.plannedKm}</span>
     </Link>
   );
 }

@@ -14,8 +14,19 @@ export interface Fueling {
 const HARD: ReadonlySet<WorkoutType> = new Set(["intervals", "threshold", "tempo", "race", "test"]);
 const round5 = (n: number) => Math.round(n / 5) * 5;
 
-export function fuelingFor(w: { type: WorkoutType; plannedDurationS: number }, kg: number): Fueling {
+export function fuelingFor(w: { type: WorkoutType; plannedDurationS: number }, kg: number, sport: "run" | "ride" = "run"): Fueling {
   const minutes = w.plannedDurationS / 60;
+  // On the bike the gut takes more: 60 g/h from 75 min, up to 90 g/h past 2.5 h.
+  if (sport === "ride") {
+    const demanding = HARD.has(w.type) || minutes >= 75;
+    return {
+      before: demanding
+        ? { kind: "carbs", carbsG: round5(kg * (w.type === "race" || minutes >= 120 ? 1.5 : 1)), hoursBefore: [2, 3] }
+        : { kind: "meal", carbsG: null, hoursBefore: [2, 3] },
+      during: minutes >= 75 ? { carbsPerHour: minutes > 150 ? [60, 90] : [40, 60], fluidMlPerHour: [500, 1000] } : null,
+      after: { proteinG: round5(kg * 0.3), carbsG: demanding ? round5(kg * 1) : null },
+    };
+  }
   const demanding = HARD.has(w.type) || minutes >= 60;
   return {
     before: demanding
@@ -38,7 +49,7 @@ export const FuelAdviceSchema = z.object({
 });
 export type FuelAdvice = z.infer<typeof FuelAdviceSchema>;
 
-export const FUEL_SYSTEM_PROMPT = `You suggest concrete, everyday foods around one planned run.
+export const FUEL_SYSTEM_PROMPT = `You suggest concrete, everyday foods around one planned training session (a run or a ride).
 You get the session, the fueling targets (grams, already calculated — keep to them), what the runner has eaten today and what is left of today's calorie and macro targets.
 - Give 1–2 short suggestions per phase, each with an amount ("2 slices of bread with jam, ~60 g carbs").
 - Prefer simple foods most people have at home; fit within what is left today where possible.

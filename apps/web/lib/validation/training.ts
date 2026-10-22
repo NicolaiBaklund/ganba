@@ -18,13 +18,26 @@ export const PlanInputSchema = z
     longRunWeekday: weekday,
     runsPerWeek: z.number().int().min(2).max(6),
     hills: z.boolean().optional(),
+    sport: z.enum(["run", "ride"]).optional(),
+    /** Cycling: riding on a trainer right now (the rider chooses). */
+    indoor: z.boolean().optional(),
+    /** Cycling plans: an event (date, km, climbing) or build fitness. `goal` is ignored then. */
+    ride: z
+      .object({
+        goal: z.discriminatedUnion("kind", [
+          z.object({ kind: z.literal("event"), date: isoDate, km: z.number().min(10).max(1500), elevationM: z.number().int().min(0).max(30_000).nullable().optional() }),
+          z.object({ kind: z.literal("build") }),
+        ]),
+      })
+      .optional(),
     recentRace: z
       .object({ distanceM: z.number().min(1000).max(50_000), timeS: z.number().int().min(120).max(30_000) })
       .nullable()
       .optional(),
   })
   .refine((p) => p.runsPerWeek <= new Set(p.weekdays).size, { message: "more runs than days", path: ["runsPerWeek"] })
-  .refine((p) => p.weekdays.includes(p.longRunWeekday), { message: "long run day not allowed", path: ["longRunWeekday"] });
+  .refine((p) => p.weekdays.includes(p.longRunWeekday), { message: "long run day not allowed", path: ["longRunWeekday"] })
+  .refine((p) => p.sport !== "ride" || !!p.ride, { message: "ride goal missing", path: ["ride"] });
 
 export type PlanInputBody = z.infer<typeof PlanInputSchema>;
 

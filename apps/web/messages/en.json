@@ -344,7 +344,8 @@
       "warmup": "Warm up",
       "run": "Run",
       "recover": "Recover",
-      "cooldown": "Cool down"
+      "cooldown": "Cool down",
+      "ride": "Ride"
     },
     "open": "Until lap press",
     "types": {
@@ -360,7 +361,20 @@
     "next": "Next:",
     "nextText": "{day}, {type} {km} km",
     "bibMeta": "{km} km in about {time}",
-    "doneKm": "Done: {km} km"
+    "doneKm": "Done: {km} km",
+    "rideTypes": {
+      "easy": "Endurance",
+      "long": "Long ride",
+      "intervals": "VO2",
+      "threshold": "Threshold",
+      "tempo": "Tempo",
+      "strides": "Endurance",
+      "race": "Event",
+      "test": "Ride test"
+    },
+    "rideAbout": "{time}, about {km} km",
+    "bibMetaRide": "{time}, about {km} km",
+    "nextTextRide": "{day}, {type} {time}"
   },
   "training": {
     "title": "Training",
@@ -408,7 +422,15 @@
     },
     "weeksLeftLabel": "Weeks left",
     "raceDay": "Race day",
-    "buildShort": "Build"
+    "buildShort": "Build",
+    "rideBuild": "Build cycling fitness",
+    "eventDay": "Event day",
+    "expected": "Expected",
+    "lthr": "Threshold HR",
+    "zones": "Heart rate zones",
+    "indoor": "Riding indoors",
+    "indoorHint": "Trainer season: long rides up to 2.5 h, easy rides up to 90 min. Switching rebuilds your upcoming rides.",
+    "indoorError": "Couldn't switch. Try again."
   },
   "proposal": {
     "title": {
@@ -466,7 +488,30 @@
     "focusDistanceHint": "Trains like a plan for that distance, with no race day. A 5K test every 8 weeks keeps your paces right.",
     "hills": "I have hills nearby",
     "hillsHint": "Adds hill repeats. Off: everything runs on flat ground.",
-    "startKm": "Starts at {km} km/week (your best recent week)"
+    "startKm": "Starts at {km} km/week (your best recent week)",
+    "sportRun": "Running",
+    "sportRide": "Cycling",
+    "rideEvent": "Event",
+    "eventDate": "Event date",
+    "eventKm": "Distance (km)",
+    "eventElev": "Climbing (m, optional)",
+    "rides": "Rides per week",
+    "longRide": "Long ride day",
+    "lthr": "Threshold heart rate",
+    "lthrSource": {
+      "garmin_cycling": "From Garmin (cycling).",
+      "garmin_running": "From Garmin: your running threshold minus 5.",
+      "max_hr": "Estimated from your highest heart rate.",
+      "default": "A starting estimate; the ride test in your plan sets it properly."
+    },
+    "expected": "Expected time",
+    "startHours": "Starts at {h} h/week (your best recent week)",
+    "peakHours": "Peak {h} h/week",
+    "indoorPreset": "Riding indoors",
+    "indoorPresetHint": "Trainer season: long rides up to 2.5 h. You can switch later on the Training page.",
+    "whereRide": "Where do you ride now?",
+    "outdoors": "Outdoors",
+    "indoors": "Indoors (trainer)"
   },
   "garmin": {
     "title": "Garmin",

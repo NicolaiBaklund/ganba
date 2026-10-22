@@ -2,7 +2,7 @@ import "server-only";
 import type { Block, Step, WorkoutSpec } from "@loop/core";
 
 /**
- * Plan workout → Garmin Connect workout JSON (running).
+ * Plan workout → Garmin Connect workout JSON (running or cycling).
  * IDs follow Garmin Connect's own workout export: end condition lap.button 1, time 2, distance 3,
  * iterations 7; target no.target 1, pace.zone 6 (values in m/s, slower first).
  * Easy-zone steps (easy and long runs, warm-ups, cool-downs) go without a pace target: run them by feel, no alerts.
@@ -25,7 +25,10 @@ const COND = {
 
 const NO_TARGET = { workoutTargetTypeId: 1, workoutTargetTypeKey: "no.target", displayOrder: 1 };
 const PACE_TARGET = { workoutTargetTypeId: 6, workoutTargetTypeKey: "pace.zone", displayOrder: 6 };
+/** Custom heart-rate range in bpm (targetValueOne = low, targetValueTwo = high). */
+const HR_TARGET = { workoutTargetTypeId: 4, workoutTargetTypeKey: "heart.rate.zone", displayOrder: 4 };
 const RUNNING = { sportTypeId: 1, sportTypeKey: "running", displayOrder: 1 };
+const CYCLING = { sportTypeId: 2, sportTypeKey: "cycling", displayOrder: 2 };
 
 const mps = (secPerKm: number) => Math.round((1000 / secPerKm) * 1000) / 1000;
 
@@ -39,7 +42,9 @@ function stepJson(s: Step, order: { n: number }) {
     endConditionValue: s.duration.kind === "distance" ? s.duration.m : s.duration.kind === "time" ? s.duration.s : null,
     ...(s.target.kind === "pace" && s.target.zone !== "easy"
       ? { targetType: PACE_TARGET, targetValueOne: mps(s.target.maxSecPerKm), targetValueTwo: mps(s.target.minSecPerKm) }
-      : { targetType: NO_TARGET }),
+      : s.target.kind === "hr"
+        ? { targetType: HR_TARGET, targetValueOne: s.target.minBpm, targetValueTwo: s.target.maxBpm }
+        : { targetType: NO_TARGET }),
   };
 }
 
@@ -58,13 +63,15 @@ function blockJson(b: Block, order: { n: number }): Record<string, unknown> {
   };
 }
 
-export function toGarminWorkout(w: Pick<WorkoutSpec, "title" | "blocks" | "plannedDurationS">) {
+/** Cycling sessions go to Garmin as cycling workouts, so they sync to Edge bike computers as well as watches. */
+export function toGarminWorkout(w: Pick<WorkoutSpec, "title" | "blocks" | "plannedDurationS">, sport: "run" | "ride" = "run") {
   const order = { n: 1 };
+  const sportType = sport === "ride" ? CYCLING : RUNNING;
   return {
     workoutName: `Ganba: ${w.title}`.slice(0, 80),
     description: "Planned by Ganba",
-    sportType: RUNNING,
+    sportType,
     estimatedDurationInSecs: w.plannedDurationS,
-    workoutSegments: [{ segmentOrder: 1, sportType: RUNNING, workoutSteps: w.blocks.map((b) => blockJson(b, order)) }],
+    workoutSegments: [{ segmentOrder: 1, sportType, workoutSteps: w.blocks.map((b) => blockJson(b, order)) }],
   };
 }

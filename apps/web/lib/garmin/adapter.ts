@@ -65,6 +65,8 @@ export interface GarminSource {
   loginMfa(mfaState: unknown, code: string): Promise<{ ok: true; tokens: string }>;
   fetch(tokens: string, from: string, to: string, knownIds: number[]): Promise<FetchResult>;
   fetchRecovery(tokens: string, dates: string[]): Promise<FetchRecoveryResult>;
+  /** Lactate threshold heart rates (for cycling zones); null when Garmin has none. */
+  fetchThresholds(tokens: string): Promise<{ lthrRunning: number | null; lthrCycling: number | null; tokens: string | null }>;
   pushWorkout(tokens: string, workout: unknown, date: string): Promise<{ workoutId: number; scheduleId: number | null; tokens: string | null }>;
   deleteWorkout(tokens: string, workoutId: number, scheduleId: number | null): Promise<{ tokens: string | null }>;
 }
@@ -103,6 +105,7 @@ export const httpGarmin = (): GarminSource => ({
   fetch: (tokens, from, to, knownIds) => call({ op: "fetch", tokens, from, to, knownIds }),
   // Extra to the sync, so it must leave room within the 120 s function limit for the rest.
   fetchRecovery: (tokens, dates) => call({ op: "fetch_recovery", tokens, dates }, 40_000),
+  fetchThresholds: (tokens) => call({ op: "fetch_thresholds", tokens }, 20_000),
   pushWorkout: (tokens, workout, date) => call({ op: "push_workout", tokens, workout, date }),
   deleteWorkout: (tokens, workoutId, scheduleId) => call({ op: "delete_workout", tokens, workoutId, scheduleId }),
 });
