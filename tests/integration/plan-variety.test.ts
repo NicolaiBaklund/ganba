@@ -116,14 +116,9 @@ describe("start volume", () => {
   const runsFor = (weeks: number[]) =>
     weeks.flatMap((km, i) => [1, 3, 5].map((d) => ({ date: addDays(today, -(7 * i + d)), distanceM: (km / 3) * 1000, timeS: (km / 3) * 330 })));
 
-  it("a sick week doesn't drag the start down: best week, capped at 30 % over the average", () => {
-    const f = fitnessFrom(runsFor([11.6, 26.9, 39.6, 43]), today);
-    expect(f.baseKmPerWeek).toBeCloseTo(39.4, 0); // best 43, cap 1.3 × 30.3
-  });
-
-  it("after a break (last two weeks nearly zero) it starts carefully", () => {
-    const f = fitnessFrom(runsFor([0, 0, 40, 40]), today);
-    expect(f.baseKmPerWeek).toBe(20); // the 4-week average, not 26
+  it("starts from the best of the last four weeks, also after a sick or quiet stretch", () => {
+    expect(fitnessFrom(runsFor([11.6, 26.9, 39.6, 43]), today).baseKmPerWeek).toBeCloseTo(43, 0);
+    expect(fitnessFrom(runsFor([0, 0, 40, 40]), today).baseKmPerWeek).toBeCloseTo(40, 0);
   });
 
   it("week 1 matches the start volume", () => {
