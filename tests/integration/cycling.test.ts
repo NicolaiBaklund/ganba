@@ -58,7 +58,7 @@ describe("cycling fitness", () => {
     const rides = [ride(2, 90), ride(4, 60), ride(9, 180), ride(11, 120), ride(16, 120), ride(23, 60)];
     const f = rideFitnessFrom(rides, today, { lthrCycling: 172 });
     expect(f.lthr).toBe(172);
-    expect(f.baseMinPerWeek).toBe(205); // best week 300 min, capped at 1.3 × the 4-week average (157.5)
+    expect(f.baseMinPerWeek).toBe(300); // the best of the last four weeks
     expect(rideFitnessFrom(rides, today, { lthrRunning: 183 }).lthr).toBe(178);
     expect(rideFitnessFrom([ride(3, 60, { maxHr: 190 })], today).lthr).toBe(171);
     expect(rideFitnessFrom([], today).baseMinPerWeek).toBe(180); // no rides: a careful start

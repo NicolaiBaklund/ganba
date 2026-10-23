@@ -68,7 +68,7 @@ export interface RideRecord {
 export interface RideFitness {
   /** Average ride hours per week, last 4 weeks. */
   hoursPerWeek: number;
-  /** Start volume (minutes/week): best week of the last 4, capped; careful after a break; 180 without rides. */
+  /** Start volume (minutes/week): the best week of the last 4; 180 without rides. */
   baseMinPerWeek: number;
   longestMin: number;
   speedKmh: number;
@@ -109,9 +109,7 @@ export function rideFitnessFrom(rides: RideRecord[], today: ISODate, garmin: Rid
   const weeks = [0, 0, 0, 0];
   for (const r of last4) weeks[Math.min(3, Math.floor((daysBetween(r.date, today) - 1) / 7))]! += r.timeS / 60;
   const avg4 = weeks.reduce((s, x) => s + x, 0) / 4;
-  const avg2 = (weeks[0]! + weeks[1]!) / 2;
-  const best = Math.max(...weeks);
-  const base = !last4.length ? NO_RIDES_MIN : avg2 < avg4 * 0.5 ? Math.min(Math.max(avg4, avg2), avg4 * 1.2) : Math.min(best, avg4 * 1.3);
+  const base = !last4.length ? NO_RIDES_MIN : Math.max(...weeks);
 
   const outdoor = valid.filter((r) => !r.indoor && r.timeS >= 1800 && r.distanceM > 0);
   const speedKmh = outdoor.length
