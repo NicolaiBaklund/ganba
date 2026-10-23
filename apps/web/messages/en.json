@@ -481,6 +481,9 @@
     "peak": "Peak {km} km/week",
     "firstWeek": "First sessions",
     "weeks": "{n, plural, one {# week} other {# weeks}}",
+    "ongoing": "Ongoing: the next 4 weeks are added as you go",
+    "towardKm": "Builds toward {km} km/week",
+    "towardHours": "Builds toward {h} h/week",
     "errors": {
       "invalid_race_date": "Pick a race date within the next year.",
       "garmin_required": "Connect Garmin first.",
