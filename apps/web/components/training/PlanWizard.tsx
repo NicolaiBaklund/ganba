@@ -67,6 +67,8 @@ interface RidePreview {
   indoor: boolean;
   power: boolean;
   cross: CrossSession[];
+  /** Weekly hours the plan builds toward (the goal's ceiling). */
+  peakHours: number;
   weeks: { week: number; phase: string; km: number; minutes: number }[];
   predictedTimeS: number | null;
   firstWeek: { date: string; type: WorkoutType; title: string; km: number; minutes: number }[];
@@ -448,8 +450,13 @@ export function PlanWizard({ minDate }: { minDate: string }) {
           {powerSwitch(ridePreview.rideFitness, ridePreview.power)}
           <div>
             <div className="mb-1 flex justify-between text-xs text-muted-foreground">
-              <span>{t("weeks", { n: ridePreview.weeks.length })}</span>
-              <span>{t("peakHours", { h: Math.round(Math.max(...ridePreview.weeks.map((w) => w.minutes)) / 6) / 10 })}</span>
+              {/* Build plans roll on: the bars are the weeks made so far, the ceiling is where the plan heads. */}
+              <span>{rideGoal === "build" ? t("ongoing") : t("weeks", { n: ridePreview.weeks.length })}</span>
+              <span>
+                {rideGoal === "build"
+                  ? t("towardHours", { h: ridePreview.peakHours })
+                  : t("peakHours", { h: Math.round(Math.max(...ridePreview.weeks.map((w) => w.minutes)) / 6) / 10 })}
+              </span>
             </div>
             <div className="flex h-20 items-end gap-0.5">
               {ridePreview.weeks.map((w) => (
@@ -531,8 +538,8 @@ export function PlanWizard({ minDate }: { minDate: string }) {
           )}
           <div>
             <div className="mb-1 flex justify-between text-xs text-muted-foreground">
-              <span>{t("weeks", { n: preview.weeks.length })}</span>
-              <span>{t("peak", { km: preview.peakKm })}</span>
+              <span>{isRace ? t("weeks", { n: preview.weeks.length }) : t("ongoing")}</span>
+              <span>{isRace ? t("peak", { km: preview.peakKm }) : t("towardKm", { km: preview.peakKm })}</span>
             </div>
             <div className="flex h-20 items-end gap-0.5">
               {preview.weeks.map((w) => (

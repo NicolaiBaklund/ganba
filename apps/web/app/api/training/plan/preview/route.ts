@@ -28,6 +28,7 @@ export async function POST(req: Request) {
       indoor,
       power,
       cross: crossWeek(cross),
+      peakHours: Math.round((plan.peakKm / fitness.speedKmh) * 10) / 10,
       weeks: plan.weeks.map((w) => ({ ...w, minutes: weekMinutes(plan, w.week) })),
       predictedTimeS: plan.predictedTimeS,
       firstWeek: plan.workouts.slice(0, parsed.data.runsPerWeek).map((w) => ({ date: w.date, type: w.type, title: w.title, km: w.plannedKm, minutes: Math.round(w.plannedDurationS / 60) })),
