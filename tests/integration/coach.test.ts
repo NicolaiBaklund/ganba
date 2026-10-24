@@ -283,12 +283,15 @@ describe("coach: applying options", () => {
   });
 
   it("if the plan changed meanwhile and the warnings differ, it asks again; confirm applies", async () => {
-    const m = await askFor((p) => [{ title: "Long run tomorrow", summary: "", changes: [{ op: "move", session: refFor(p, "long"), toDate: addDays(today, 1) }] }]);
-    // Meanwhile a hard session lands the day before.
+    // A real move on any weekday: when the long run is already tomorrow (Saturdays), the day after.
     const plan = await activePlan(u.id);
-    const ws = await planWorkouts(plan!.id);
-    const quality = ws.find((w) => ["intervals", "threshold", "tempo"].includes(w.type) && w.date > today)!;
-    await admin().from("planned_workouts").update({ date: today }).eq("id", quality.id);
+    const before = await planWorkouts(plan!.id);
+    const long = before.filter((w) => w.type === "long" && w.status === "planned" && w.date >= today).sort((a, b) => (a.date < b.date ? -1 : 1))[0]!;
+    const target = addDays(today, long.date === addDays(today, 1) ? 2 : 1);
+    const m = await askFor((p) => [{ title: "Long run moved", summary: "", changes: [{ op: "move", session: refFor(p, "long"), toDate: target }] }]);
+    // Meanwhile a hard session lands the day before.
+    const quality = before.find((w) => ["intervals", "threshold", "tempo"].includes(w.type) && w.date > today)!;
+    await admin().from("planned_workouts").update({ date: addDays(target, -1) }).eq("id", quality.id);
     const first = await applyOption(u.id, m.id, m.options[0]!.id);
     expect(first.ok).toBe(false);
     expect(!first.ok && first.error).toBe("changed");

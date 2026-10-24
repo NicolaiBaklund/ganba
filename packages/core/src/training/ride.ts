@@ -4,6 +4,7 @@ import type { GeneratedPlan, WeekSummary } from "./generate";
 import { HR_ZONE_PCT, POWER_ZONE_PCT, measure, rideZoneTarget, type BuildContext, type BuiltWorkout } from "./workouts";
 import { HR_ZONES, type Block, type HrZone, type Paces, type Phase, type Step, type Target, type WorkoutSpec, type WorkoutType } from "./types";
 import type { Proposal } from "./proposals";
+import { bestCalendarWeek } from "./fitness";
 
 /**
  * Cycling (spec docs/specs/2026-10-23-sykling.md): time- and heart-rate-based plans. Sessions carry km estimates
@@ -109,7 +110,7 @@ export function rideFitnessFrom(rides: RideRecord[], today: ISODate, garmin: Rid
   const weeks = [0, 0, 0, 0];
   for (const r of last4) weeks[Math.min(3, Math.floor((daysBetween(r.date, today) - 1) / 7))]! += r.timeS / 60;
   const avg4 = weeks.reduce((s, x) => s + x, 0) / 4;
-  const base = !last4.length ? NO_RIDES_MIN : Math.max(...weeks);
+  const base = !last4.length ? NO_RIDES_MIN : bestCalendarWeek(valid.map((r) => ({ date: r.date, amount: r.timeS / 60 })), today);
 
   const outdoor = valid.filter((r) => !r.indoor && r.timeS >= 1800 && r.distanceM > 0);
   const speedKmh = outdoor.length

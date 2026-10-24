@@ -1,4 +1,4 @@
-import { addDays, daysBetween, type ISODate } from "../dates";
+import { addDays, daysBetween, weekStartOn, type ISODate } from "../dates";
 import { pacesFor, vdotFrom, vo2AtSpeed } from "./vdot";
 
 export interface RunRecord {
@@ -26,7 +26,7 @@ export interface Fitness {
   runCount: number;
   /** True when there is too little history to trust the numbers. */
   sparse: boolean;
-  /** Start volume for a plan: the best single 7-day week of the last four. Week 1 of a plan matches it. */
+  /** Start volume for a plan: the best Monday–Sunday week of the last four (and this one so far). Week 1 matches it. */
   baseKmPerWeek: number;
   /** Ran consistently the last 4 weeks (≥ 10 runs, ≥ 15 km/week): no base phase needed. */
   experienced: boolean;
@@ -66,6 +66,18 @@ const VDOT_MIN = 20;
 const VDOT_MAX = 85;
 
 /**
+ * The biggest Monday–Sunday week among the last four whole weeks and this week so far (before today). Calendar
+ * weeks, as the plan and Garmin count them: a rolling 7-day window would take two weeks' busy days together.
+ */
+export function bestCalendarWeek(items: readonly { date: ISODate; amount: number }[], today: ISODate): number {
+  const thisMonday = weekStartOn(today, 1);
+  const from = addDays(thisMonday, -28);
+  const weeks = new Map<ISODate, number>();
+  for (const x of items) if (x.date >= from && x.date < today) weeks.set(weekStartOn(x.date, 1), (weeks.get(weekStartOn(x.date, 1)) ?? 0) + x.amount);
+  return Math.max(0, ...weeks.values());
+}
+
+/**
  * Current fitness. VDOT = the best of: a whole outdoor run ≥ 3 km, fast interval laps (last 8 weeks),
  * and Garmin's 10K prediction minus a small discount.
  */
@@ -88,12 +100,12 @@ export function fitnessFrom(runs: RunRecord[], today: ISODate, garmin?: { time10
   const best = candidates.sort((a, b) => b.vdot - a.vdot)[0] ?? { vdot: DEFAULT_VDOT, source: { kind: "default" } as FitnessSource };
   const vdot = Math.round(Math.min(VDOT_MAX, Math.max(VDOT_MIN, best.vdot)) * 10) / 10;
 
-  // Rolling 7-day weeks back from today (index 0 = the last 7 days).
+  // Rolling 7-day weeks back from today (index 0 = the last 7 days), for the average.
   const weeks = [0, 0, 0, 0];
   for (const r of last4) weeks[Math.min(3, Math.floor((daysBetween(r.date, today) - 1) / 7))]! += r.distanceM / 1000;
   const km4 = weeks.reduce((s, x) => s + x, 0) / 4;
   // The best week: a sick, busy or easy week doesn't lower the start (the user's choice, 2026-10-24).
-  const base = Math.max(...weeks);
+  const base = bestCalendarWeek(valid.map((r) => ({ date: r.date, amount: r.distanceM / 1000 })), today);
   const thresholdPace = pacesFor(vdot).threshold;
   const didQuality = last4.some((r) =>
     (r.laps ?? []).some((l) => l.distanceM >= QUALITY_LAP_M && l.timeS > 0 && l.timeS / (l.distanceM / 1000) <= thresholdPace + 5),
