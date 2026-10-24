@@ -116,9 +116,18 @@ describe("start volume", () => {
   const runsFor = (weeks: number[]) =>
     weeks.flatMap((km, i) => [1, 3, 5].map((d) => ({ date: addDays(today, -(7 * i + d)), distanceM: (km / 3) * 1000, timeS: (km / 3) * 330 })));
 
-  it("starts from the best of the last four weeks, also after a sick or quiet stretch", () => {
-    expect(fitnessFrom(runsFor([11.6, 26.9, 39.6, 43]), today).baseKmPerWeek).toBeCloseTo(43, 0);
-    expect(fitnessFrom(runsFor([0, 0, 40, 40]), today).baseKmPerWeek).toBeCloseTo(40, 0);
+  it("starts from the best of the last four calendar weeks, also after a sick or quiet stretch", () => {
+    // A Monday: the four 7-day weeks back are exactly the last four Monday–Sunday weeks.
+    const monday: ISODate = "2026-10-26";
+    const weeks = (km: number[]) => km.flatMap((k, i) => [1, 3, 5].map((d) => ({ date: addDays(monday, -(7 * i + d)), distanceM: (k / 3) * 1000, timeS: (k / 3) * 330 })));
+    expect(fitnessFrom(weeks([11.6, 26.9, 39.6, 43]), monday).baseKmPerWeek).toBeCloseTo(43, 0);
+    expect(fitnessFrom(weeks([0, 0, 40, 40]), monday).baseKmPerWeek).toBeCloseTo(40, 0);
+  });
+
+  it("a busy stretch across two calendar weeks doesn't count as one big week", () => {
+    // Sat–Fri of six 8.5 km runs = 51 km in 7 days, but split 17 + 34 over two Monday–Sunday weeks.
+    const runs = ["2026-09-26", "2026-09-27", "2026-09-28", "2026-09-30", "2026-10-01", "2026-10-02"].map((date) => ({ date, distanceM: 8500, timeS: 8500 * 0.33 }));
+    expect(fitnessFrom(runs, "2026-10-24").baseKmPerWeek).toBe(34);
   });
 
   it("week 1 matches the start volume", () => {
