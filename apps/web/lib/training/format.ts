@@ -29,16 +29,21 @@ export const fmtPaceRange = (t: Target): string | null =>
         : null;
 export const hrZoneLabel = (zone: string) => HR_LABEL[zone] ?? zone;
 
-/** "1:45:00", "45:30" or "45" (minutes) → seconds; null when invalid. */
-export function parseClock(s: string): number | null {
-  // ":" "." "," and spaces all separate (phone number pads have no colon).
+/** A plausible race pace: 2:30–12:00 per km. */
+const RACE_PACE_S = { min: 150, max: 720 };
+
+/**
+ * A race time for a distance: "1:35:00", "1 35", "95", "25:30". Two numbers can mean h:mm or mm:ss; the one
+ * with a plausible pace for the distance wins ("1 35" is 1:35:00 for a half, "25 30" is 25:30 for a 5K; the
+ * two readings differ 60-fold, so never both fit). Null when empty, unreadable or no plausible reading.
+ */
+export function parseRaceTime(s: string, km: number): number | null {
   const parts = s.trim().split(/[:.,\s]+/).filter(Boolean);
   if (!parts.length || parts.some((p) => !/^\d+$/.test(p))) return null;
   const n = parts.map(Number);
-  if (n.length === 1) return n[0]! * 60;
-  if (n.length === 2) return n[0]! * 60 + n[1]!;
-  if (n.length === 3) return n[0]! * 3600 + n[1]! * 60 + n[2]!;
-  return null;
+  const readings =
+    n.length === 1 ? [n[0]! * 60] : n.length === 2 ? [n[0]! * 60 + n[1]!, n[0]! * 3600 + n[1]! * 60] : n.length === 3 ? [n[0]! * 3600 + n[1]! * 60 + n[2]!] : [];
+  return readings.find((t) => t / km >= RACE_PACE_S.min && t / km <= RACE_PACE_S.max) ?? null;
 }
 
 /**

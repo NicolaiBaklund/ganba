@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/common/Chip";
 import { SwitchRow } from "@/components/common/SwitchRow";
 import { DayPicker } from "@/components/common/DayPicker";
-import { clockInput, fmtClock, parseClock, typeColor } from "@/lib/training/format";
+import { clockInput, fmtClock, parseRaceTime, typeColor } from "@/lib/training/format";
 import type { WorkoutType } from "@loop/core";
 
 type Distance = "5k" | "10k" | "half" | "marathon";
@@ -76,6 +76,16 @@ interface RidePreview {
 
 type Over = { indoor?: boolean; power?: boolean };
 
+const isRaceGoal = (g: GoalChoice): g is Distance => g !== "build";
+
+/** Under a time field: how the typed time was read ("= 1:35:00"), or why it can't be used. */
+function TimeHint({ raw, seconds, hint, invalid }: { raw: string; seconds: number | null; hint: string; invalid: string }) {
+  if (!raw.trim()) return hint ? <span className="text-xs">{hint}</span> : null;
+  if (seconds == null) return <span className="text-xs text-destructive">{invalid}</span>;
+  const shown = fmtClock(seconds);
+  return <span className="text-xs">{raw.trim() === shown ? hint : `= ${shown}`}</span>;
+}
+
 export function PlanWizard({ minDate }: { minDate: string }) {
   const t = useTranslations("planWizard");
   const tt = useTranslations("training");
@@ -110,8 +120,8 @@ export function PlanWizard({ minDate }: { minDate: string }) {
   const [busy, setBusy] = useState(false);
 
   const isRace = goal !== "build";
-  const targetS = targetTime.trim() ? parseClock(targetTime) : null;
-  const recentS = recentTime.trim() ? parseClock(recentTime) : null;
+  const targetS = targetTime.trim() && isRaceGoal(goal) ? parseRaceTime(targetTime, RACE_M[goal] / 1000) : null;
+  const recentS = recentTime.trim() && recentDist ? parseRaceTime(recentTime, RACE_M[recentDist] / 1000) : null;
   const kmNum = Number(eventKm.replace(",", "."));
   const elevNum = eventElev.trim() ? Number(eventElev) : null;
   const goalValid =
@@ -307,7 +317,7 @@ export function PlanWizard({ minDate }: { minDate: string }) {
                   onChange={(e) => setTargetTime(clockInput(e.target.value.replace(/:/g, "")))}
                   className="num h-14 rounded-md border border-border bg-card px-4 text-base text-foreground outline-none focus:border-primary"
                 />
-                <span className="text-xs">{t("targetTimeHint")}</span>
+                <TimeHint raw={targetTime} seconds={targetS} hint={t("targetTimeHint")} invalid={t("timeInvalid")} />
               </label>
             </>
           )}
@@ -406,6 +416,11 @@ export function PlanWizard({ minDate }: { minDate: string }) {
                 onChange={(e) => setRecentTime(clockInput(e.target.value.replace(/:/g, "")))}
                 className="num mt-2 h-12 w-full rounded-md border border-border bg-card px-4 outline-none focus:border-primary"
               />
+            )}
+            {recentDist && recentTime.trim() && (
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                <TimeHint raw={recentTime} seconds={recentS} hint="" invalid={t("timeInvalid")} />
+              </p>
             )}
           </div>
           )}
