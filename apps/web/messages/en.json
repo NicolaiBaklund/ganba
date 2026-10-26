@@ -69,7 +69,8 @@
     "body": "Body",
     "profile": "Profile",
     "training": "Training",
-    "recovery": "Recovery"
+    "recovery": "Recovery",
+    "coach": "Coach"
   },
   "meals": {
     "breakfast": "Breakfast",
@@ -402,8 +403,6 @@
       "half": "Half marathon",
       "marathon": "Marathon"
     },
-    "end": "End plan",
-    "endConfirm": "End this plan? Sessions are removed from your watch.",
     "paces": "Paces",
     "paceZones": {
       "easy": "Easy",
@@ -431,6 +430,11 @@
     "indoor": "Riding indoors",
     "indoorHint": "Trainer season: long rides up to 2.5 h, easy rides up to 90 min. Switching rebuilds your upcoming rides.",
     "indoorError": "Couldn't switch. Try again.",
+    "endPlan": "End plan",
+    "endConfirm": "Yes, end the plan",
+    "endCancel": "Keep it",
+    "endExplain": "Ends the plan. Upcoming sessions are removed from your watch.",
+    "endError": "Couldn't end the plan. Try again.",
     "power": "Power targets",
     "powerHint": "Rides target watts from your FTP ({ftp} W), and a smart trainer in ERG mode follows them. Off: heart rate.",
     "ftp": "FTP",
@@ -824,7 +828,7 @@
     "placeholder": "Ask the coach",
     "send": "Send",
     "thinking": "Thinking",
-    "empty": "Ask anything about your plan. The coach can change sessions, move them or add new ones, and tells you if something is unwise.",
+    "empty": "Ask about anything: what to eat with what you have left today, a session that went badly, how you slept, or changes to your plan. The coach looks at your data itself and tells you if something is unwise.",
     "noKey": "Add your Anthropic key in Profile to talk to the coach.",
     "noPlan": "Create a plan first.",
     "error": "Couldn't reach the coach. Try again.",
@@ -840,8 +844,6 @@
     "new": "New conversation",
     "earlier": "Earlier conversations",
     "back": "Back",
-    "endPlan": "End plan",
-    "endConfirm": "Yes, end the plan",
     "applied": "Applied",
     "notUsed": "Not used",
     "changed": "The plan changed since this was suggested. Check the warnings again.",
@@ -856,7 +858,6 @@
       "no_rest": "No rest day for 7 days (to {date})"
     },
     "invalid": "Can't be applied any more: {reason}.",
-    "endExplain": "Ends the plan. Upcoming sessions are removed from your watch.",
     "loadError": "Couldn't load the coach.",
     "use": "Use this",
     "useAnyway": "Use anyway",
@@ -868,6 +869,8 @@
     "moreWeeks": "{n, plural, one {+1 more week changes} other {+# more weeks change}}",
     "earlierInThread": "Earlier, show all",
     "chip": {
+      "food": "What should I eat with what I have left today?",
+      "recovery": "How did I recover last night?",
       "tired": "I'm tired today",
       "move": "Move tomorrow's session",
       "easier": "Make this week easier"

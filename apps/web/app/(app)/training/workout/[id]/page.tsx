@@ -7,7 +7,7 @@ import { requireUser } from "@/lib/supabase/server";
 import { loadWorkout } from "@/lib/training/view";
 import { bibNumber, fmtClock, fmtMinutes, fmtPaceRange, paceFromSpeed, typeKey } from "@/lib/training/format";
 import { FuelSection } from "@/components/training/FuelSection";
-import { CoachButton } from "@/components/coach/CoachButton";
+import { AskCoachLink } from "@/components/coach/AskCoachLink";
 import { Bib } from "@/components/tasuki/Bib";
 import { SectionHead } from "@/components/tasuki/SectionHead";
 import { StatRow } from "@/components/tasuki/StatRow";
@@ -53,6 +53,7 @@ function StepRow({ s, label, open }: { s: Step; label: string; open: string }) {
 export default async function WorkoutPage({ params }: PageProps<"/training/workout/[id]">) {
   const { id } = await params;
   const t = await getTranslations("workout");
+  const tc = await getTranslations("coach");
   const format = await getFormatter();
   const { user } = await requireUser();
   const w = await loadWorkout(user.id, id);
@@ -156,11 +157,10 @@ export default async function WorkoutPage({ params }: PageProps<"/training/worko
           </div>
         </>
       )}
-      {w.status === "planned" && (
-        <div className="mt-6">
-          <CoachButton aboutWorkoutId={w.id} variant="link" />
-        </div>
-      )}
+      {/* Before a session to plan it, after one to talk it through. */}
+      <div className="mt-6">
+        <AskCoachLink href={`/coach?about=${w.id}`} label={tc("ask")} />
+      </div>
     </main>
   );
 }
