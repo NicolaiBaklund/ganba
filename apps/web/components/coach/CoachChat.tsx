@@ -177,7 +177,7 @@ export function CoachChat({ aboutWorkoutId, aboutDate, draft }: { aboutWorkoutId
         <button onClick={() => setReading(null)} className="self-start py-2 text-[13px] font-semibold text-primary">{t("back")}</button>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto py-3">
+      <div className="min-h-0 flex-1 overflow-y-auto py-3 [mask-image:linear-gradient(to_bottom,transparent,#000_20px)]">
         {!data && failed !== "load" && <div className="h-24 animate-pulse rounded-md bg-muted" role="status" />}
         {data && !shown.length && <p className="text-[14px] text-muted-foreground">{t("empty")}</p>}
         {!!earlier.length && (

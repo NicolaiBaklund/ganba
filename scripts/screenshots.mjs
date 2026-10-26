@@ -1,7 +1,9 @@
-// README screenshots: seeds a realistic demo user (meals, weight trend, Garmin runs, a 10K plan),
+// README screenshots (dark mode): seeds a realistic demo user (meals, weight trend, Garmin runs, Form, a 10K plan),
 // captures the main screens at phone size and composes a hero image. The demo user is deleted afterwards.
-// Usage: node scripts/screenshots.mjs [baseUrl]   (default http://localhost:3100, app must be running)
-import { mkdirSync, readFileSync } from "node:fs";
+// With ANTHROPIC_API_KEY set, the coach answers for real (one paid call, a few cents); otherwise a fixed answer.
+// Usage: [ANTHROPIC_API_KEY=...] node scripts/screenshots.mjs [baseUrl]   (default http://localhost:3100, app must be running)
+import { mkdirSync, readFileSync, rmSync } from "node:fs";
+import { createCipheriv, createHash, randomBytes } from "node:crypto";
 import { config } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import { chromium } from "playwright";
@@ -108,16 +110,39 @@ try {
     found("rest-run", "daysSinceHard", "runForm", 0, "needs_data", { high: grp(5, 0.2, 3), low: grp(6, -0.1, 1), needed: 8 }, null, null, "few_days"),
   ]));
 
+  // Form today, as the engine stores it (the engine itself runs on sync, which is stubbed below).
+  must(await admin.from("form_days").insert({
+    user_id: uid, local_date: today, score: 72, band: "ready",
+    parts: [
+      { id: "hrv", points: 6, status: "ok", learned: false, values: { hrv: 61, low: 50, high: 62 } },
+      { id: "sleep", points: 4, status: "ok", learned: false, values: { score: 82, hours: 7.6 } },
+      { id: "rhr", points: 3, status: "ok", learned: false, values: { rhr: 45, normal: 47 } },
+      { id: "sleepDebt", points: -2, status: "ok", learned: false, values: { hours: -1.2, nights: 7 } },
+      { id: "lastHard", points: -3, status: "ok", learned: false, values: { days: 2, load: 160, typical: 180 } },
+      { id: "energy", points: 2, status: "ok", learned: true, values: { carbsPerKg: 4.2 } },
+    ],
+  }));
+  must(await admin.from("profiles").update({ ai_health_consent: true, ai_health_consent_at: new Date().toISOString() }).eq("user_id", uid));
+  // The person's Anthropic key, encrypted like the app does (food estimates are still mocked below).
+  const realAi = !!process.env.ANTHROPIC_API_KEY;
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", createHash("sha256").update(process.env.API_KEY_ENCRYPTION_SECRET).digest(), iv);
+  const ct = Buffer.concat([cipher.update(process.env.ANTHROPIC_API_KEY ?? "sk-ant-demo", "utf8"), cipher.final()]);
+  must(await admin.from("api_keys").insert({ user_id: uid, provider: "anthropic", ciphertext: ct.toString("base64"), iv: iv.toString("base64"), auth_tag: cipher.getAuthTag().toString("base64"), last4: "demo" }));
+  must(await admin.from("coach_notes").insert({ user_id: uid, text: "Lives in Tokyo; eats a lot from konbini and ramen shops", source: "user" }));
+
   // --- browser ---------------------------------------------------------------------------------
   const anon = createClient(U, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, { auth: { persistSession: false } });
   const { data: s } = await anon.auth.signInWithPassword({ email, password });
   const browser = await chromium.launch();
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true, timezoneId: TZ });
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true, timezoneId: TZ, colorScheme: "dark" });
   await ctx.addCookies([{ name: `sb-${ref}-auth-token`, value: "base64-" + Buffer.from(JSON.stringify(s.session)).toString("base64url"), domain: new URL(BASE).hostname, path: "/" }]);
   const page = await ctx.newPage();
   // The demo Garmin tokens are fake: keep the app from syncing (it would flag "sign in again").
   await page.route("**/api/garmin/sync", (route) => route.fulfill({ json: { ok: true } }));
   const shot = async (name) => {
+    // The dev server's floating badge is not part of the app.
+    await page.addStyleTag({ content: "nextjs-portal{display:none!important}" });
     await page.waitForTimeout(400);
     await page.screenshot({ path: `${OUT}/${name}.png`, caret: "initial" });
   };
@@ -126,7 +151,7 @@ try {
   await page.goto(`${BASE}/training/new`);
   await page.getByRole("button", { name: "10K", exact: true }).click();
   await page.locator('input[type="date"]').fill(day(70));
-  await page.getByRole("button", { name: "Next" }).click();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
   const names = { 0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat" };
   const wanted = new Set([2, 4, 0, weekdayOf(today)]);
   for (const d of [1, 2, 3, 4, 5, 6, 0]) {
@@ -135,7 +160,7 @@ try {
     if (wanted.has(d) !== !!on) await chip.click();
   }
   await page.getByRole("button", { name: String(Math.min(4, wanted.size)), exact: true }).click();
-  await page.getByRole("button", { name: "Next" }).click();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
   await page.getByText("Your plan").waitFor();
   await shot("wizard");
   await page.getByRole("button", { name: "Create plan" }).click();
@@ -165,13 +190,35 @@ try {
   await page.waitForTimeout(800);
   await shot("body");
 
+  // Form detail page, opened from the Form card on Today.
+  if (!realAi) await page.route("**/api/recovery/**", (route) => route.fulfill({ status: 402, json: { error: "no_key" } }));
   await page.goto(`${BASE}/recovery`);
-  await page.getByText("What affects you").waitFor();
-  await page.waitForTimeout(800);
-  await shot("recovery");
+  await page.getByRole("heading", { name: "Form" }).waitFor();
+  await page.waitForTimeout(realAi ? 8000 : 800); // the AI sentence under the ring, when there is a key
+  await shot("form");
 
-  // AI food logging (estimate mocked: no API key or cost needed).
-  await admin.from("api_keys").insert({ user_id: uid, ciphertext: "x", iv: "x", auth_tag: "x", last4: "demo" });
+  // The coach: a real answer with a key (it looks up the food log and tomorrow's session itself).
+  const QUESTION = "I'm in Tokyo and run the intervals this evening. What should I eat before and after?";
+  if (!realAi) {
+    const ANSWER = "Make tonight about carbs: you have **700 kcal** left with most of your fat already used, and tomorrow's intervals want full glycogen.\n\nAt a konbini: two salmon onigiri, a pack of salad chicken and a banana, about **650 kcal** with 45 g protein and 95 g carbs. Prefer to sit down? Kake soba with an onsen egg does the same job.";
+    await page.route("**/api/coach/messages", async (route) => {
+      const { data: thread } = await admin.from("coach_threads").select("id").eq("user_id", uid).is("archived_at", null).single();
+      await admin.from("coach_messages").insert({ thread_id: thread.id, user_id: uid, role: "user", text: QUESTION, options: [] });
+      const { data: msg } = await admin.from("coach_messages").insert({ thread_id: thread.id, user_id: uid, role: "coach", text: ANSWER, options: [] }).select("*").single();
+      const done = { type: "done", message: { id: msg.id, role: "coach", text: ANSWER, aboutWorkoutId: null, options: [], usedHealth: true, createdAt: msg.created_at } };
+      await route.fulfill({ status: 200, contentType: "application/x-ndjson", body: [{ type: "start" }, { type: "status", label: "Looking at your food log…" }, done].map((e) => JSON.stringify(e)).join("\n") + "\n" });
+    });
+  }
+  await page.goto(`${BASE}/coach`);
+  await page.getByPlaceholder("Ask the coach").fill(QUESTION);
+  await page.getByRole("button", { name: "Send" }).click();
+  // The working line appears while the coach answers and goes when the answer is in.
+  await page.getByText("Coach", { exact: true }).locator("xpath=..").getByRole("status").waitFor({ timeout: 10_000 }).catch(() => null);
+  await page.locator('[role="status"][aria-live="polite"]').waitFor({ state: "detached", timeout: 240_000 });
+  await page.waitForTimeout(600);
+  await shot("coach");
+
+  // AI food logging (estimate mocked: no cost).
   await page.route("**/api/food/estimate", (route) =>
     route.fulfill({
       json: {
@@ -201,19 +248,20 @@ try {
   const hero = await chromium.launch();
   const hp = await hero.newPage({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 1 });
   await hp.setContent(`<!doctype html><html><head><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap"><style>
-    body{margin:0;width:1600px;height:900px;background:#eef0f2;font-family:Archivo,system-ui,sans-serif;color:#000;display:flex;flex-direction:column;align-items:center;overflow:hidden}
+    body{margin:0;width:1600px;height:900px;background:#0b0b0c;font-family:Archivo,system-ui,sans-serif;color:#fff;display:flex;flex-direction:column;align-items:center;overflow:hidden}
     h1{margin:56px 0 6px;font-size:72px;font-weight:900;font-stretch:62%;letter-spacing:-1px}
-    p{margin:0 0 40px;color:#5f646d;font-size:24px}
+    p{margin:0 0 40px;color:#9aa0a8;font-size:24px}
     .row{display:flex;gap:36px;align-items:flex-start}
-    .phone{width:300px;height:650px;border-radius:44px;padding:10px;background:#000;box-shadow:0 30px 60px -30px rgba(0,0,0,.45)}
+    .phone{width:300px;height:650px;border-radius:44px;padding:10px;background:#1c1c1f;box-shadow:0 30px 60px -30px rgba(0,0,0,.9)}
     .phone img{width:100%;height:100%;border-radius:34px;object-fit:cover;object-position:top}
     .phone:nth-child(2),.phone:nth-child(3){margin-top:-24px}
-  </style></head><body><h1>${APP_NAME}</h1><p>Training plan, nutrition and weight. One daily target that follows your Garmin.</p>
-  <div class="row">${["today", "training", "workout", "food-ai"].map((n) => `<div class="phone"><img src="${img(n)}"/></div>`).join("")}</div></body></html>`);
+  </style></head><body><h1>${APP_NAME}</h1><p>Training plan, nutrition, recovery and a coach that knows your data.</p>
+  <div class="row">${["today", "training", "coach", "form"].map((n) => `<div class="phone"><img src="${img(n)}"/></div>`).join("")}</div></body></html>`);
   await hp.evaluate(() => document.fonts.ready);
   await hp.screenshot({ path: `${OUT}/hero.png` });
   await hero.close();
-  console.log(`screenshots written to ${OUT}/`);
+  rmSync(`${OUT}/recovery.png`, { force: true }); // the Recovery tab became the Form page
+  console.log(`screenshots written to ${OUT}/ (coach: ${realAi ? "real AI answer" : "fixed answer"})`);
 } finally {
   await admin.auth.admin.deleteUser(uid).catch(() => {});
 }

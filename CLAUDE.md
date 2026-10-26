@@ -7,6 +7,7 @@ Personlig trenings- + ernæringsapp (Runna + MyFitnessPal i ett). Webapp, må fu
 Systemet er **generelt/flerbruker** — aldri hardkod brukerens personlige verdier.
 
 ## Les først
+- [docs/specs/2026-10-26-coach-v2.md](docs/specs/2026-10-26-coach-v2.md) — **coach v2** (egen fane, coach for alt, lesverktøy, strømming, Form-detaljside; plan: docs/plans/2026-10-26-coach-v2-plan.md)
 - [docs/specs/2026-10-23-sykling-del2.md](docs/specs/2026-10-23-sykling-del2.md) — **sykling del 2** (watt/FTP og ERG, sideøkter av den andre sporten i én plan)
 - [docs/specs/2026-10-23-sykling.md](docs/specs/2026-10-23-sykling.md) — **sykling del 1** (sykkelplan, puls og tid, innendørs, coach; plan: docs/plans/2026-10-23-sykling-plan.md)
 - [docs/specs/2026-10-22-plan-variasjon.md](docs/specs/2026-10-22-plan-variasjon.md) — **variasjon i planene** (øktfamilier, bygg form med fokus, formtest, bakker; plan: docs/plans/2026-10-22-plan-variasjon-plan.md)
@@ -29,12 +30,14 @@ Systemet er **generelt/flerbruker** — aldri hardkod brukerens personlige verdi
 ## Kjøre og teste
 - `pnpm dev` (port 3000), `pnpm typecheck`, `pnpm build`
 - `pnpm test:int` — integrasjonstester (Vitest) mot Supabase-prosjektet i `apps/web/.env.local`, med testbrukere som slettes etterpå
-- `node tests/smoke/smoke.mjs [url]` (+ `checkin-smoke.mjs`, `profile-smoke.mjs`, `training-smoke.mjs`, `recovery-smoke.mjs` (inkl. Form), `ride-smoke.mjs` (sykkelplan), `cross-smoke.mjs` (løpeplan med sykkeldager og watt), `redesign-shots.mjs` for alle skjermer i lys og mørk) — Playwright-flyter mot kjørende app (default `http://localhost:3100`), skjermbilder i `tests/smoke/out/`
+- `node tests/smoke/smoke.mjs [url]` (+ `checkin-smoke.mjs`, `profile-smoke.mjs`, `training-smoke.mjs`, `recovery-smoke.mjs` (inkl. Form), `ride-smoke.mjs` (sykkelplan), `cross-smoke.mjs` (løpeplan med sykkeldager og watt), `coach-smoke.mjs` (Coach-fanen, strømmet svar), `redesign-shots.mjs` for alle skjermer i lys og mørk) — Playwright-flyter mot kjørende app (default `http://localhost:3100`), skjermbilder i `tests/smoke/out/`
 - Garmin-adapter lokalt: `python -m venv .venv && .venv/Scripts/pip install -r apps/web/requirements.txt`, så `.venv/Scripts/python apps/web/scripts/garmin-dev.py` (port 3200, leser `.env.local` selv) og `GARMIN_ADAPTER_URL=http://127.0.0.1:3200` + `GARMIN_ADAPTER_SECRET` i `.env.local`. Integrasjonstestene bruker en falsk Garmin (`tests/integration/fake-garmin.ts`)
 - Form på ekte data: `SPIKE_EMAIL=<e-post> pnpm exec vitest run tests/integration/form-spike.test.ts` (bare lesing; `SPIKE_WRITE=1` regner ut og lagrer som en synk)
 - Sykkeldata fra Garmin (LTHR, FTP): `SPIKE_EMAIL=<e-post> pnpm exec vitest run tests/integration/cycling-spike.test.ts` (bare lesing, trenger `.venv`)
 - Restitusjon-spike mot ekte konto: start adapteret lokalt, så `SPIKE_EMAIL=<e-post> pnpm exec vitest run tests/integration/recovery-spike.test.ts` (hoppes over ellers)
 - `npx tsx evals/food/run.mts` — AI-eval, koster penger (se `evals/food/README.md`)
+- `npx tsx evals/coach/run.mts` — faste coach-samtaler mot ekte modell, svarene leses manuelt; koster penger (se `evals/coach/README.md`)
+- `node scripts/screenshots.mjs` — README-skjermbilder (mørk modus) med demobruker; coach-bildet bruker ekte AI hvis `ANTHROPIC_API_KEY` er satt
 - DB-endringer: ny fil i `supabase/migrations/`, så `pnpm db:push` (pusher og regenererer `apps/web/lib/db/types.ts`; typene overskrives bare hvis genereringen lykkes). Krever `pnpm exec supabase login` én gang, eller `SUPABASE_ACCESS_TOKEN` i `apps/web/.env.local`
 
 ## Regler
