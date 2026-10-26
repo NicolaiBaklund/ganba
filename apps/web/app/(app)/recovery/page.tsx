@@ -4,10 +4,10 @@ import { requireUser } from "@/lib/supabase/server";
 import { loadRecoveryView } from "@/lib/recovery/view";
 import { RECOVERY_HISTORY_DAYS } from "@/lib/recovery/fetch";
 import { RecoveryScreen } from "@/components/recovery/RecoveryScreen";
-import { WeeklySummary } from "@/components/recovery/WeeklySummary";
 import { AiOff } from "@/components/recovery/AiOff";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ChevronLeft } from "lucide-react";
 
 export default async function RecoveryPage() {
   const { user } = await requireUser();
@@ -27,10 +27,14 @@ export default async function RecoveryPage() {
   }
   return (
     <main className="flex flex-col px-[18px] pb-4 pt-5">
-      <h1 className="cond text-[34px] leading-none">{t("title")}</h1>
+      <Link href="/today" className="-ml-1 flex items-center gap-1 self-start text-sm text-muted-foreground">
+        <ChevronLeft className="size-4" />
+        {t("back")}
+      </Link>
+      <h1 className="cond mt-2 text-[34px] leading-none">{t("formTitle")}</h1>
       {v.historyDays < RECOVERY_HISTORY_DAYS && <p className="mt-2 text-[13px] text-muted-foreground">{t("fetching", { days: v.historyDays })}</p>}
       {!v.consent && <AiOff />}
-      <RecoveryScreen view={v} more={v.consent ? <WeeklySummary /> : null} ai={v.consent} />
+      <RecoveryScreen view={v} ai={v.consent} />
     </main>
   );
 }

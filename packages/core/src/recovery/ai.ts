@@ -9,9 +9,7 @@ export const FORM_PROMPT_VERSION = 2;
 export const GroundedSentenceSchema = z.object({ text: z.string(), refs: z.array(z.string()) });
 export type GroundedSentence = z.infer<typeof GroundedSentenceSchema>;
 /** What the model returns: the headline must cite like every sentence. */
-export const WeeklySummarySchema = z.object({ headline: GroundedSentenceSchema, sentences: z.array(GroundedSentenceSchema), tips: z.array(GroundedSentenceSchema) });
 /** What is stored and shown: the headline is "" when it was not grounded. */
-export type WeeklySummary = { headline: string; sentences: GroundedSentence[]; tips: GroundedSentence[] };
 export const DayAnswerSchema = z.object({ sentences: z.array(GroundedSentenceSchema) });
 export type DayAnswer = z.infer<typeof DayAnswerSchema>;
 export const QuestionProposalsSchema = z.object({
@@ -71,16 +69,6 @@ const RULES = `Rules:
 - Every sentence needs refs: "finding:<id>" for a finding, "day:<date>:<field>" for a value in the day table. A sentence without valid refs is deleted.
 ${BASE_RULES}`;
 
-export const RECOVERY_SUMMARY_PROMPT = `You write a short weekly recovery summary for a runner from their own data.
-You get last week's daily table (sleep score, HRV, resting heart rate with their deviation from the person's own normal, food and training), verified findings from a statistics engine, and next week's planned sessions.
-Return a headline (max 8 words, with refs like a sentence), 3–5 sentences about what stood out last week, and 1–2 concrete tips for next week that build on the findings.
-${RULES}`;
-
-export const RECOVERY_DAY_PROMPT = `You explain one morning's recovery numbers for a runner: why sleep, HRV or resting heart rate looked the way they did.
-You get that morning and the day before, each number's deviation from the person's own normal, and verified findings.
-Return 2–4 sentences. If no factor stands out, say so honestly in one sentence that cites the day's numbers.
-${RULES}`;
-
 export const RECOVERY_QUESTIONS_PROMPT = `You propose new questions for a statistics engine that looks for links in one person's data.
 You get the variable catalogue (name, unit, mean, spread, number of days) and the questions already tested. You do not get any results linking variables to each other.
 Propose at most 3 new questions: factor (from the catalogue), transform ("tertile" = top vs bottom third, "binary" = yes/no factors only, "threshold" = factor ≥ threshold, give the threshold), outcome, lag in days from 0 to 3 (days from the factor day to the outcome: 0 = same day, 1 = the next morning or day, 2–3 = delayed effects), and a one-sentence rationale.
@@ -101,21 +89,6 @@ export function formMessage(i: { language: string; date: ISODate; score: number;
 Form for ${i.date}: ${i.score}
 Parts: ${table(i.parts)}
 Today's session: ${i.workout ? table([i.workout]) : "none (rest day)"}
-Findings: ${table(i.findings)}`;
-}
-
-export function summaryMessage(i: { language: string; weekStart: ISODate; days: AiDayRow[]; findings: AiFinding[]; nextWeek: { date: ISODate; title: string }[] }): string {
-  return `Language: ${i.language}
-Week starting ${i.weekStart}.
-Day table: ${table(i.days)}
-Findings: ${table(i.findings)}
-Next week's sessions: ${table(i.nextWeek)}`;
-}
-
-export function dayMessage(i: { language: string; date: ISODate; days: AiDayRow[]; findings: AiFinding[] }): string {
-  return `Language: ${i.language}
-Explain the morning of ${i.date} (sleep the night before).
-Day table (the day before, then the morning): ${table(i.days)}
 Findings: ${table(i.findings)}`;
 }
 

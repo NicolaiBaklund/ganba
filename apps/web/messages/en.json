@@ -605,6 +605,8 @@
   },
   "recovery": {
     "title": "Recovery",
+    "formTitle": "Form",
+    "back": "Today",
     "findings": "What affects you",
     "noFindings": "No clear links yet. Keep logging food and wearing your watch at night.",
     "curves": "Last 30 days",
@@ -824,6 +826,7 @@
   "coach": {
     "open": "Coach",
     "ask": "Ask the coach",
+    "aboutDay": "Ask the coach about this day",
     "title": "Coach",
     "placeholder": "Ask the coach",
     "send": "Send",
