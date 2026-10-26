@@ -4,7 +4,9 @@ import { addDays } from "@loop/core";
 import { runCoach } from "@/lib/coach/run";
 import { buildCoachContext } from "@/lib/coach/context";
 import { activeThread } from "@/lib/coach/store";
-import { readTools, runReadTool } from "@/lib/coach/tools";
+import { readTools, runReadTool, TOOL_LABELS } from "@/lib/coach/tools";
+import { coachResponse, partialReplyMessage, type CoachEvent } from "@/lib/coach/stream";
+import { recentMessages } from "@/lib/coach/store";
 import { createPlan } from "@/lib/training/service";
 // @ts-expect-error — plain JS helper shared with the smoke scripts
 import { seedUser } from "../smoke/seed.mjs";
@@ -104,5 +106,81 @@ describe("coach v2: read tools", () => {
     const r = await runCoach(u.id, { text: "what did I eat?" }, { ai });
     expect(r.ok && r.message.text).toBe("You have had onigiri.");
     expect(JSON.stringify(ai.calls[1]!.messages.at(-1))).toContain("Salmon onigiri");
+  });
+});
+
+describe("coach v2: streaming", () => {
+  let u: TestUser;
+  let today: string;
+  const ai = new FakeCoach();
+  const read = async (res: Response) => {
+    const events: CoachEvent[] = [];
+    const text = await res.text();
+    for (const line of text.split("\n").filter(Boolean)) events.push(JSON.parse(line));
+    return events;
+  };
+  /** A reply written in three pieces, as the model streams its JSON. */
+  const streamedReply = (message: string) => (_p: unknown, opts?: { onReplyDelta?: (j: string) => void }) => {
+    const json = JSON.stringify({ message, options: [] });
+    for (const cut of [20, 40, json.length]) opts?.onReplyDelta?.(json.slice(0, cut));
+    return tool("reply", { message, options: [] });
+  };
+
+  beforeAll(async () => {
+    u = await createTestUser("coach2-stream");
+    ({ today } = await seedUser(admin(), u.id, { days: 5 }));
+    await addKey(u.id);
+  });
+  afterAll(cleanup);
+
+  it("partialReplyMessage reads the message field from unfinished JSON", () => {
+    expect(partialReplyMessage('{"message":"Eat a \\"big\\" bow')).toBe('Eat a "big" bow');
+    expect(partialReplyMessage('{"message":"line\\nnext\\u00e6')).toBe("line\nnextæ");
+    expect(partialReplyMessage('{"message":"cut \\')).toBe("cut ");
+    expect(partialReplyMessage('{"options":[]')).toBe("");
+  });
+
+  it("the stream sends status, growing text and done", async () => {
+    ai.script = [() => tool("food_log", { from: today, to: today }), streamedReply("You could have a bowl of shoyu ramen with an extra egg tonight.")];
+    const res = await coachResponse(u.id, { text: "dinner?" }, { ai });
+    expect(res.headers.get("content-type")).toContain("application/x-ndjson");
+    const events = await read(res);
+    expect(events).toContainEqual({ type: "status", label: TOOL_LABELS.food_log });
+    const texts = events.filter((e): e is Extract<CoachEvent, { type: "text" }> => e.type === "text").map((e) => e.text);
+    expect(texts.length).toBeGreaterThanOrEqual(2);
+    expect(texts.at(-1)!.length).toBeGreaterThan(texts[0]!.length);
+    const done = events.at(-1)!;
+    expect(done.type === "done" && done.message.text).toBe("You could have a bowl of shoyu ramen with an extra egg tonight.");
+  });
+
+  it("an aborted stream still stores the answer", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    ai.script = [async (p, o) => {
+      await gate;
+      return streamedReply("Stored even though you left.")(p, o);
+    }];
+    const res = await coachResponse(u.id, { text: "still there?" }, { ai });
+    const reader = res.body!.getReader();
+    await reader.read();
+    await reader.cancel();
+    release();
+    for (let i = 0; i < 50 && !(await recentMessages((await activeThread(u.id)).id, 1))[0]?.text.startsWith("Stored"); i++) await new Promise((r) => setTimeout(r, 100));
+    expect((await recentMessages((await activeThread(u.id)).id, 1))[0]!.text).toBe("Stored even though you left.");
+  });
+
+  it("a second message while one is running is busy", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    ai.script = [async (p, o) => {
+      await gate;
+      return streamedReply("first")(p, o);
+    }];
+    const first = await coachResponse(u.id, { text: "one" }, { ai });
+    const second = await coachResponse(u.id, { text: "two" }, { ai });
+    expect(second.status).toBe(409);
+    expect(await second.json()).toEqual({ error: "busy" });
+    release();
+    await read(first);
   });
 });

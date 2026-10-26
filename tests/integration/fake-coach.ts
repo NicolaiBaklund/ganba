@@ -1,15 +1,15 @@
-import type { CoachAi, CoachParams, CoachResponse } from "@/lib/ai/coach";
+import type { CoachAi, CoachCallOpts, CoachParams, CoachResponse } from "@/lib/ai/coach";
 
 /** A scripted coach model: each call takes the next step and records what it was given. */
-export type Step = (p: CoachParams) => CoachResponse;
+export type Step = (p: CoachParams, opts?: CoachCallOpts) => CoachResponse | Promise<CoachResponse>;
 export class FakeCoach implements CoachAi {
   calls: CoachParams[] = [];
   script: Step[] = [];
-  async create(_k: string, p: CoachParams) {
+  async create(_k: string, p: CoachParams, opts?: CoachCallOpts) {
     this.calls.push(JSON.parse(JSON.stringify(p)));
     const s = this.script.shift();
     if (!s) throw Object.assign(new Error("no script"), { status: 500 });
-    return s(p);
+    return s(p, opts);
   }
 }
 export const usage = { input_tokens: 100, output_tokens: 20 };

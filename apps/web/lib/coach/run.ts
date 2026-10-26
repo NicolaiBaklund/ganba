@@ -7,7 +7,8 @@ import { resolveAnthropicKey } from "@/lib/ai/keys";
 import { costUsd } from "@/lib/ai/pricing";
 import { anthropicCoachAi, COACH_MODEL, type CoachAi } from "@/lib/ai/coach";
 import { buildCoachContext, type CoachContext } from "./context";
-import { isReadTool, readTools, runReadTool } from "./tools";
+import { isReadTool, readTools, runReadTool, TOOL_LABELS } from "./tools";
+import { partialReplyMessage, type CoachEvent } from "./stream";
 import { activeThread, addMessage, addNotes, claimThread, recentMessages, releaseThread, removeNotes, type CoachMessage, type CoachOption } from "./store";
 
 /** Fetching data costs rounds: room for a few reads, a plan check and the reply. */
@@ -89,7 +90,17 @@ const addWeek = (d: string) => {
 };
 
 /** One user message → the coach's answer with checked options, stored in the active thread. */
-export async function runCoach(userId: string, input: { text: string; aboutWorkoutId?: string | null; aboutDate?: string | null }, opts: { ai?: CoachAi } = {}) {
+export async function runCoach(
+  userId: string,
+  input: { text: string; aboutWorkoutId?: string | null; aboutDate?: string | null },
+  opts: { ai?: CoachAi; onEvent?: (e: CoachEvent) => void } = {},
+) {
+  // A listener that fails (closed stream) never stops the coach.
+  const emit = (e: CoachEvent) => {
+    try {
+      opts.onEvent?.(e);
+    } catch {}
+  };
   const apiKey = await resolveAnthropicKey(userId);
   if (!apiKey) return { ok: false as const, error: "no_key" as CoachError };
   const thread = await activeThread(userId);
@@ -100,6 +111,12 @@ export async function runCoach(userId: string, input: { text: string; aboutWorko
     const aboutWorkoutId = input.aboutWorkoutId && cc.refOf.has(input.aboutWorkoutId) ? input.aboutWorkoutId : null;
     if (input.aboutWorkoutId && !aboutWorkoutId) cc = await buildCoachContext(userId, thread.id, { aboutDate: input.aboutDate, message: input.text });
     const tools = coachTools(cc);
+    emit({ type: "start" });
+    let shown = "";
+    const onReplyDelta = (json: string) => {
+      const text = partialReplyMessage(json);
+      if (text && text !== shown) emit({ type: "text", text: (shown = text) });
+    };
     // A retry after a failed answer reuses the stored message instead of adding it again.
     const last = (await recentMessages(thread.id, 1))[0];
     if (!(last?.role === "user" && last.text === input.text))
@@ -118,7 +135,7 @@ export async function runCoach(userId: string, input: { text: string; aboutWorko
       if (left < 15_000) break;
       let res;
       try {
-        res = await ai.create(apiKey, { system: COACH_SYSTEM_PROMPT, tools, messages }, { timeoutMs: left });
+        res = await ai.create(apiKey, { system: COACH_SYSTEM_PROMPT, tools, messages }, { timeoutMs: left, onReplyDelta });
       } catch (e) {
         const status = (e as { status?: number }).status;
         return { ok: false as const, error: (status === 401 || status === 403 ? "invalid_key" : "unavailable") as CoachError };
@@ -140,6 +157,7 @@ export async function runCoach(userId: string, input: { text: string; aboutWorko
       const results: Anthropic.ToolResultBlockParam[] = [];
       for (const u of uses) {
         let out: unknown;
+        if (TOOL_LABELS[u.name]) emit({ type: "status", label: TOOL_LABELS[u.name]! });
         if (u.name === "reply") {
           const p = ReplyInput.safeParse(u.input);
           if (p.success) reply = p.data;
