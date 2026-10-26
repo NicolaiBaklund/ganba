@@ -16,7 +16,7 @@ const DEADLINE_MS = 240_000;
 const FINAL_NUDGE = "Final round: call reply now with what you have.";
 const GAVE_UP = "I couldn't finish working that out. Ask again, maybe a bit shorter.";
 const CUT_OFF = "(My answer was cut off. Ask again if something is missing.)";
-export type CoachError = "no_plan" | "no_key" | "busy" | "invalid_key" | "unavailable" | "refused" | "invalid_output";
+export type CoachError = "no_key" | "busy" | "invalid_key" | "unavailable" | "refused" | "invalid_output";
 
 const CheckInput = z.object({ changes: z.array(CoachChangeSchema) });
 const NotesInput = z.object({
@@ -29,12 +29,12 @@ const ReplyInput = z.object({
 });
 
 const schema = (s: z.ZodType) => z.toJSONSchema(s) as Anthropic.Tool["input_schema"];
-export const COACH_TOOLS: Anthropic.Tool[] = [
-  {
-    name: "check_plan_changes",
-    description: "Dry-run changes in the plan engine. Returns which changes are allowed, errors, new load warnings and weekly km before/after. Use before proposing.",
-    input_schema: schema(CheckInput),
-  },
+const PLAN_TOOL: Anthropic.Tool = {
+  name: "check_plan_changes",
+  description: "Dry-run changes in the plan engine. Returns which changes are allowed, errors, new load warnings and weekly km before/after. Use before proposing.",
+  input_schema: schema(CheckInput),
+};
+const BASE_TOOLS: Anthropic.Tool[] = [
   {
     name: "update_notes",
     description: "Add or remove coach notes (lasting facts about the runner). Max 15; give temporary facts an until date (YYYY-MM-DD).",
@@ -42,10 +42,12 @@ export const COACH_TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "reply",
-    description: "Finish the turn: your message to the runner and 0–3 options. Each option is a complete set of changes applied with one tap.",
+    description: "Finish the turn: your message to the runner and 0–3 options. Each option is a complete set of plan changes applied with one tap (none without a plan).",
     input_schema: schema(ReplyInput),
   },
 ];
+/** The tools for this conversation: plan changes only when there is a plan. */
+export const coachTools = (cc: CoachContext): Anthropic.Tool[] => (cc.plan ? [PLAN_TOOL, ...BASE_TOOLS] : BASE_TOOLS);
 
 /** Changes from the model (refs) → engine changes; unknown refs become errors. */
 function resolve(cc: CoachContext, changes: z.infer<typeof CoachChangeSchema>[]) {
@@ -59,9 +61,10 @@ function resolve(cc: CoachContext, changes: z.infer<typeof CoachChangeSchema>[])
   return { ok, errors };
 }
 
+/** Only called with a plan (the plan tool and options exist only then). */
 function dryRun(cc: CoachContext, changes: z.infer<typeof CoachChangeSchema>[]) {
   const r = resolve(cc, changes);
-  return { refErrors: r.errors, res: checkChanges(cc.workouts, r.ok, cc.ctx, { recentLongestKm: cc.recentLongestKm }) };
+  return { refErrors: r.errors, res: checkChanges(cc.workouts, r.ok, cc.ctx!, { recentLongestKm: cc.recentLongestKm }) };
 }
 
 function check(cc: CoachContext, changes: z.infer<typeof CoachChangeSchema>[]) {
@@ -84,17 +87,17 @@ const addWeek = (d: string) => {
 };
 
 /** One user message → the coach's answer with checked options, stored in the active thread. */
-export async function runCoach(userId: string, input: { text: string; aboutWorkoutId?: string | null }, opts: { ai?: CoachAi } = {}) {
+export async function runCoach(userId: string, input: { text: string; aboutWorkoutId?: string | null; aboutDate?: string | null }, opts: { ai?: CoachAi } = {}) {
   const apiKey = await resolveAnthropicKey(userId);
   if (!apiKey) return { ok: false as const, error: "no_key" as CoachError };
   const thread = await activeThread(userId);
   if (!(await claimThread(thread.id))) return { ok: false as const, error: "busy" as CoachError };
   try {
-    let cc = await buildCoachContext(userId, thread.id, { aboutWorkoutId: input.aboutWorkoutId, message: input.text });
-    if (!cc) return { ok: false as const, error: "no_plan" as CoachError };
+    let cc = await buildCoachContext(userId, thread.id, { aboutWorkoutId: input.aboutWorkoutId, aboutDate: input.aboutDate, message: input.text });
     // A session id that is not in this plan (deleted, other plan) is ignored rather than failing.
     const aboutWorkoutId = input.aboutWorkoutId && cc.refOf.has(input.aboutWorkoutId) ? input.aboutWorkoutId : null;
-    if (input.aboutWorkoutId && !aboutWorkoutId) cc = (await buildCoachContext(userId, thread.id, { message: input.text }))!;
+    if (input.aboutWorkoutId && !aboutWorkoutId) cc = await buildCoachContext(userId, thread.id, { aboutDate: input.aboutDate, message: input.text });
+    const tools = coachTools(cc);
     // A retry after a failed answer reuses the stored message instead of adding it again.
     const last = (await recentMessages(thread.id, 1))[0];
     if (!(last?.role === "user" && last.text === input.text))
@@ -113,7 +116,7 @@ export async function runCoach(userId: string, input: { text: string; aboutWorko
       if (left < 15_000) break;
       let res;
       try {
-        res = await ai.create(apiKey, { system: COACH_SYSTEM_PROMPT, tools: COACH_TOOLS, messages }, { timeoutMs: left });
+        res = await ai.create(apiKey, { system: COACH_SYSTEM_PROMPT, tools, messages }, { timeoutMs: left });
       } catch (e) {
         const status = (e as { status?: number }).status;
         return { ok: false as const, error: (status === 401 || status === 403 ? "invalid_key" : "unavailable") as CoachError };
@@ -139,7 +142,7 @@ export async function runCoach(userId: string, input: { text: string; aboutWorko
           const p = ReplyInput.safeParse(u.input);
           if (p.success) reply = p.data;
           out = p.success ? "ok" : { is_error: true, error: "invalid reply", issues: p.error.issues.slice(0, 3) };
-        } else if (u.name === "check_plan_changes") {
+        } else if (u.name === "check_plan_changes" && cc.plan) {
           const p = CheckInput.safeParse(u.input);
           out = p.success ? check(cc, p.data.changes) : { is_error: true, error: "invalid input", issues: p.error.issues.slice(0, 3) };
         } else if (u.name === "update_notes") {
@@ -167,8 +170,10 @@ export async function runCoach(userId: string, input: { text: string; aboutWorko
     if (!reply && !fallbackText) fallbackText = GAVE_UP;
     const options: CoachOption[] = [];
     const dropped: string[] = [];
-    const extra = Math.max(0, (reply?.options.length ?? 0) - MAX_OPTIONS);
-    for (const o of (reply?.options ?? []).slice(0, MAX_OPTIONS)) {
+    // Options change the plan: none without one.
+    const proposed = cc.plan ? (reply?.options ?? []) : [];
+    const extra = Math.max(0, proposed.length - MAX_OPTIONS);
+    for (const o of proposed.slice(0, MAX_OPTIONS)) {
       const { refErrors, res } = dryRun(cc, o.changes);
       if (refErrors.length || res.errors.length || !res.valid.length) {
         dropped.push(o.title);

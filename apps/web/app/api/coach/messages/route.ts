@@ -4,8 +4,12 @@ import { apiUser } from "@/lib/api/user";
 import { runCoach } from "@/lib/coach/run";
 
 export const maxDuration = 300;
-const Body = z.object({ text: z.string().trim().min(1).max(2000), aboutWorkoutId: z.string().uuid().nullish() });
-const STATUS = { no_plan: 409, no_key: 402, busy: 409, invalid_key: 401, unavailable: 503, refused: 422, invalid_output: 422 } as const;
+const Body = z.object({
+  text: z.string().trim().min(1).max(2000),
+  aboutWorkoutId: z.string().uuid().nullish(),
+  aboutDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
+});
+const STATUS = { no_key: 402, busy: 409, invalid_key: 401, unavailable: 503, refused: 422, invalid_output: 422 } as const;
 
 export async function POST(req: Request) {
   const u = await apiUser();
