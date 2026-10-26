@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { addDays, weekday } from "@loop/core";
 import { encryptSecret } from "@/lib/ai/crypto";
-import type { CoachAi, CoachParams, CoachResponse } from "@/lib/ai/coach";
+import type { CoachParams } from "@/lib/ai/coach";
 import { saveTokens } from "@/lib/garmin/accounts";
 import { syncGarmin } from "@/lib/garmin/sync";
 import { setAiHealthConsent } from "@/lib/recovery/consent";
-import { runCoach } from "@/lib/coach/run";
+import { MAX_ROUNDS, runCoach } from "@/lib/coach/run";
 import { applyOption } from "@/lib/coach/apply";
 import { activeThread, addMessage, addNotes, archiveThread, editNote, listNotes, removeNotes } from "@/lib/coach/store";
 import { activePlan, createPlan, planWorkouts } from "@/lib/training/service";
@@ -13,29 +13,8 @@ import { activePlan, createPlan, planWorkouts } from "@/lib/training/service";
 import { seedUser } from "../smoke/seed.mjs";
 import { admin, cleanup, createTestUser, type TestUser } from "./setup";
 import { FakeGarmin, run } from "./fake-garmin";
+import { FakeCoach, ctxOf, tool, usage } from "./fake-coach";
 
-type Step = (p: CoachParams) => CoachResponse;
-class FakeCoach implements CoachAi {
-  calls: CoachParams[] = [];
-  script: Step[] = [];
-  async create(_k: string, p: CoachParams) {
-    this.calls.push(JSON.parse(JSON.stringify(p)));
-    const s = this.script.shift();
-    if (!s) throw Object.assign(new Error("no script"), { status: 500 });
-    return s(p);
-  }
-}
-const usage = { input_tokens: 100, output_tokens: 20 };
-const tool = (name: string, input: unknown, id = `t-${name}-${Math.random()}`): CoachResponse => ({
-  content: [{ type: "tool_use", id, name, input, caller: { type: "direct" } } as never],
-  stop_reason: "tool_use",
-  usage,
-});
-/** The context text the coach got (first message, a cached text block). */
-const ctxOf = (p: CoachParams) => {
-  const c = p.messages[0]!.content;
-  return typeof c === "string" ? c : (c as { text: string }[]).map((b) => b.text).join("");
-};
 /** "sN" ref of the first upcoming session of a type, read from the context the coach got. */
 const refFor = (p: CoachParams, type: string) => {
   const text = ctxOf(p);
@@ -88,7 +67,7 @@ describe("coach: tool loop, options, memory, consent", () => {
     expect(r.message.options).toHaveLength(1);
     expect(r.message.options[0]!.changes[0]!.op).toBe("edit");
     expect(r.message.text).toContain("left out");
-    expect(ai.calls[0]!.tools.map((t) => t.name)).toEqual(["check_plan_changes", "update_notes", "reply"]);
+    expect(ai.calls[0]!.tools.map((t) => t.name).slice(-3)).toEqual(["check_plan_changes", "update_notes", "reply"]);
   });
 
   it("text without reply is stored as the answer; notes tool remembers lasting facts", async () => {
@@ -109,11 +88,11 @@ describe("coach: tool loop, options, memory, consent", () => {
     const ctxText = ctxOf(ai.calls.at(-1)!);
     expect(ctxText.match(/^\[(user|coach)\]/gm)).toHaveLength(12);
     expect(ctxText).not.toContain("old message 7");
-    expect(ctxText).not.toContain("Recovery (last 7 mornings");
+    expect(ctxText).toContain("Health data (sleep, HRV, resting HR, Form) is switched off");
     await setAiHealthConsent(u.id, true);
     ai.script = [() => tool("reply", { message: "ok", options: [] })];
     await runCoach(u.id, { text: "hi again" }, { ai });
-    expect(ctxOf(ai.calls.at(-1)!)).toContain("Recovery (last 7 mornings");
+    expect(ctxOf(ai.calls.at(-1)!)).toContain("Form today:");
   });
 
   it("one reply at a time per conversation", async () => {
@@ -137,7 +116,7 @@ describe("coach: tool loop, options, memory, consent", () => {
   });
 
   it("too many rounds: the last one asks for a reply, and the runner still gets an answer", async () => {
-    ai.script = Array.from({ length: 6 }, () => () => tool("check_plan_changes", { changes: [] }));
+    ai.script = Array.from({ length: MAX_ROUNDS }, () => () => tool("check_plan_changes", { changes: [] }));
     const r = await runCoach(u.id, { text: "think hard" }, { ai });
     expect(r.ok).toBe(true);
     expect(r.ok && r.message.text.length).toBeGreaterThan(0);

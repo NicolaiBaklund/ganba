@@ -7,8 +7,8 @@ import { loadTrainingView } from "@/lib/training/view";
 import { fmtClock, hrZoneLabel } from "@/lib/training/format";
 import { PlanSwitch } from "@/components/training/PlanSwitch";
 import { CrossDays } from "@/components/training/CrossDays";
+import { EndPlan } from "@/components/training/EndPlan";
 import { ProposalCard } from "@/components/training/ProposalCard";
-import { CoachButton } from "@/components/coach/CoachButton";
 import { TrainingMap } from "@/components/training/TrainingMap";
 import { SectionHead } from "@/components/tasuki/SectionHead";
 import { StatRow } from "@/components/tasuki/StatRow";
@@ -73,10 +73,7 @@ export default async function TrainingPage() {
 
   return (
     <main className="flex flex-col px-[18px] pb-4 pt-5">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="cond text-[34px] leading-none">{t("title")}</h1>
-        <CoachButton />
-      </div>
+      <h1 className="cond text-[34px] leading-none">{t("title")}</h1>
 
       <div className="mb-4 mt-4 flex items-end gap-3">
         <p className="num text-[84px] font-black leading-[.82] [font-stretch:62%]">{bigLabel}</p>
@@ -131,6 +128,7 @@ export default async function TrainingPage() {
           </div>
         </>
       )}
+      <EndPlan />
     </main>
   );
 }

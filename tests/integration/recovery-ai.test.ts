@@ -5,7 +5,7 @@ import type { RecoveryAi } from "@/lib/ai/recovery";
 import { saveTokens } from "@/lib/garmin/accounts";
 import { computeRecovery } from "@/lib/recovery/compute";
 import { setAiHealthConsent } from "@/lib/recovery/consent";
-import { dayAnswer, proposeQuestions, weeklySummary } from "@/lib/recovery/insights";
+import { proposeQuestions } from "@/lib/recovery/insights";
 // @ts-expect-error — plain JS helper shared with the smoke scripts
 import { seedUser } from "../smoke/seed.mjs";
 import { admin, cleanup, createTestUser, type TestUser } from "./setup";
@@ -77,117 +77,16 @@ describe("recovery AI: consent, grounding, caching", () => {
   afterAll(cleanup);
 
   it("consent off: no AI call at all", async () => {
-    expect(await weeklySummary(u.id, { ai })).toEqual({ ok: false, error: "consent_required" });
-    expect(await dayAnswer(u.id, today, { ai })).toEqual({ ok: false, error: "consent_required" });
     expect(await proposeQuestions(u.id, { ai })).toEqual({ ok: false, error: "consent_required" });
     expect(ai.calls).toHaveLength(0);
   });
 
   it("consent on but no key: a clear error, still no AI call", async () => {
     await setAiHealthConsent(u.id, true);
-    expect(await weeklySummary(u.id, { ai })).toEqual({ ok: false, error: "no_key" });
+    expect(await proposeQuestions(u.id, { ai })).toEqual({ ok: false, error: "no_key" });
     expect(ai.calls).toHaveLength(0);
     const enc = encryptSecret("sk-ant-test-0000000000000000");
     await admin().from("api_keys").insert({ user_id: u.id, provider: "anthropic", ciphertext: enc.ciphertext, iv: enc.iv, auth_tag: enc.authTag, last4: "0000" });
-  });
-
-  it("weekly summary: sentences with made-up references are removed; stored once per week", async () => {
-    const weekStart = addDays(weekStartOn(today, 1), -7);
-    ai.next = {
-      headline: { text: "Steady week", refs: [`day:${addDays(weekStart, 2)}:hrv`] },
-      sentences: [
-        { text: "HRV held up.", refs: [`day:${addDays(weekStart, 2)}:hrv`] },
-        { text: "Invented.", refs: ["finding:made-up"] },
-        { text: "No refs.", refs: [] },
-      ],
-      tips: [{ text: "Keep it up.", refs: [`day:${addDays(weekStart, 3)}:sleepScore`] }],
-    };
-    const r = await weeklySummary(u.id, { ai });
-    expect(r.ok).toBe(true);
-    if (!r.ok) return;
-    expect(r.summary.sentences.map((s) => s.text)).toEqual(["HRV held up."]);
-    expect(r.summary.tips).toHaveLength(1);
-    expect(r.summary.headline).toBe("Steady week");
-    expect(ai.calls).toHaveLength(1);
-    expect(ai.calls[0]!.message).toContain("Day table");
-    await weeklySummary(u.id, { ai });
-    expect(ai.calls).toHaveLength(1); // cached
-  });
-
-  it("nothing grounded left → nothing shown", async () => {
-    await admin().from("recovery_summaries").delete().eq("user_id", u.id);
-    ai.next = { headline: { text: "Wow", refs: [] }, sentences: [{ text: "Made up.", refs: ["finding:x"] }], tips: [] };
-    const r = await weeklySummary(u.id, { ai });
-    expect(r.ok && r.summary).toEqual({ headline: "", sentences: [], tips: [] });
-  });
-
-  it("the headline follows the ground rule too", async () => {
-    await admin().from("recovery_summaries").delete().eq("user_id", u.id);
-    const weekStart = addDays(weekStartOn(today, 1), -7);
-    ai.next = {
-      headline: { text: "Alcohol wrecked your week", refs: ["finding:made-up"] },
-      sentences: [{ text: "HRV held up.", refs: [`day:${addDays(weekStart, 2)}:hrv`] }],
-      tips: [],
-    };
-    const r = await weeklySummary(u.id, { ai });
-    expect(r.ok && r.summary.headline).toBe("");
-    expect(r.ok && r.summary.sentences).toHaveLength(1);
-  });
-
-  it("a failed summary is not retried on every open (24 h pause), then tried again", async () => {
-    await admin().from("recovery_summaries").delete().eq("user_id", u.id);
-    ai.fail = "invalid_output";
-    expect(await weeklySummary(u.id, { ai })).toEqual({ ok: false, error: "invalid_output" });
-    const n = ai.calls.length;
-    expect(await weeklySummary(u.id, { ai })).toEqual({ ok: false, error: "invalid_output" });
-    expect(ai.calls.length).toBe(n);
-    const weekStart = addDays(weekStartOn(today, 1), -7);
-    await admin()
-      .from("recovery_summaries")
-      .update({ content: { status: "failed", error: "invalid_output", at: new Date(Date.now() - 25 * 3600_000).toISOString() } })
-      .eq("user_id", u.id)
-      .eq("week_start", weekStart);
-    ai.fail = null;
-    ai.next = { headline: { text: "Fine", refs: [] }, sentences: [{ text: "HRV held up.", refs: [`day:${addDays(weekStart, 2)}:hrv`] }], tips: [] };
-    const r = await weeklySummary(u.id, { ai });
-    expect(r.ok).toBe(true);
-    expect(ai.calls.length).toBe(n + 1);
-  });
-
-  it("Why?: cached per day, marked stale when the day's food changes, refreshed only on request", async () => {
-    ai.next = { sentences: [{ text: "HRV was in your normal range.", refs: [`day:${today}:hrv`] }] };
-    const first = await dayAnswer(u.id, today, { ai });
-    expect(first.ok && first.answer.sentences).toHaveLength(1);
-    const calls = ai.calls.length;
-    const again = await dayAnswer(u.id, today, { ai });
-    expect(again.ok && again.stale).toBe(false);
-    expect(ai.calls.length).toBe(calls);
-
-    const y = addDays(today, -1);
-    const { data: es } = await admin()
-      .from("food_entries")
-      .insert([
-        { user_id: u.id, logged_at: zonedTime(y, "12:00", TZ).toISOString(), local_date: y, meal_type: "lunch", source: "quick" },
-        { user_id: u.id, logged_at: zonedTime(y, "18:00", TZ).toISOString(), local_date: y, meal_type: "dinner", source: "quick" },
-      ])
-      .select("id");
-    await admin().from("food_items").insert(es!.map((e) => ({ user_id: u.id, food_entry_id: e.id, name: "Meal", kcal: 900, carbs_g: 100, protein_g: 40 })));
-    const stale = await dayAnswer(u.id, today, { ai });
-    expect(stale.ok && stale.stale).toBe(true);
-    expect(ai.calls.length).toBe(calls);
-    const fresh = await dayAnswer(u.id, today, { ai, refresh: true });
-    expect(fresh.ok && fresh.stale).toBe(false);
-    expect(ai.calls.length).toBe(calls + 1);
-  });
-
-  it("Why? does not go stale when only the findings change (they move with every sync)", async () => {
-    await admin().from("recovery_findings").insert({
-      user_id: u.id, computed_at: new Date().toISOString(), question_id: "carbs-hrv", factor: "carbs", outcome: "hrv", lag: 1, kind: "finding",
-      groups: { high: { n: 20, mean: 3, bound: 5 }, low: { n: 20, mean: -2, bound: 3 }, needed: 8 }, effect_sd: 0.6, rank: 1,
-    });
-    const r = await dayAnswer(u.id, today, { ai });
-    expect(r.ok && r.stale).toBe(false);
-    await admin().from("recovery_findings").delete().eq("user_id", u.id).eq("question_id", "carbs-hrv");
   });
 
   it("AI questions: a failed attempt still waits a month (no paid call on every open)", async () => {
@@ -223,7 +122,7 @@ describe("recovery AI: consent, grounding, caching", () => {
   it("switching consent off again stops everything, including testing AI questions", async () => {
     await setAiHealthConsent(u.id, false);
     const n = ai.calls.length;
-    expect((await dayAnswer(u.id, today, { ai, refresh: true })).ok).toBe(false);
+    expect((await proposeQuestions(u.id, { ai })).ok).toBe(false);
     expect(ai.calls.length).toBe(n);
     await computeRecovery(u.id, today, { force: true });
     const { data: rows } = await admin().from("recovery_findings").select("question_id").eq("user_id", u.id).eq("source", "ai");

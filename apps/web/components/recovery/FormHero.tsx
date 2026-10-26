@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { CoachSheet } from "@/components/coach/CoachSheet";
+import Link from "next/link";
 import type { FormView } from "@/lib/recovery/view";
 import { FormRing } from "./FormRing";
 import { FormSheet } from "./FormSheet";
@@ -13,7 +13,6 @@ export function FormHero({ form, ai }: { form: FormView; ai: boolean }) {
   const t = useTranslations("recovery.form");
   const tw = useTranslations("workout.types");
   const [sheet, setSheet] = useState(false);
-  const [coach, setCoach] = useState(false);
   const [aiText, setAiText] = useState<string | null>(null);
   const f = form.today;
   const w = form.workout;
@@ -47,16 +46,15 @@ export function FormHero({ form, ai }: { form: FormView; ai: boolean }) {
       <p className="mt-3 max-w-[22rem] text-center text-[15px] leading-snug">{sentence}</p>
       <div className="mt-3 flex items-center gap-5 text-[14px] font-semibold">
         {form.action && (
-          <button type="button" onClick={() => setCoach(true)} className="rounded-md bg-foreground px-4 py-2.5 text-background">
+          <Link href={`/coach?${new URLSearchParams({ ...(w?.id ? { about: w.id } : {}), draft })}`} className="rounded-md bg-foreground px-4 py-2.5 text-background">
             {t("action")}
-          </button>
+          </Link>
         )}
         <button type="button" onClick={() => setSheet(true)} className="py-2.5 text-primary">
           {t("what")}
         </button>
       </div>
       <FormSheet form={form} open={sheet} onClose={() => setSheet(false)} />
-      {coach && w?.id && <CoachSheet aboutWorkoutId={w.id} draft={draft} onClose={() => setCoach(false)} />}
     </section>
   );
 }

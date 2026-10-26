@@ -1,5 +1,5 @@
-// Recovery: Garmin-connected user with 60 nights and a few stored findings opens the tab, a finding, a day,
-// and Profile's AI switch. AI stays off: no AI request may be made.
+// Form detail page (was the Recovery tab): Garmin-connected user with 60 nights opens it from Today, the parts,
+// a day, and Profile's AI switch. With AI off no AI request may be made; with it on, a day links to the coach.
 import { config } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import { chromium } from "playwright";
@@ -66,13 +66,22 @@ try {
   const errors = [];
   const aiCalls = [];
   page.on("console", (m) => m.type() === "error" && errors.push(m.text().slice(0, 3000)));
-  page.on("request", (r) => /\/api\/recovery\/(summary|questions|form-note)|\/why/.test(r.url()) && aiCalls.push(r.url()));
+  page.on("request", (r) => /\/api\/recovery\/(questions|form-note)/.test(r.url()) && aiCalls.push(r.url()));
   const shot = (name) => page.screenshot({ path: `tests/smoke/out/${name}.png`, fullPage: true, caret: "initial" });
 
-  await page.goto(`${BASE}/recovery`);
-  await page.getByText("Learned about you").waitFor();
+  // Form detail page: reached from the Form card on Today (no Recovery tab any more).
+  await page.goto(`${BASE}/today`);
+  const formCard = page.getByRole("link", { name: "Form 35, open Recovery" });
+  await formCard.waitFor();
+  check(await page.getByRole("link", { name: "All meals" }).count(), "All meals link on Today");
+  await formCard.click();
+  await page.waitForURL(/\/recovery/);
+  await page.getByRole("heading", { name: "Form" }).waitFor();
   await shot("60-recovery");
   check(await page.getByText("Held back by HRV and a recent hard session.").count(), "template sentence from the parts");
+  check(!(await page.getByText("Learned about you").count()), "no findings list (the coach has them)");
+  check(!(await page.getByRole("button", { name: "More" }).count()), "no More section");
+  check(!(await page.locator("nav").getByRole("link", { name: "Recovery" }).count()), "no Recovery tab");
   await page.getByRole("button", { name: "Form 35, see what counts" }).click();
   await page.getByText("HRV last night").waitFor();
   await page.waitForTimeout(400);
@@ -82,18 +91,7 @@ try {
   check(!(await page.getByText(/recovery\.form\./).count()), "no raw message keys (old part ids dropped)");
   await shot("60b-recovery-form");
   await page.keyboard.press("Escape");
-  check(await page.getByText("Deficit over 820 kcal").count(), "finding line with the real bound");
   check(await page.getByText("Turn on AI insights").count(), "AI-off link");
-  await page.getByText("Deficit over 820 kcal").click();
-  await page.getByText("days, first group").waitFor();
-  await page.waitForTimeout(400); // sheet slide-in
-  check((await page.locator('[role="dialog"] svg circle').count()) >= 40, "finding chart: one dot per day");
-  await shot("61-recovery-finding");
-  await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "More" }).click();
-  check(await page.getByText("No clear link").count(), "no-effect list");
-  check(await page.getByText("4 of 8 days").count(), "progress line");
-  await shot("62-recovery-more");
   // Day buttons reach the day sheet without hitting a chart point (keyboard, screen reader).
   const dayButtons = page.getByRole("group", { name: "Pick a day" }).getByRole("button");
   check((await dayButtons.count()) === 7, "7 day buttons");
@@ -103,19 +101,26 @@ try {
   await page.waitForTimeout(400);
   check(await page.getByText("No food logged").count() + (await page.getByText(/of \d+ kcal/).count()) > 0, "day before: food or 'No food logged'");
   await shot("63-recovery-day");
-  check(!(await page.getByText("Why?").count()), "no Why? while AI is off");
+  check(!(await page.getByText("Ask the coach about this day").count()), "no coach link while AI is off");
   check(aiCalls.length === 0, `no AI requests with consent off (${aiCalls.join(", ")})`);
 
-  await page.goto(`${BASE}/today`);
-  check(await page.getByRole("link", { name: "All meals" }).count(), "All meals link on Today");
-  check(await page.getByRole("link", { name: "Form 35, open Recovery" }).count(), "Form ring on Today");
+  check(!errors.length, `console errors: ${errors.join(" | ")}`);
+  // With AI on, a day links to the coach with that day as the topic (this user has no key: AI requests answer 402).
+  await admin.from("profiles").update({ ai_health_consent: true, ai_health_consent_at: new Date().toISOString() }).eq("user_id", uid);
+  await page.goto(`${BASE}/recovery`);
+  await page.getByRole("group", { name: "Pick a day" }).getByRole("button").last().click();
+  await page.getByText("The day before").waitFor();
+  const coachLink = page.getByRole("link", { name: "Ask the coach about this day" });
+  check(/\/coach\?day=\d{4}-\d{2}-\d{2}$/.test((await coachLink.getAttribute("href")) ?? ""), "day links to /coach?day=");
+  await page.keyboard.press("Escape");
+  await admin.from("profiles").update({ ai_health_consent: false, ai_health_consent_at: null }).eq("user_id", uid);
+
   await page.goto(`${BASE}/profile`);
   const sw = page.getByRole("switch", { name: "Use my health data with AI" });
   await sw.waitFor({ timeout: 30_000 }).catch(() => null);
   check(await sw.count(), "AI switch in Profile");
   check((await sw.getAttribute("aria-checked")) === "false", "AI switch off by default");
   await shot("64-profile-ai");
-  check(!errors.length, `console errors: ${errors.join(" | ")}`);
   await browser.close();
 } catch (e) {
   failed = true;

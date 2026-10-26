@@ -66,9 +66,9 @@ try {
   await page.waitForURL(/\/training\/workout\//);
   await shot("44-workout");
   const hasFuel = await page.getByText("Fuel", { exact: true }).count();
-  const hasAskCoach = await page.getByRole("button", { name: "Ask the coach" }).count();
+  const hasAskCoach = await page.getByRole("link", { name: "Ask the coach" }).count();
 
-  // Coach: a seeded conversation with one option (no AI call); apply it from the sheet.
+  // Coach: a seeded conversation with one option (no AI call); apply it from the Coach tab.
   const { data: easy } = await admin.from("planned_workouts").select("id, planned_km").eq("user_id", uid).eq("type", "easy").gte("date", today).order("date").limit(1).single();
   const { data: thread } = await admin.from("coach_threads").insert({ user_id: uid }).select("id").single();
   const longer = Math.round((Number(easy.planned_km) + 2) * 10) / 10;
@@ -100,7 +100,8 @@ try {
   }
   await admin.from("coach_notes").insert({ user_id: uid, text: "Prefers morning runs", source: "coach" });
   await page.goto(`${BASE}/training`);
-  await page.getByRole("button", { name: "Coach", exact: true }).click();
+  await page.getByRole("link", { name: "Coach", exact: true }).click();
+  await page.waitForURL(/\/coach/);
   await page.getByText("Easy run +2 km").waitFor();
   await page.waitForTimeout(400);
   await shot("46-coach");

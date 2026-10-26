@@ -1,35 +1,19 @@
 import "server-only";
-import { createHash } from "node:crypto";
 import {
   addDays,
   buildRecoveryRows,
-  DayAnswerSchema,
-  dayMessage,
-  dayRefs,
-  findingRefs,
-  keepGrounded,
   localDate,
   questionsMessage,
   QuestionProposalsSchema,
-  RECOVERY_DAY_PROMPT,
   RECOVERY_FACTORS,
   RECOVERY_OUTCOMES,
   RECOVERY_PROMPT_VERSION,
   RECOVERY_QUESTIONS,
   RECOVERY_QUESTIONS_PROMPT,
-  RECOVERY_SUMMARY_PROMPT,
-  summaryMessage,
   validateProposals,
-  weekStartOn,
-  WeeklySummarySchema,
-  type AiDayRow,
   type AiFinding,
-  type DayAnswer,
   type ISODate,
-  type RecoveryDayInput,
   type RecoveryQuestion,
-  type RecoveryRow,
-  type WeeklySummary,
 } from "@loop/core";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import type { Json } from "@/lib/db/types";
@@ -41,7 +25,6 @@ import { getAiHealthConsent } from "./consent";
 import { loadRecoveryDays } from "./load";
 
 export type InsightError = "consent_required" | "no_key" | "not_enough_data" | AiError;
-const MIN_WEEK_NIGHTS = 3;
 const QUESTIONS_EVERY_DAYS = 30;
 const QUESTIONS_MIN_DAYS = 60;
 const MAX_ACTIVE_AI_QUESTIONS = 9;
@@ -56,24 +39,6 @@ export async function gate(userId: string): Promise<{ ok: true; apiKey: string; 
   if (!apiKey) return { ok: false, error: "no_key" };
   const { data: p } = await db().from("profiles").select("locale, timezone").eq("user_id", userId).single();
   return { ok: true, apiKey, language: languageOf(p?.locale), today: localDate(p?.timezone ?? "UTC") };
-}
-
-function aiRow(d: RecoveryDayInput, r: RecoveryRow | undefined): AiDayRow {
-  return {
-    date: d.date,
-    sleepScore: d.sleepScore,
-    hrv: d.hrv,
-    restingHr: d.restingHr,
-    deficitKcal: round(d.food?.deficitKcal),
-    carbsPerKg: round(d.food?.carbsPerKg, 1),
-    proteinPerKg: round(d.food?.proteinPerKg, 1),
-    alcoholG: d.food && d.food.alcoholG > 0 ? round(d.food.alcoholG) : null,
-    lateKcal: round(d.food?.lateKcal),
-    hard: d.hard,
-    long: d.long,
-    steps: d.steps,
-    vsNormal: { sleepScore: round(r?.outcomes.sleepScore), hrv: round(r?.outcomes.hrv), restingHr: round(r?.outcomes.restingHr) },
-  };
 }
 
 export async function verifiedFindings(userId: string): Promise<AiFinding[]> {
@@ -101,97 +66,6 @@ export const usageCols = (r: { usage: { input: number; output: number; cacheRead
   output_tokens: r.usage.output,
   cost_usd: costUsd(r.model, r.usage),
 });
-
-const RETRY_FAILED_MS = 24 * 3600_000;
-const PENDING_MS = 2 * 60_000;
-type SummaryRow = WeeklySummary | { status: "pending" | "failed"; error?: AiError; at: string };
-
-/**
- * A) Last full week (Monday–Sunday), made once the first time the tab opens after it ends.
- * One attempt at a time per week (a pending row claims it); a failure waits 24 h before the next paid try.
- */
-export async function weeklySummary(userId: string, opts: { ai?: RecoveryAi; today?: ISODate } = {}) {
-  const g = await gate(userId);
-  if (!g.ok) return g;
-  const today = opts.today ?? g.today;
-  const weekStart = addDays(weekStartOn(today, 1), -7);
-  const { data: cached } = await db().from("recovery_summaries").select("content").eq("user_id", userId).eq("week_start", weekStart).maybeSingle();
-  const prev = cached?.content as unknown as SummaryRow | undefined;
-  if (prev && !("status" in prev)) return { ok: true as const, summary: prev, weekStart };
-  if (prev && "status" in prev) {
-    const age = Date.now() - Date.parse(prev.at);
-    if (prev.status === "pending" && age < PENDING_MS) return { ok: false as const, error: "unavailable" as const };
-    if (prev.status === "failed" && age < RETRY_FAILED_MS) return { ok: false as const, error: prev.error ?? ("unavailable" as const) };
-  }
-
-  const days = await loadRecoveryDays(userId, today);
-  const rows = new Map(buildRecoveryRows(days, addDays(today, -89), today).map((r) => [r.date, r]));
-  const week = days.filter((d) => d.date >= weekStart && d.date <= addDays(weekStart, 6));
-  if (week.filter((d) => d.sleepScore != null || d.hrv != null).length < MIN_WEEK_NIGHTS) return { ok: false as const, error: "not_enough_data" as const };
-
-  // Claim this week: replace a stale pending/failed row, or insert; whoever does not get the row backs off.
-  if (prev) await db().from("recovery_summaries").delete().eq("user_id", userId).eq("week_start", weekStart).eq("content->>at", (prev as { at: string }).at);
-  const { data: claimed } = await db()
-    .from("recovery_summaries")
-    .upsert({ user_id: userId, week_start: weekStart, content: { status: "pending", at: new Date().toISOString() } as unknown as Json }, { onConflict: "user_id,week_start", ignoreDuplicates: true })
-    .select("id");
-  if (!claimed?.length) return { ok: false as const, error: "unavailable" as const };
-  const save = (content: SummaryRow, extra: object = {}) =>
-    db().from("recovery_summaries").update({ content: content as unknown as Json, ...extra }).eq("user_id", userId).eq("week_start", weekStart);
-
-  const table = week.map((d) => aiRow(d, rows.get(d.date)));
-  const findings = await verifiedFindings(userId);
-  const { data: next } = await db()
-    .from("planned_workouts")
-    .select("date, title")
-    .eq("user_id", userId)
-    .eq("status", "planned")
-    .gte("date", today)
-    .lte("date", addDays(weekStart, 13))
-    .order("date");
-
-  const ai = opts.ai ?? anthropicRecoveryAi;
-  const res = await ai.ask(g.apiKey, RECOVERY_SUMMARY_PROMPT, summaryMessage({ language: g.language, weekStart, days: table, findings, nextWeek: next ?? [] }), WeeklySummarySchema);
-  if (!res.ok) {
-    await save({ status: "failed", error: res.error, at: new Date().toISOString() }, usageCols(res));
-    return { ok: false as const, error: res.error };
-  }
-  const allowed = new Set([...dayRefs(table), ...findingRefs(findings)]);
-  const sentences = keepGrounded(res.value.sentences, allowed, 5);
-  const tips = keepGrounded(res.value.tips, allowed, 2);
-  // Nothing grounded left → nothing shown; the headline also has to cite.
-  const headline = sentences.length || tips.length ? (keepGrounded([res.value.headline], allowed, 1)[0]?.text.slice(0, 80) ?? "") : "";
-  const summary: WeeklySummary = { headline, sentences, tips };
-  await save(summary, usageCols(res));
-  return { ok: true as const, summary, weekStart };
-}
-
-/** B) "Why?" for one morning. Stored with a fingerprint of its input; changed data → stale until asked again. */
-export async function dayAnswer(userId: string, date: ISODate, opts: { ai?: RecoveryAi; refresh?: boolean } = {}) {
-  const g = await gate(userId);
-  if (!g.ok) return g;
-  const days = await loadRecoveryDays(userId, date, 32); // the day before, the day, and 28 nights for the normal
-  const rows = new Map(buildRecoveryRows(days, addDays(date, -1), date).map((r) => [r.date, r]));
-  const pick = [addDays(date, -1), date].map((d) => days.find((x) => x.date === d)).filter((d): d is RecoveryDayInput => !!d);
-  const table = pick.map((d) => aiRow(d, rows.get(d.date)));
-  if (!table.some((r) => r.sleepScore != null || r.hrv != null || r.restingHr != null)) return { ok: false as const, error: "not_enough_data" as const };
-  const findings = await verifiedFindings(userId);
-  const message = dayMessage({ language: g.language, date, days: table, findings });
-  // Stale means the day's own numbers changed; findings move with every sync and must not count.
-  const inputHash = createHash("sha256").update(`${RECOVERY_PROMPT_VERSION}\n${g.language}\n${JSON.stringify(table)}`).digest("hex");
-
-  const { data: cached } = await db().from("recovery_day_answers").select("content, input_hash").eq("user_id", userId).eq("local_date", date).eq("question", "why").maybeSingle();
-  if (cached && !opts.refresh) return { ok: true as const, answer: cached.content as unknown as DayAnswer, stale: cached.input_hash !== inputHash };
-
-  const ai = opts.ai ?? anthropicRecoveryAi;
-  const res = await ai.ask(g.apiKey, RECOVERY_DAY_PROMPT, message, DayAnswerSchema);
-  if (!res.ok) return { ok: false as const, error: res.error };
-  const answer: DayAnswer = { sentences: keepGrounded(res.value.sentences, new Set([...dayRefs(table), ...findingRefs(findings)]), 4) };
-  await db()
-    .from("recovery_day_answers")
-    .upsert({ user_id: userId, local_date: date, question: "why", content: answer as unknown as Json, input_hash: inputHash, ...usageCols(res) }, { onConflict: "user_id,local_date,question" });
-  return { ok: true as const, answer, stale: false };
-}
 
 /** C) Once a month with ≥ 60 days of data: up to 3 new questions, tested by the engine with q ≤ 0.05. */
 export async function proposeQuestions(userId: string, opts: { ai?: RecoveryAi; today?: ISODate } = {}) {

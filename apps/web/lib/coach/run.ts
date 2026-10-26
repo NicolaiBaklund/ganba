@@ -7,16 +7,20 @@ import { resolveAnthropicKey } from "@/lib/ai/keys";
 import { costUsd } from "@/lib/ai/pricing";
 import { anthropicCoachAi, COACH_MODEL, type CoachAi } from "@/lib/ai/coach";
 import { buildCoachContext, type CoachContext } from "./context";
+import { isReadTool, readTools, runReadTool, TOOL_LABELS } from "./tools";
+import { partialReplyMessage, type CoachEvent } from "./stream";
 import { activeThread, addMessage, addNotes, claimThread, recentMessages, releaseThread, removeNotes, type CoachMessage, type CoachOption } from "./store";
 
-export const MAX_ROUNDS = 6;
+/** Fetching data costs rounds: room for a few reads, a plan check and the reply. */
+export const MAX_ROUNDS = 10;
 export const MAX_OPTIONS = 3;
 /** Whole turn, well inside the route's 300 s; the last call gets what is left. */
 const DEADLINE_MS = 240_000;
+const TEXT_EVERY_MS = 100;
 const FINAL_NUDGE = "Final round: call reply now with what you have.";
 const GAVE_UP = "I couldn't finish working that out. Ask again, maybe a bit shorter.";
 const CUT_OFF = "(My answer was cut off. Ask again if something is missing.)";
-export type CoachError = "no_plan" | "no_key" | "busy" | "invalid_key" | "unavailable" | "refused" | "invalid_output";
+export type CoachError = "no_key" | "busy" | "invalid_key" | "unavailable" | "refused" | "invalid_output";
 
 const CheckInput = z.object({ changes: z.array(CoachChangeSchema) });
 const NotesInput = z.object({
@@ -29,23 +33,25 @@ const ReplyInput = z.object({
 });
 
 const schema = (s: z.ZodType) => z.toJSONSchema(s) as Anthropic.Tool["input_schema"];
-export const COACH_TOOLS: Anthropic.Tool[] = [
-  {
-    name: "check_plan_changes",
-    description: "Dry-run changes in the plan engine. Returns which changes are allowed, errors, new load warnings and weekly km before/after. Use before proposing.",
-    input_schema: schema(CheckInput),
-  },
+const PLAN_TOOL: Anthropic.Tool = {
+  name: "check_plan_changes",
+  description: "Dry-run changes in the plan engine. Returns which changes are allowed, errors, new load warnings and weekly km before/after. Use before proposing.",
+  input_schema: schema(CheckInput),
+};
+const BASE_TOOLS: Anthropic.Tool[] = [
   {
     name: "update_notes",
-    description: "Add or remove coach notes (lasting facts about the runner). Max 15; give temporary facts an until date (YYYY-MM-DD).",
+    description: "Add or remove coach notes (lasting facts about the person). Max 15; give temporary facts an until date (YYYY-MM-DD).",
     input_schema: schema(NotesInput),
   },
   {
     name: "reply",
-    description: "Finish the turn: your message to the runner and 0–3 options. Each option is a complete set of changes applied with one tap.",
+    description: "Finish the turn: your message to the runner and 0–3 options. Each option is a complete set of plan changes applied with one tap (none without a plan).",
     input_schema: schema(ReplyInput),
   },
 ];
+/** The tools for this conversation: the read tools, plan changes only with a plan, notes and the reply. */
+export const coachTools = (cc: CoachContext): Anthropic.Tool[] => [...readTools(cc), ...(cc.plan ? [PLAN_TOOL] : []), ...BASE_TOOLS];
 
 /** Changes from the model (refs) → engine changes; unknown refs become errors. */
 function resolve(cc: CoachContext, changes: z.infer<typeof CoachChangeSchema>[]) {
@@ -59,9 +65,10 @@ function resolve(cc: CoachContext, changes: z.infer<typeof CoachChangeSchema>[])
   return { ok, errors };
 }
 
+/** Only called with a plan (the plan tool and options exist only then). */
 function dryRun(cc: CoachContext, changes: z.infer<typeof CoachChangeSchema>[]) {
   const r = resolve(cc, changes);
-  return { refErrors: r.errors, res: checkChanges(cc.workouts, r.ok, cc.ctx, { recentLongestKm: cc.recentLongestKm }) };
+  return { refErrors: r.errors, res: checkChanges(cc.workouts, r.ok, cc.ctx!, { recentLongestKm: cc.recentLongestKm }) };
 }
 
 function check(cc: CoachContext, changes: z.infer<typeof CoachChangeSchema>[]) {
@@ -84,17 +91,37 @@ const addWeek = (d: string) => {
 };
 
 /** One user message → the coach's answer with checked options, stored in the active thread. */
-export async function runCoach(userId: string, input: { text: string; aboutWorkoutId?: string | null }, opts: { ai?: CoachAi } = {}) {
+export async function runCoach(
+  userId: string,
+  input: { text: string; aboutWorkoutId?: string | null; aboutDate?: string | null },
+  opts: { ai?: CoachAi; onEvent?: (e: CoachEvent) => void } = {},
+) {
+  // A listener that fails (closed stream) never stops the coach.
+  const emit = (e: CoachEvent) => {
+    try {
+      opts.onEvent?.(e);
+    } catch {}
+  };
   const apiKey = await resolveAnthropicKey(userId);
   if (!apiKey) return { ok: false as const, error: "no_key" as CoachError };
   const thread = await activeThread(userId);
   if (!(await claimThread(thread.id))) return { ok: false as const, error: "busy" as CoachError };
   try {
-    let cc = await buildCoachContext(userId, thread.id, { aboutWorkoutId: input.aboutWorkoutId, message: input.text });
-    if (!cc) return { ok: false as const, error: "no_plan" as CoachError };
+    let cc = await buildCoachContext(userId, thread.id, { aboutWorkoutId: input.aboutWorkoutId, aboutDate: input.aboutDate, message: input.text });
     // A session id that is not in this plan (deleted, other plan) is ignored rather than failing.
     const aboutWorkoutId = input.aboutWorkoutId && cc.refOf.has(input.aboutWorkoutId) ? input.aboutWorkoutId : null;
-    if (input.aboutWorkoutId && !aboutWorkoutId) cc = (await buildCoachContext(userId, thread.id, { message: input.text }))!;
+    if (input.aboutWorkoutId && !aboutWorkoutId) cc = await buildCoachContext(userId, thread.id, { aboutDate: input.aboutDate, message: input.text });
+    const tools = coachTools(cc);
+    emit({ type: "start" });
+    // The text so far, at most every 100 ms: the reply JSON grows piece by piece, and "done" has the final text.
+    let shownAt = 0;
+    const onReplyDelta = (json: string) => {
+      if (Date.now() - shownAt < TEXT_EVERY_MS) return;
+      const text = partialReplyMessage(json);
+      if (!text) return;
+      shownAt = Date.now();
+      emit({ type: "text", text });
+    };
     // A retry after a failed answer reuses the stored message instead of adding it again.
     const last = (await recentMessages(thread.id, 1))[0];
     if (!(last?.role === "user" && last.text === input.text))
@@ -113,7 +140,7 @@ export async function runCoach(userId: string, input: { text: string; aboutWorko
       if (left < 15_000) break;
       let res;
       try {
-        res = await ai.create(apiKey, { system: COACH_SYSTEM_PROMPT, tools: COACH_TOOLS, messages }, { timeoutMs: left });
+        res = await ai.create(apiKey, { system: COACH_SYSTEM_PROMPT, tools, messages }, { timeoutMs: left, onReplyDelta });
       } catch (e) {
         const status = (e as { status?: number }).status;
         return { ok: false as const, error: (status === 401 || status === 403 ? "invalid_key" : "unavailable") as CoachError };
@@ -135,11 +162,12 @@ export async function runCoach(userId: string, input: { text: string; aboutWorko
       const results: Anthropic.ToolResultBlockParam[] = [];
       for (const u of uses) {
         let out: unknown;
+        if (TOOL_LABELS[u.name]) emit({ type: "status", label: TOOL_LABELS[u.name]! });
         if (u.name === "reply") {
           const p = ReplyInput.safeParse(u.input);
           if (p.success) reply = p.data;
           out = p.success ? "ok" : { is_error: true, error: "invalid reply", issues: p.error.issues.slice(0, 3) };
-        } else if (u.name === "check_plan_changes") {
+        } else if (u.name === "check_plan_changes" && cc.plan) {
           const p = CheckInput.safeParse(u.input);
           out = p.success ? check(cc, p.data.changes) : { is_error: true, error: "invalid input", issues: p.error.issues.slice(0, 3) };
         } else if (u.name === "update_notes") {
@@ -154,6 +182,8 @@ export async function runCoach(userId: string, input: { text: string; aboutWorko
               out = { is_error: true, error: e instanceof Error ? e.message : "notes not saved" };
             }
           }
+        } else if (isReadTool(u.name)) {
+          out = await runReadTool(cc, u.name, u.input);
         } else out = { is_error: true, error: `unknown tool ${u.name}` };
         const isError = typeof out === "object" && out !== null && "is_error" in out;
         results.push({ type: "tool_result", tool_use_id: u.id, content: typeof out === "string" ? out : JSON.stringify(out), ...(isError ? { is_error: true } : {}) });
@@ -167,8 +197,10 @@ export async function runCoach(userId: string, input: { text: string; aboutWorko
     if (!reply && !fallbackText) fallbackText = GAVE_UP;
     const options: CoachOption[] = [];
     const dropped: string[] = [];
-    const extra = Math.max(0, (reply?.options.length ?? 0) - MAX_OPTIONS);
-    for (const o of (reply?.options ?? []).slice(0, MAX_OPTIONS)) {
+    // Options change the plan: none without one.
+    const proposed = cc.plan ? (reply?.options ?? []) : [];
+    const extra = Math.max(0, proposed.length - MAX_OPTIONS);
+    for (const o of proposed.slice(0, MAX_OPTIONS)) {
       const { refErrors, res } = dryRun(cc, o.changes);
       if (refErrors.length || res.errors.length || !res.valid.length) {
         dropped.push(o.title);
