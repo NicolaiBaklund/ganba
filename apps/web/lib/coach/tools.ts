@@ -5,6 +5,8 @@ import { addDays, daysBetween, describeBlocks, fmtRideDuration, formatPace, isRi
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { getDaySnapshot } from "@/lib/db/today";
 import { knownParts } from "@/lib/recovery/view";
+import { loadFindings, type FindingRow } from "@/lib/recovery/findings";
+import { findingParams } from "@/lib/recovery/text";
 import { planWorkouts, toPlanWorkout } from "@/lib/training/service";
 import type { CoachContext } from "./context";
 
@@ -179,17 +181,19 @@ async function recovery(cc: CoachContext, from: ISODate, to: ISODate): Promise<s
 }
 
 async function findings(cc: CoachContext): Promise<string> {
-  const { data } = await db().from("recovery_findings").select("kind, factor, outcome, lag, effect_sd, groups, reason").eq("user_id", cc.userId).order("rank");
-  const found = (data ?? []).filter((f) => f.kind === "finding");
-  const needs = (data ?? []).filter((f) => f.kind === "needs_data");
-  const n = (g: unknown) => {
-    const x = g as { high?: { n?: number }; low?: { n?: number } };
-    return (x.high?.n ?? 0) + (x.low?.n ?? 0);
+  const f = await loadFindings(cc.userId, cc.consent);
+  const line = (x: FindingRow) => {
+    const p = findingParams(x);
+    const lag = x.lag ? ` (${x.lag} day later)` : "";
+    // Tertile factors have bounds (high group ≥, low group ≤); yes/no factors have none.
+    const groups = p.high && p.low ? `${x.factor} ≥ ${p.high} vs ≤ ${p.low}` : `${x.factor} yes vs no`;
+    return `- ${groups} → ${x.outcome}${lag}: ${p.diff} (${p.better ? "better" : "worse"}), over ${p.nHigh} + ${p.nLow} days`;
   };
   return [
-    found.length ? "Found in their own data:" : "Nothing verified in their data yet (it usually takes a couple of months of steady logging).",
-    ...found.map((f) => `- ${f.factor} → ${f.outcome}${f.lag ? ` (${f.lag} day later)` : ""}: effect ${f.effect_sd != null ? r1(Number(f.effect_sd)) : "?"} SD over ${n(f.groups)} days`),
-    ...(needs.length ? ["Needs more data:", ...needs.slice(0, 6).map((f) => `- ${f.factor} → ${f.outcome}${f.reason ? ` (${f.reason})` : ""}`)] : []),
+    f.findings.length ? "Found in their own data (strongest first):" : "Nothing verified in their data yet (it usually takes a couple of months of steady logging).",
+    ...f.findings.map(line),
+    ...(f.noEffect.length ? ["Checked, no clear link:", ...f.noEffect.map((x) => `- ${x.factor} → ${x.outcome}`)] : []),
+    ...(f.needsData.length ? ["Needs more data:", ...f.needsData.slice(0, 6).map((x) => `- ${x.factor} → ${x.outcome}: ${findingParams(x).have} of ${x.needed} days`)] : []),
   ].join("\n");
 }
 

@@ -1,11 +1,7 @@
 import "server-only";
-import { createHash } from "node:crypto";
 import {
   addDays,
   buildRecoveryRows,
-  dayRefs,
-  findingRefs,
-  keepGrounded,
   localDate,
   questionsMessage,
   QuestionProposalsSchema,
@@ -15,12 +11,9 @@ import {
   RECOVERY_QUESTIONS,
   RECOVERY_QUESTIONS_PROMPT,
   validateProposals,
-  type AiDayRow,
   type AiFinding,
   type ISODate,
-  type RecoveryDayInput,
   type RecoveryQuestion,
-  type RecoveryRow,
 } from "@loop/core";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import type { Json } from "@/lib/db/types";
@@ -32,7 +25,6 @@ import { getAiHealthConsent } from "./consent";
 import { loadRecoveryDays } from "./load";
 
 export type InsightError = "consent_required" | "no_key" | "not_enough_data" | AiError;
-const MIN_WEEK_NIGHTS = 3;
 const QUESTIONS_EVERY_DAYS = 30;
 const QUESTIONS_MIN_DAYS = 60;
 const MAX_ACTIVE_AI_QUESTIONS = 9;
@@ -47,24 +39,6 @@ export async function gate(userId: string): Promise<{ ok: true; apiKey: string; 
   if (!apiKey) return { ok: false, error: "no_key" };
   const { data: p } = await db().from("profiles").select("locale, timezone").eq("user_id", userId).single();
   return { ok: true, apiKey, language: languageOf(p?.locale), today: localDate(p?.timezone ?? "UTC") };
-}
-
-function aiRow(d: RecoveryDayInput, r: RecoveryRow | undefined): AiDayRow {
-  return {
-    date: d.date,
-    sleepScore: d.sleepScore,
-    hrv: d.hrv,
-    restingHr: d.restingHr,
-    deficitKcal: round(d.food?.deficitKcal),
-    carbsPerKg: round(d.food?.carbsPerKg, 1),
-    proteinPerKg: round(d.food?.proteinPerKg, 1),
-    alcoholG: d.food && d.food.alcoholG > 0 ? round(d.food.alcoholG) : null,
-    lateKcal: round(d.food?.lateKcal),
-    hard: d.hard,
-    long: d.long,
-    steps: d.steps,
-    vsNormal: { sleepScore: round(r?.outcomes.sleepScore), hrv: round(r?.outcomes.hrv), restingHr: round(r?.outcomes.restingHr) },
-  };
 }
 
 export async function verifiedFindings(userId: string): Promise<AiFinding[]> {

@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { apiUser } from "@/lib/api/user";
 import { coachResponse } from "@/lib/coach/stream";
+import { isRealDate } from "@/lib/recovery/dates";
 
 export const maxDuration = 300;
 const Body = z.object({
   text: z.string().trim().min(1).max(2000),
   aboutWorkoutId: z.string().uuid().nullish(),
-  aboutDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
+  aboutDate: z.string().refine(isRealDate, "not a date").nullish(),
 });
 
 /** One message to the coach: the answer streams back as NDJSON (status, text so far, done). */

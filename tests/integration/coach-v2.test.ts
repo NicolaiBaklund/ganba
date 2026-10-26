@@ -5,7 +5,7 @@ import { runCoach } from "@/lib/coach/run";
 import { buildCoachContext } from "@/lib/coach/context";
 import { activeThread } from "@/lib/coach/store";
 import { readTools, runReadTool, TOOL_LABELS } from "@/lib/coach/tools";
-import { coachResponse, partialReplyMessage, type CoachEvent } from "@/lib/coach/stream";
+import { coachResponse, type CoachEvent } from "@/lib/coach/stream";
 import { recentMessages } from "@/lib/coach/store";
 import { createPlan } from "@/lib/training/service";
 // @ts-expect-error — plain JS helper shared with the smoke scripts
@@ -119,10 +119,15 @@ describe("coach v2: streaming", () => {
     for (const line of text.split("\n").filter(Boolean)) events.push(JSON.parse(line));
     return events;
   };
-  /** A reply written in three pieces, as the model streams its JSON. */
-  const streamedReply = (message: string) => (_p: unknown, opts?: { onReplyDelta?: (j: string) => void }) => {
+  /** Quotes and a line break: the model's JSON escapes them, the live text must not. */
+  const SHOYU = 'Have a "shoyu" ramen\nwith an extra egg tonight.';
+  /** A reply written in pieces 150 ms apart, as the model streams its JSON (escapes included). */
+  const streamedReply = (message: string) => async (_p: unknown, opts?: { onReplyDelta?: (j: string) => void }) => {
     const json = JSON.stringify({ message, options: [] });
-    for (const cut of [20, 40, json.length]) opts?.onReplyDelta?.(json.slice(0, cut));
+    for (const cut of [25, 50, json.length]) {
+      opts?.onReplyDelta?.(json.slice(0, cut));
+      await new Promise((r) => setTimeout(r, 150));
+    }
     return tool("reply", { message, options: [] });
   };
 
@@ -133,15 +138,8 @@ describe("coach v2: streaming", () => {
   });
   afterAll(cleanup);
 
-  it("partialReplyMessage reads the message field from unfinished JSON", () => {
-    expect(partialReplyMessage('{"message":"Eat a \\"big\\" bow')).toBe('Eat a "big" bow');
-    expect(partialReplyMessage('{"message":"line\\nnext\\u00e6')).toBe("line\nnextæ");
-    expect(partialReplyMessage('{"message":"cut \\')).toBe("cut ");
-    expect(partialReplyMessage('{"options":[]')).toBe("");
-  });
-
   it("the stream sends status, growing text and done", async () => {
-    ai.script = [() => tool("food_log", { from: today, to: today }), streamedReply("You could have a bowl of shoyu ramen with an extra egg tonight.")];
+    ai.script = [() => tool("food_log", { from: today, to: today }), streamedReply(SHOYU)];
     const res = await coachResponse(u.id, { text: "dinner?" }, { ai });
     expect(res.headers.get("content-type")).toContain("application/x-ndjson");
     const events = await read(res);
@@ -149,8 +147,10 @@ describe("coach v2: streaming", () => {
     const texts = events.filter((e): e is Extract<CoachEvent, { type: "text" }> => e.type === "text").map((e) => e.text);
     expect(texts.length).toBeGreaterThanOrEqual(2);
     expect(texts.at(-1)!.length).toBeGreaterThan(texts[0]!.length);
+    // The reply's JSON escapes come out decoded in the live text.
+    expect(texts.at(-1)).toBe(SHOYU);
     const done = events.at(-1)!;
-    expect(done.type === "done" && done.message.text).toBe("You could have a bowl of shoyu ramen with an extra egg tonight.");
+    expect(done.type === "done" && done.message.text).toBe(SHOYU);
   });
 
   it("an aborted stream still stores the answer", async () => {
@@ -182,5 +182,43 @@ describe("coach v2: streaming", () => {
     expect(await second.json()).toEqual({ error: "busy" });
     release();
     await read(first);
+  });
+});
+
+describe("coach v2: robustness", () => {
+  const ai = new FakeCoach();
+  afterAll(cleanup);
+
+  it("answers even when the food targets can't be read (onboarding not finished)", async () => {
+    const u = await createTestUser("coach2-bare");
+    await addKey(u.id);
+    ai.script = [() => tool("reply", { message: "Happy to help.", options: [] })];
+    const r = await runCoach(u.id, { text: "hi" }, { ai });
+    expect(r.ok && r.message.text).toBe("Happy to help.");
+    expect(ctxOf(ai.calls.at(-1)!)).toContain("Today's intake: not available right now");
+  });
+
+  it("findings: the strongest first, AI questions that haven't passed stay out", async () => {
+    const u = await createTestUser("coach2-findings");
+    const { today } = await seedUser(admin(), u.id, { days: 3 });
+    await admin().from("profiles").update({ ai_health_consent: true, ai_health_consent_at: new Date().toISOString() }).eq("user_id", u.id);
+    const g = (n: number, mean: number, bound: number | null) => ({ n, mean, bound });
+    const row = (question_id: string, factor: string, outcome: string, kind: string, source: string, effect_sd: number | null) => ({
+      user_id: u.id, computed_at: new Date().toISOString(), question_id, factor, outcome, lag: 1, kind, source, effect_sd,
+      groups: { high: g(20, kind === "finding" ? -4 : 0, 800), low: g(20, 2, 250), needed: 8 },
+    });
+    await admin().from("recovery_findings").insert([
+      row("deficit-hrv", "deficit", "hrv", "finding", "engine", -0.6),
+      row("alcohol-sleep", "alcohol", "sleepScore", "finding", "engine", -0.9),
+      row("ai-steps", "steps", "hrv", "needs_data", "ai", null),
+      row("rest-run", "daysSinceHard", "runForm", "needs_data", "engine", null),
+    ]);
+    const cc = await buildCoachContext(u.id, (await activeThread(u.id)).id, { message: "hi" });
+    const out = await runReadTool(cc, "findings", {});
+    expect(out.indexOf("alcohol ≥")).toBeLessThan(out.indexOf("deficit ≥"));
+    expect(out).toContain("deficit ≥ 800 kcal vs ≤ 250 kcal → hrv");
+    expect(out).toContain("daysSinceHard → runForm");
+    expect(out).not.toContain("steps → hrv");
+    expect(today).toBeTruthy();
   });
 });

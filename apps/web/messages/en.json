@@ -608,19 +608,8 @@
     "formTitle": "Form",
     "back": "Today",
     "findings": "What affects you",
-    "noFindings": "No clear links yet. Keep logging food and wearing your watch at night.",
     "curves": "Last 30 days",
-    "more": "More",
-    "noEffect": "No clear link",
-    "needsData": "Needs more data",
-    "progress": "{have} of {needed} days",
-    "unclear": "Not clear yet",
     "training": "Likely training",
-    "fromAi": "Suggested by AI",
-    "controlled": "Holds without hard training days",
-    "nights": "{high} vs {low} days",
-    "daysHigh": "days, first group",
-    "daysLow": "days, second group",
     "noGarmin": "Connect Garmin to see how food, training and sleep affect each other.",
     "connect": "Connect Garmin",
     "fetching": "Fetching sleep data: {days} of 90 days",
@@ -629,67 +618,6 @@
       "hrv": "HRV",
       "restingHr": "Resting HR",
       "runForm": "Run form"
-    },
-    "factor": {
-      "deficit": {
-        "high": "Deficit over {v}",
-        "low": "under {v}"
-      },
-      "deficit3": {
-        "high": "3-day deficit over {v}",
-        "low": "under {v}"
-      },
-      "carbs": {
-        "high": "Carbs over {v}",
-        "low": "under {v}"
-      },
-      "protein": {
-        "high": "Protein over {v}",
-        "low": "under {v}"
-      },
-      "steps": {
-        "high": "Over {v}",
-        "low": "under {v}"
-      },
-      "sleepScore": {
-        "high": "Sleep score over {v}",
-        "low": "under {v}"
-      },
-      "hrv": {
-        "high": "HRV over {v}",
-        "low": "under {v}"
-      },
-      "daysSinceHard": {
-        "high": "{v} or more since a hard day",
-        "low": "{v} or fewer"
-      },
-      "alcohol": {
-        "high": "Days with alcohol",
-        "low": "days without"
-      },
-      "late": {
-        "high": "Late meals (300+ kcal after 8 pm)",
-        "low": "days without"
-      },
-      "hard": {
-        "high": "Hard training days",
-        "low": "other days"
-      },
-      "long": {
-        "high": "Long runs",
-        "low": "other days"
-      }
-    },
-    "outcome": {
-      "sleepScore": "sleep score {diff}",
-      "hrv": "HRV {diff}",
-      "restingHr": "resting HR {diff}",
-      "runForm": "run form {diff}"
-    },
-    "when": {
-      "next": "the next morning",
-      "same": "the same day",
-      "later": "{days} days later"
     },
     "day": {
       "sleep": "Sleep",
@@ -713,19 +641,7 @@
       "retry": "Try again"
     },
     "ai": {
-      "summary": "Last week",
-      "loading": "Writing your summary",
-      "tips": "Next week",
-      "nothing": "Nothing stood out with enough data behind it.",
-      "why": "Why?",
-      "stale": "Data changed since this answer.",
-      "ask": "Ask again",
-      "off": "Turn on AI insights",
-      "noKey": "Add your Anthropic key in Profile to get AI insights.",
-      "error": "AI is unavailable right now.",
-      "notEnough": "Not enough data for this yet.",
-      "consentOff": "AI insights are turned off. Turn them on in Profile.",
-      "badKey": "Your Anthropic key didn't work. Check it in Profile."
+      "off": "Turn on AI insights"
     },
     "belowNormal": "Below your normal",
     "aboveNormal": "Above your normal",
@@ -815,8 +731,6 @@
         "none": "Not enough data yet"
       },
       "curve": "Form, 30 days",
-      "learnedTitle": "Learned about you",
-      "progress": "{found} found, {almost} almost there, {need} need more data",
       "aiNote": "Written by AI from the numbers above",
       "session": "session"
     },
@@ -833,7 +747,6 @@
     "thinking": "Thinking",
     "empty": "Ask about anything: what to eat with what you have left today, a session that went badly, how you slept, or changes to your plan. The coach looks at your data itself and tells you if something is unwise.",
     "noKey": "Add your Anthropic key in Profile to talk to the coach.",
-    "noPlan": "Create a plan first.",
     "error": "Couldn't reach the coach. Try again.",
     "retry": "Retry",
     "busy": "The coach is still answering your last message.",
@@ -875,8 +788,8 @@
       "food": "What should I eat with what I have left today?",
       "recovery": "How did I recover last night?",
       "tired": "I'm tired today",
-      "move": "Move tomorrow's session",
-      "easier": "Make this week easier"
-    }
+      "move": "Move tomorrow's session"
+    },
+    "reconnecting": "Connection lost, waiting for the answer…"
   }
 }

@@ -8,8 +8,7 @@ export const FORM_PROMPT_VERSION = 2;
 
 export const GroundedSentenceSchema = z.object({ text: z.string(), refs: z.array(z.string()) });
 export type GroundedSentence = z.infer<typeof GroundedSentenceSchema>;
-/** What the model returns: the headline must cite like every sentence. */
-/** What is stored and shown: the headline is "" when it was not grounded. */
+/** A short answer about one day (the Form sentence): every sentence cites what it rests on. */
 export const DayAnswerSchema = z.object({ sentences: z.array(GroundedSentenceSchema) });
 export type DayAnswer = z.infer<typeof DayAnswerSchema>;
 export const QuestionProposalsSchema = z.object({

@@ -40,14 +40,18 @@ export function CoachChat({ aboutWorkoutId, aboutDate, draft }: { aboutWorkoutId
     el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
   }, [text]);
 
-  const load = () =>
+  const load = (): Promise<Data | null> =>
     fetch("/api/coach")
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((d: Data) => {
         setData(d);
         setFailed((f) => (f === "load" ? null : f));
+        return d;
       })
-      .catch(() => setFailed("load"));
+      .catch(() => {
+        setFailed("load");
+        return null;
+      });
   useEffect(() => void load(), []);
   useEffect(() => {
     end.current?.scrollIntoView({ block: "end" });
@@ -82,6 +86,7 @@ export function CoachChat({ aboutWorkoutId, aboutDate, draft }: { aboutWorkoutId
       return;
     }
 
+    const sentAt = new Date().toISOString();
     let finished = false;
     const onEvent = (e: CoachEvent) => {
       if (e.type === "status") setStatus(e.label);
@@ -111,10 +116,21 @@ export function CoachChat({ aboutWorkoutId, aboutDate, draft }: { aboutWorkoutId
     } catch {
       // The connection dropped: the answer is still stored on the server.
     }
+    if (finished) {
+      // The stored conversation: the real user message, and notes the coach may have saved.
+      await load();
+    } else {
+      // The connection dropped mid-answer: the coach keeps going on the server; wait for its reply.
+      setStatus(t("reconnecting"));
+      for (let i = 0; i < 60; i++) {
+        const d = await load();
+        if (d?.messages.some((m) => m.role === "coach" && Date.parse(m.createdAt) > Date.parse(sentAt))) break;
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+    }
     setBusy(false);
     setStatus(null);
     setLive("");
-    if (!finished) await load();
   }
 
   async function newConversation() {

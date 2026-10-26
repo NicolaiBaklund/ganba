@@ -71,6 +71,26 @@ try {
     checks[`${scheme}: answer there after reload`] = (await page.getByText(`What should I eat? (${scheme})`).count()) > 0;
 
     if (scheme === "light") {
+      // A bad link (old or hand-edited session id) is dropped, and a stream that breaks before "done" still
+      // shows the answer once it is stored.
+      await page.unroute("**/api/coach/messages");
+      let sentAbout = "unset";
+      await page.route("**/api/coach/messages", async (route) => {
+        const body = route.request().postDataJSON();
+        sentAbout = body.aboutWorkoutId ?? null;
+        const { data: thread } = await admin.from("coach_threads").select("id").eq("user_id", uid).is("archived_at", null).single();
+        await admin.from("coach_messages").insert({ thread_id: thread.id, user_id: uid, role: "user", text: body.text, options: [] });
+        // (A Supabase query only runs when awaited or then-ed.)
+        setTimeout(() => admin.from("coach_messages").insert({ thread_id: thread.id, user_id: uid, role: "coach", text: "Answer after a **dropped** connection.", options: [] }).then(() => undefined), 1500);
+        await route.fulfill({ status: 200, contentType: "application/x-ndjson", body: [{ type: "start" }, { type: "status", label: "Looking at your food log…" }].map((e) => `${JSON.stringify(e)}\n`).join("") });
+      });
+      await page.goto(`${BASE}/coach?about=not-a-session`);
+      await page.getByPlaceholder("Ask the coach").fill("Are you still there?");
+      await page.getByRole("button", { name: "Send" }).click();
+      await page.locator("b", { hasText: "dropped" }).waitFor({ timeout: 20_000 }).catch(() => null);
+      checks["dropped stream: answer shows once stored"] = (await page.locator("b", { hasText: "dropped" }).count()) > 0;
+      checks["bad session link is not sent"] = sentAbout === null;
+
       // A plan, so Training has "End plan" at the bottom.
       await page.goto(`${BASE}/training/new`);
       await page.getByRole("button", { name: "Build fitness" }).click();

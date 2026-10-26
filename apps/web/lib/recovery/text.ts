@@ -1,5 +1,5 @@
 import type { RecoveryFactor, RecoveryOutcome } from "@loop/core";
-import type { FindingRow } from "./view";
+import type { FindingRow } from "./findings";
 
 /** A number with its sign and a true minus ("+3", "−1.5", "0"). */
 export const signed = (x: number, digits = 0) => `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x).toLocaleString("en", { maximumFractionDigits: digits })}`;

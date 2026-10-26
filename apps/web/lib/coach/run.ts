@@ -16,6 +16,7 @@ export const MAX_ROUNDS = 10;
 export const MAX_OPTIONS = 3;
 /** Whole turn, well inside the route's 300 s; the last call gets what is left. */
 const DEADLINE_MS = 240_000;
+const TEXT_EVERY_MS = 100;
 const FINAL_NUDGE = "Final round: call reply now with what you have.";
 const GAVE_UP = "I couldn't finish working that out. Ask again, maybe a bit shorter.";
 const CUT_OFF = "(My answer was cut off. Ask again if something is missing.)";
@@ -112,10 +113,14 @@ export async function runCoach(
     if (input.aboutWorkoutId && !aboutWorkoutId) cc = await buildCoachContext(userId, thread.id, { aboutDate: input.aboutDate, message: input.text });
     const tools = coachTools(cc);
     emit({ type: "start" });
-    let shown = "";
+    // The text so far, at most every 100 ms: the reply JSON grows piece by piece, and "done" has the final text.
+    let shownAt = 0;
     const onReplyDelta = (json: string) => {
+      if (Date.now() - shownAt < TEXT_EVERY_MS) return;
       const text = partialReplyMessage(json);
-      if (text && text !== shown) emit({ type: "text", text: (shown = text) });
+      if (!text) return;
+      shownAt = Date.now();
+      emit({ type: "text", text });
     };
     // A retry after a failed answer reuses the stored message instead of adding it again.
     const last = (await recentMessages(thread.id, 1))[0];

@@ -54,8 +54,9 @@ const sessionLine = (w: PlanWorkout) =>
  * left of today's food targets (and Form, with consent). Food advice and session talk then never miss the training.
  */
 async function dayBlock(userId: string, today: ISODate, workouts: PlanWorkout[], consent: boolean): Promise<string> {
-  const snap = await getDaySnapshot(createAdminSupabase(), userId, today);
-  const kg = snap.latestTrendKg ?? 70;
+  // The food side can be missing (onboarding not finished, a failed query): the coach still answers.
+  const snap = await getDaySnapshot(createAdminSupabase(), userId, today).catch(() => null);
+  const kg = snap?.latestTrendKg ?? 70;
   const on = (d: ISODate) => workouts.filter((w) => w.date === d && w.status !== "removed");
   const day = (label: string, d: ISODate) => {
     const ws = on(d);
@@ -68,11 +69,13 @@ async function dayBlock(userId: string, today: ISODate, workouts: PlanWorkout[],
       })
       .join("; ")}`;
   };
-  const t = snap.macrosTarget;
-  const i = snap.intake;
+  const intake = (s: NonNullable<typeof snap>) => {
+    const [t, i] = [s.macrosTarget, s.intake];
+    return `Today's intake: ${r0(i.kcal)} of ${r0(s.target.kcal)} kcal (${r0(s.target.kcal - i.kcal)} left); protein ${r0(i.proteinG)}/${r0(t.proteinG)} g, carbs ${r0(i.carbsG)}/${r0(t.carbsG)} g, fat ${r0(i.fatG)}/${r0(t.fatG)} g; ${s.entries.length} meals logged. Body weight (trend) ${s.latestTrendKg ?? "unknown"} kg.`;
+  };
   const lines = [
     ...(workouts.length ? [day("Yesterday", addDays(today, -1)), day("Today", today), day("Tomorrow", addDays(today, 1))] : []),
-    `Today's intake: ${r0(i.kcal)} of ${r0(snap.target.kcal)} kcal (${r0(snap.target.kcal - i.kcal)} left); protein ${r0(i.proteinG)}/${r0(t.proteinG)} g, carbs ${r0(i.carbsG)}/${r0(t.carbsG)} g, fat ${r0(i.fatG)}/${r0(t.fatG)} g; ${snap.entries.length} meals logged. Body weight (trend) ${snap.latestTrendKg ?? "unknown"} kg.`,
+    snap ? intake(snap) : "Today's intake: not available right now (food targets could not be read).",
   ];
   if (consent) {
     const { data } = await createAdminSupabase().from("form_days").select("score, parts").eq("user_id", userId).eq("local_date", today).maybeSingle();

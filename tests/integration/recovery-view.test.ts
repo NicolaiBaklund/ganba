@@ -3,6 +3,7 @@ import { addDays, zonedTime } from "@loop/core";
 import { saveTokens } from "@/lib/garmin/accounts";
 import { computeRecovery } from "@/lib/recovery/compute";
 import { loadRecoveryDay } from "@/lib/recovery/day";
+import { loadFindings } from "@/lib/recovery/findings";
 import { loadRecoveryView } from "@/lib/recovery/view";
 import { loadRecoveryDays } from "@/lib/recovery/load";
 import { getAiHealthConsent, setAiHealthConsent } from "@/lib/recovery/consent";
@@ -66,11 +67,10 @@ describe("recovery: tab and day sheet data", () => {
   it("without Garmin: an empty tab, no crash", async () => {
     const v = await loadRecoveryView(u.id);
     expect(v.garmin).toBe("none");
-    expect(v.findings).toEqual([]);
     expect(v.curves.hrv).toEqual([]);
   });
 
-  it("with nights and food: curves with a normal band, findings in rank order, progress", async () => {
+  it("with nights and food: curves with a normal band; findings (for the coach) keep only engine questions in waiting", async () => {
     await saveTokens(u.id, JSON.stringify({ di_token: "fake" }));
     await admin().from("garmin_accounts").update({ recovery_backfilled_until: addDays(today, -39) }).eq("user_id", u.id);
     const nights = Array.from({ length: 60 }, (_, i) => ({
@@ -102,8 +102,8 @@ describe("recovery: tab and day sheet data", () => {
     expect(v.historyDays).toBe(40);
     expect(v.curves.hrv).toHaveLength(30);
     expect(v.curves.hrv.at(-1)!.low).not.toBeNull();
-    expect(v.findings.length).toBeLessThanOrEqual(5);
-    expect(v.needsData.every((f) => f.kind === "needs_data" && f.source === "engine")).toBe(true);
+    const f = await loadFindings(u.id, false);
+    expect(f.needsData.every((x) => x.kind === "needs_data" && x.source === "engine")).toBe(true);
 
     expect(await loadRecoveryDays(u.id, today, 30)).toHaveLength(30); // the tab and sheet load only what they show
 
