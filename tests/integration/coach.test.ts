@@ -5,7 +5,7 @@ import type { CoachParams } from "@/lib/ai/coach";
 import { saveTokens } from "@/lib/garmin/accounts";
 import { syncGarmin } from "@/lib/garmin/sync";
 import { setAiHealthConsent } from "@/lib/recovery/consent";
-import { runCoach } from "@/lib/coach/run";
+import { MAX_ROUNDS, runCoach } from "@/lib/coach/run";
 import { applyOption } from "@/lib/coach/apply";
 import { activeThread, addMessage, addNotes, archiveThread, editNote, listNotes, removeNotes } from "@/lib/coach/store";
 import { activePlan, createPlan, planWorkouts } from "@/lib/training/service";
@@ -67,7 +67,7 @@ describe("coach: tool loop, options, memory, consent", () => {
     expect(r.message.options).toHaveLength(1);
     expect(r.message.options[0]!.changes[0]!.op).toBe("edit");
     expect(r.message.text).toContain("left out");
-    expect(ai.calls[0]!.tools.map((t) => t.name)).toEqual(["check_plan_changes", "update_notes", "reply"]);
+    expect(ai.calls[0]!.tools.map((t) => t.name).slice(-3)).toEqual(["check_plan_changes", "update_notes", "reply"]);
   });
 
   it("text without reply is stored as the answer; notes tool remembers lasting facts", async () => {
@@ -116,7 +116,7 @@ describe("coach: tool loop, options, memory, consent", () => {
   });
 
   it("too many rounds: the last one asks for a reply, and the runner still gets an answer", async () => {
-    ai.script = Array.from({ length: 6 }, () => () => tool("check_plan_changes", { changes: [] }));
+    ai.script = Array.from({ length: MAX_ROUNDS }, () => () => tool("check_plan_changes", { changes: [] }));
     const r = await runCoach(u.id, { text: "think hard" }, { ai });
     expect(r.ok).toBe(true);
     expect(r.ok && r.message.text.length).toBeGreaterThan(0);

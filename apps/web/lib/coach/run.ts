@@ -7,9 +7,11 @@ import { resolveAnthropicKey } from "@/lib/ai/keys";
 import { costUsd } from "@/lib/ai/pricing";
 import { anthropicCoachAi, COACH_MODEL, type CoachAi } from "@/lib/ai/coach";
 import { buildCoachContext, type CoachContext } from "./context";
+import { isReadTool, readTools, runReadTool } from "./tools";
 import { activeThread, addMessage, addNotes, claimThread, recentMessages, releaseThread, removeNotes, type CoachMessage, type CoachOption } from "./store";
 
-export const MAX_ROUNDS = 6;
+/** Fetching data costs rounds: room for a few reads, a plan check and the reply. */
+export const MAX_ROUNDS = 10;
 export const MAX_OPTIONS = 3;
 /** Whole turn, well inside the route's 300 s; the last call gets what is left. */
 const DEADLINE_MS = 240_000;
@@ -37,7 +39,7 @@ const PLAN_TOOL: Anthropic.Tool = {
 const BASE_TOOLS: Anthropic.Tool[] = [
   {
     name: "update_notes",
-    description: "Add or remove coach notes (lasting facts about the runner). Max 15; give temporary facts an until date (YYYY-MM-DD).",
+    description: "Add or remove coach notes (lasting facts about the person). Max 15; give temporary facts an until date (YYYY-MM-DD).",
     input_schema: schema(NotesInput),
   },
   {
@@ -46,8 +48,8 @@ const BASE_TOOLS: Anthropic.Tool[] = [
     input_schema: schema(ReplyInput),
   },
 ];
-/** The tools for this conversation: plan changes only when there is a plan. */
-export const coachTools = (cc: CoachContext): Anthropic.Tool[] => (cc.plan ? [PLAN_TOOL, ...BASE_TOOLS] : BASE_TOOLS);
+/** The tools for this conversation: the read tools, plan changes only with a plan, notes and the reply. */
+export const coachTools = (cc: CoachContext): Anthropic.Tool[] => [...readTools(cc), ...(cc.plan ? [PLAN_TOOL] : []), ...BASE_TOOLS];
 
 /** Changes from the model (refs) → engine changes; unknown refs become errors. */
 function resolve(cc: CoachContext, changes: z.infer<typeof CoachChangeSchema>[]) {
@@ -157,6 +159,8 @@ export async function runCoach(userId: string, input: { text: string; aboutWorko
               out = { is_error: true, error: e instanceof Error ? e.message : "notes not saved" };
             }
           }
+        } else if (isReadTool(u.name)) {
+          out = await runReadTool(cc, u.name, u.input);
         } else out = { is_error: true, error: `unknown tool ${u.name}` };
         const isError = typeof out === "object" && out !== null && "is_error" in out;
         results.push({ type: "tool_result", tool_use_id: u.id, content: typeof out === "string" ? out : JSON.stringify(out), ...(isError ? { is_error: true } : {}) });
