@@ -50,7 +50,7 @@ const BASE_TOOLS: Anthropic.Tool[] = [
     input_schema: schema(ReplyInput),
     // Streams its input as it is written (the API buffers tool input otherwise), so the message shows live.
     // The input is validated with ReplyInput before use, and a cut-off turn never runs its tools.
-    ...({ eager_input_streaming: true } as object),
+    eager_input_streaming: true,
   },
 ];
 /** The tools for this conversation: the read tools, plan changes only with a plan, notes and the reply. */
@@ -185,9 +185,8 @@ export async function runCoach(
               // What it forgot, by text (looked up before the notes go).
               const gone = p.data.remove.length ? (await listNotes(userId, cc.today)).filter((n) => p.data.remove.includes(n.id)).map((n) => n.text) : [];
               await removeNotes(userId, p.data.remove);
-              await addNotes(userId, p.data.add, "coach");
               meta.forgot.push(...gone);
-              meta.remembered.push(...p.data.add.map((n) => n.text));
+              meta.remembered.push(...(await addNotes(userId, p.data.add, "coach")));
               out = "saved";
             } catch (e) {
               out = { is_error: true, error: e instanceof Error ? e.message : "notes not saved" };

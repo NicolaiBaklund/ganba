@@ -45,6 +45,15 @@ describe("coach v3: streaming, meta, preview cells, memory", () => {
     expect(stored.meta).toEqual(meta);
   });
 
+  it("the memory line shows what was stored, not the model's raw text", async () => {
+    const long = `  ${"Prefers runs before work. ".repeat(12)}  `;
+    ai.script = [() => tool("update_notes", { add: [{ text: long }, { text: "   " }], remove: [] }), () => tool("reply", { message: "ok", options: [] })];
+    const r = await runCoach(u.id, { text: "remember this" }, { ai });
+    const stored = (await listNotes(u.id, today)).map((n) => n.text);
+    expect(r.ok && r.message.meta.remembered).toEqual([long.trim().slice(0, 200)]);
+    expect(stored).toContain(long.trim().slice(0, 200));
+  });
+
   it("temporary notes are marked in the context", async () => {
     await addNotes(u.id, [{ text: "Knee sore", until: addDays(today, 5) }], "user");
     ai.script = [() => tool("reply", { message: "ok", options: [] })];

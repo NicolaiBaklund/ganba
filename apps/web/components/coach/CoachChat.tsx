@@ -32,7 +32,6 @@ export function CoachChat({ aboutWorkoutId, aboutDate, draft }: { aboutWorkoutId
   // A topic from a link (session, day) applies to the first message only.
   const [aboutUsed, setAboutUsed] = useState(false);
   const end = useRef<HTMLDivElement>(null);
-  const scroller = useRef<HTMLDivElement>(null);
   // Follow new text only while the reader is at the bottom; scrolled up stays put.
   const atBottom = useRef(true);
   const box = useRef<HTMLTextAreaElement>(null);
@@ -64,6 +63,8 @@ export function CoachChat({ aboutWorkoutId, aboutDate, draft }: { aboutWorkoutId
     const msg = body.trim();
     if (!msg || busy || !data) return;
     setBusy(true);
+    // Sending brings the conversation back to the bottom, also when scrolled up to reread something.
+    atBottom.current = true;
     setFailed(null);
     setStatus(null);
     setLive("");
@@ -203,7 +204,6 @@ export function CoachChat({ aboutWorkoutId, aboutDate, draft }: { aboutWorkoutId
       )}
 
       <div
-        ref={scroller}
         onScroll={(e) => {
           const el = e.currentTarget;
           atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
@@ -232,7 +232,7 @@ export function CoachChat({ aboutWorkoutId, aboutDate, draft }: { aboutWorkoutId
                   {m.options.map((o, k) => (
                     <PlanCard key={o.id} messageId={m.id} option={o} open={k === firstOpen} readOnly={!!reading} onChange={update(m.id)} />
                   ))}
-                  <MemoryLine meta={m.meta} onOpen={() => setMemo(true)} />
+                  {!reading && <MemoryLine meta={m.meta} onOpen={() => setMemo(true)} />}
                 </div>
               )}
             </div>

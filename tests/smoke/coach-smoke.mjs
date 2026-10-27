@@ -34,7 +34,7 @@ try {
     const ctx = await browser.newContext({ viewport: { width: 440, height: 956 }, deviceScaleFactor: 2, isMobile: true, colorScheme: scheme });
     await ctx.addCookies([{ name: `sb-${ref}-auth-token`, value: "base64-" + Buffer.from(JSON.stringify(s.session)).toString("base64url"), domain: "localhost", path: "/" }]);
     const page = await ctx.newPage();
-    page.on("console", (m) => m.type() === "error" && errors.push(m.text().slice(0, 300)));
+    page.on("console", (m) => m.type() === "error" && !/status of 409/.test(m.text()) && errors.push(m.text().slice(0, 300))); // 409: the invalid-option step
     const shot = (n) => page.screenshot({ path: `tests/smoke/out/coach-${scheme}-${n}.png`, fullPage: true });
 
     // The answer: stored like the real route does (so it is there after a reload), streamed back as NDJSON.
@@ -111,7 +111,8 @@ try {
     const { data: thread } = await admin.from("coach_threads").select("id").eq("user_id", uid).is("archived_at", null).single();
     const { data: plan } = await admin.from("training_plans").select("id").eq("user_id", uid).eq("status", "active").single();
     const { data: ws } = await admin.from("planned_workouts").select("id, date, type, title, planned_km, planned_duration_s, sport").eq("plan_id", plan.id).eq("status", "planned").order("date");
-    const easy = ws.find((w) => w.type === "easy" || w.type === "strides");
+    // Not a Sunday: the day after must be in the same drawn week.
+    const easy = ws.find((w) => (w.type === "easy" || w.type === "strides") && new Date(`${w.date}T12:00:00Z`).getUTCDay() !== 0);
     const to = new Date(`${easy.date}T12:00:00Z`);
     to.setUTCDate(to.getUTCDate() + 1);
     const toDate = to.toISOString().slice(0, 10);
@@ -146,6 +147,14 @@ try {
     const old = page.locator("div.rounded-xl", { hasText: `Old suggestion (${scheme})` });
     await old.locator("button[aria-pressed]").nth((to.getUTCDay() + 6) % 7).click();
     checks[`${scheme}: old option without titles shows no bib, no crash`] = (await old.getByText("No details for this day.").count()) > 0;
+    // An option that no longer fits (its session is gone): tapping it shows why, the card stays open.
+    const gone = { ...option(`gone-${scheme}`, `Gone session (${scheme})`, true), changes: [{ op: "move", workoutId: crypto.randomUUID(), toDate }] };
+    await admin.from("coach_messages").insert({ thread_id: thread.id, user_id: uid, role: "coach", text: "Another one.", options: [gone] });
+    await page.reload();
+    const goneCard = page.locator("div.rounded-xl", { hasText: `Gone session (${scheme})` });
+    await goneCard.getByRole("button", { name: "Use this" }).click();
+    await goneCard.getByText(/Can.t be applied/).waitFor({ timeout: 15_000 }).catch(() => null);
+    checks[`${scheme}: invalid option shows why`] = (await goneCard.getByText(/Can.t be applied/).isVisible().catch(() => false)) === true;
     await card.getByRole("button", { name: "Use this" }).click();
     await card.getByText("Applied").waitFor({ timeout: 30_000 }).catch(() => null);
     checks[`${scheme}: Use this folds to one line`] = (await page.locator("div.rounded-xl", { hasText: `Easy run a day later (${scheme})` }).getByText("Applied").count()) > 0;

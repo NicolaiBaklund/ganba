@@ -179,9 +179,9 @@ export async function listNotes(userId: string, today: string): Promise<CoachNot
   return (data ?? []).map((n) => ({ id: n.id, text: n.text, until: n.until, source: n.source as CoachNote["source"], createdAt: n.created_at }));
 }
 
-/** Adds notes; over the limit the oldest coach notes go first (the user's own stay). */
-export async function addNotes(userId: string, notes: { text: string; until?: string | null }[], source: "coach" | "user"): Promise<void> {
-  if (!notes.length) return;
+/** Adds notes and returns the texts stored; over the limit the oldest coach notes go first (the user's own stay). */
+export async function addNotes(userId: string, notes: { text: string; until?: string | null }[], source: "coach" | "user"): Promise<string[]> {
+  if (!notes.length) return [];
   const rows = notes.map((n) => ({ user_id: userId, text: n.text.trim().slice(0, 200), until: n.until ?? null, source })).filter((n) => n.text);
   if (rows.length) {
     const { error } = await db().from("coach_notes").insert(rows);
@@ -194,6 +194,7 @@ export async function addNotes(userId: string, notes: { text: string; until?: st
     const drop = [...all.filter((n) => n.source === "coach"), ...all.filter((n) => n.source === "user")].slice(0, over).map((n) => n.id);
     await db().from("coach_notes").delete().in("id", drop);
   }
+  return rows.map((r) => r.text);
 }
 
 export async function removeNotes(userId: string, ids: string[]): Promise<void> {

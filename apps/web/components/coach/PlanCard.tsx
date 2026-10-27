@@ -49,6 +49,18 @@ export function PlanCard({
   const [day, setDay] = useState<string | null>(null);
   const open = opened ?? openByDefault;
   const week = changedWeek(option.weeks);
+  const otherWeeks = (option.weeks ?? []).filter((w) => w !== week && w.days.some((d) => d.changed)).length;
+  const thisMonday = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    return d.toLocaleDateString("en-CA");
+  })();
+  const weekLabel = (w: NonNullable<typeof week>) =>
+    w.monday === thisMonday
+      ? t("weekKm", { km: w.afterKm })
+      : t("weekOfKm", { date: format.dateTime(new Date(`${w.monday}T00:00:00Z`), { day: "numeric", month: "short", timeZone: "UTC" }), km: w.afterKm });
+  // A day's session for its bib: the one that moved here, else the newest (an added session comes last).
+  const sessionOf = (cells: PreviewCell[]) => cells.find((c) => c.fromDate) ?? cells.at(-1);
   const weekday = (d: string) => format.dateTime(new Date(`${d}T00:00:00Z`), { weekday: "long", timeZone: "UTC" });
 
   async function apply() {
@@ -62,7 +74,11 @@ export function PlanCard({
       router.refresh();
       return;
     }
-    if (res?.status === 409 && body?.error === "invalid") return onChange({ ...option, status: "invalid", reason: body.reason });
+    if (res?.status === 409 && body?.error === "invalid") {
+      // Keep the card open so the reason shows (the open default follows pending options only).
+      setOpened(true);
+      return onChange({ ...option, status: "invalid", reason: body.reason });
+    }
     if (res?.status === 409 && body?.error === "not_pending") return onChange({ ...option, status: "applied" });
     if (res?.status === 409 && body?.error === "busy") return;
     toast.error(t("error"));
@@ -74,14 +90,17 @@ export function PlanCard({
   // The week row: the days after the change, changed ones outlined; tap one for its bib.
   const cells = week?.days ?? [];
   const picked = cells.find((d) => d.date === day);
-  const session: PreviewCell | undefined = picked?.after[0];
+  const session: PreviewCell | undefined = picked ? sessionOf(picked.after) : undefined;
   const body = (
     <>
       {week && (
         <div className="grid grid-cols-7 gap-1 px-3 pb-2.5 pt-1">
           {cells.map((d, i) => {
-            const c = d.after[0];
-            const value = c ? (c.sport === "ride" ? `${c.min}′` : c.km.toLocaleString("en", { maximumFractionDigits: 1 })) : "";
+            // The day's total (runs in km, rides in minutes); the colour of the session that matters here.
+            const c = sessionOf(d.after);
+            const ride = c?.sport === "ride";
+            const total = d.after.filter((x) => (x.sport === "ride") === ride).reduce((s, x) => s + (ride ? x.min : x.km), 0);
+            const value = c ? (ride ? `${total}′` : (Math.round(total * 10) / 10).toLocaleString("en", { maximumFractionDigits: 1 })) : "";
             return (
               <button
                 key={d.date}
@@ -158,12 +177,13 @@ export function PlanCard({
       <button type="button" onClick={() => setOpened(!open)} aria-expanded={open} className="flex w-full items-baseline justify-between gap-3 px-3 pb-1 pt-2.5 text-left">
         <span className="min-w-0 truncate text-[14px] font-semibold">{option.title}</span>
         <span className="num shrink-0 text-[11px] text-muted-foreground">
-          {open ? (week ? t("weekKm", { km: week.afterKm }) : "") : t("show")}
+          {open ? (week ? weekLabel(week) : "") : t("show")}
         </span>
       </button>
       <Reveal open={open}>
         {option.summary && <p className="px-3 pb-1 text-[12px] text-muted-foreground">{option.summary}</p>}
         {week ? body : <ul className="px-3 pb-2">{option.lines.map((l, i) => <li key={i} className="num text-[13px]">{l}</li>)}</ul>}
+        {otherWeeks > 0 && <p className="px-3 pb-2 text-[12px] text-muted-foreground">{t("moreWeeks", { n: otherWeeks })}</p>}
         {option.status === "invalid" ? (
           <p className="border-t border-border px-3 py-2.5 text-[13px] text-muted-foreground">{t("invalid", { reason: option.reason ?? "" })}</p>
         ) : (

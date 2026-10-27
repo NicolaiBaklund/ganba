@@ -1,10 +1,10 @@
 import "server-only";
-import { addDays, checkChanges, describeChanges, weekPreview, type PlanWarning } from "@loop/core";
+import { addDays, checkChanges } from "@loop/core";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { activePlan, planContext, planWorkoutsWithKm, recentRides, recentRuns, savePlanChanges, todayFor } from "@/lib/training/service";
 import { claimMessage, releaseMessage, updateOptions, type CoachOption } from "./store";
 
-export type ApplyError = "not_found" | "not_pending" | "no_plan" | "changed" | "invalid" | "archived" | "busy";
+export type ApplyError = "not_found" | "not_pending" | "no_plan" | "invalid" | "archived" | "busy";
 
 /**
  * Applies one option, all or nothing, re-checked against the plan now. A change that no longer applies makes the

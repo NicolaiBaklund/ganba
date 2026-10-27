@@ -107,7 +107,7 @@ try {
   await shot("46-coach");
   // One continuous conversation: the earlier question is there in full; its unused option is hidden.
   const folded = (await page.getByText("Can I skip Friday?").count()) > 0 && (await page.getByText("Drop Friday").count()) === 0 ? 1 : 0;
-  const previewShown = await page.getByText(/^This week · /).count();
+  const previewShown = await page.getByText(/^(This week|Week of .+) · [0-9.]+ km$/).count();
   // Warnings are the coach's to say: no warning lines on the cards, one plain button.
   const noWarnings = (await page.getByRole("button", { name: "Use anyway" }).count()) === 0 && (await page.getByText(/\+100 %/).count()) === 0;
   const bold = await page.locator("b", { hasText: "fine" }).count();
