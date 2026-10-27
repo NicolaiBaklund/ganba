@@ -18,6 +18,7 @@ export function Bib({
   footer,
   type,
   href,
+  size = "full",
 }: {
   label: string;
   big: string;
@@ -26,21 +27,34 @@ export function Bib({
   footer?: React.ReactNode;
   type: WorkoutType;
   href?: string;
+  /** "compact": a smaller bib inside a card (the coach's plan cards). */
+  size?: "full" | "compact";
 }) {
+  const compact = size === "compact";
   const inner = (
     <>
-      <span aria-hidden className="absolute -top-2.5 right-[84px] h-[220px] w-[30px] origin-top -rotate-[52deg]" style={{ background: `var(--w-${type})` }} />
+      <span
+        aria-hidden
+        className={compact ? "absolute -top-2 right-12 h-[140px] w-[20px] origin-top -rotate-[52deg]" : "absolute -top-2.5 right-[84px] h-[220px] w-[30px] origin-top -rotate-[52deg]"}
+        style={{ background: `var(--w-${type})` }}
+      />
       <Pins />
-      <p className="relative pl-1 text-[13px] font-bold">{label}</p>
-      <p className="num relative mt-1.5 truncate pr-16 text-[clamp(64px,26vw,104px)] font-black leading-[.86] [font-stretch:62%]">
+      <p className={compact ? "relative pl-0.5 text-[11px] font-bold" : "relative pl-1 text-[13px] font-bold"}>{label}</p>
+      <p
+        className={
+          compact
+            ? "num relative mt-1 truncate pr-10 text-[44px] font-black leading-[.86] [font-stretch:62%]"
+            : "num relative mt-1.5 truncate pr-16 text-[clamp(64px,26vw,104px)] font-black leading-[.86] [font-stretch:62%]"
+        }
+      >
         {big}
-        {unit && <small className="ml-0.5 text-[34px] font-extrabold">{unit}</small>}
+        {unit && <small className={compact ? "ml-0.5 text-[18px] font-extrabold" : "ml-0.5 text-[34px] font-extrabold"}>{unit}</small>}
       </p>
-      <p className="relative mt-1 text-[15px] font-semibold">{meta}</p>
+      <p className={compact ? "relative mt-1 text-[12.5px] font-semibold" : "relative mt-1 text-[15px] font-semibold"}>{meta}</p>
       {footer && <div className="relative mt-3 flex items-center gap-2 border-t-2 border-paper-ink pt-2.5 text-[13px]">{footer}</div>}
     </>
   );
-  const cls = "relative block overflow-hidden rounded-md bg-paper px-[18px] py-3.5 text-paper-ink shadow-[0_1px_0_var(--border),0_10px_24px_-16px_rgb(0_0_0/40%)]";
+  const cls = `relative block overflow-hidden rounded-md bg-paper text-paper-ink ${compact ? "px-3.5 py-2.5" : "px-[18px] py-3.5 shadow-[0_1px_0_var(--border),0_10px_24px_-16px_rgb(0_0_0/40%)]"}`;
   return href ? <Link href={href} className={cls}>{inner}</Link> : <section className={cls}>{inner}</section>;
 }
 

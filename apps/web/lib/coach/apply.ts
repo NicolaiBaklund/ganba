@@ -1,21 +1,17 @@
 import "server-only";
-import { addDays, checkChanges, describeChanges, weekPreview, type PlanWarning } from "@loop/core";
+import { addDays, checkChanges } from "@loop/core";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { activePlan, planContext, planWorkoutsWithKm, recentRides, recentRuns, savePlanChanges, todayFor } from "@/lib/training/service";
 import { claimMessage, releaseMessage, updateOptions, type CoachOption } from "./store";
 
-const key = (w: PlanWarning) => `${w.code}|${w.date ?? ""}|${w.week ?? ""}|${w.severity}|${w.before ?? ""}|${w.after ?? ""}|${w.pct ?? ""}`;
-const sameWarnings = (a: PlanWarning[], b: PlanWarning[]) => a.map(key).sort().join() === b.map(key).sort().join();
-
-export type ApplyError = "not_found" | "not_pending" | "no_plan" | "changed" | "invalid" | "archived" | "busy";
+export type ApplyError = "not_found" | "not_pending" | "no_plan" | "invalid" | "archived" | "busy";
 
 /**
- * Applies one option, all or nothing, re-checked against the plan now.
- * - A change that no longer applies → the option is invalid (never applied in part).
- * - Warnings differ from what the runner last saw → stale with the new warnings (409).
- * - Stale + confirm applies only if nothing changed since the runner saw the stale warnings.
+ * Applies one option, all or nothing, re-checked against the plan now. A change that no longer applies makes the
+ * option invalid with the reason (never applied in part). The engine's warnings don't decide: the coach already
+ * said what mattered (spec 2026-10-27 §7).
  */
-export async function applyOption(userId: string, messageId: string, optionId: string, opts: { confirm?: boolean } = {}) {
+export async function applyOption(userId: string, messageId: string, optionId: string) {
   const db = createAdminSupabase();
   const { data: m } = await db.from("coach_messages").select("id, thread_id").eq("id", messageId).eq("user_id", userId).maybeSingle();
   if (!m) return { ok: false as const, error: "not_found" as ApplyError };
@@ -42,13 +38,6 @@ export async function applyOption(userId: string, messageId: string, optionId: s
       await save({ status: "invalid", reason, warnings: res.warnings });
       return { ok: false as const, error: "invalid" as ApplyError, reason };
     }
-    if (!sameWarnings(res.warnings, o.warnings)) {
-      const weeks = weekPreview(workouts, res.after, res.weeks);
-      await save({ status: "stale", warnings: res.warnings, lines: describeChanges(workouts, res.after, res.valid), weeks });
-      return { ok: false as const, error: "changed" as ApplyError, warnings: res.warnings, weeks };
-    }
-    if (o.status === "stale" && !opts.confirm) return { ok: false as const, error: "changed" as ApplyError, warnings: o.warnings };
-
     await savePlanChanges(userId, plan, res.valid, today);
     await updateOptions(
       m.id,

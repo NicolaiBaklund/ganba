@@ -9,7 +9,7 @@ import { anthropicCoachAi, COACH_MODEL, type CoachAi } from "@/lib/ai/coach";
 import { buildCoachContext, type CoachContext } from "./context";
 import { isReadTool, readTools, runReadTool, TOOL_LABELS } from "./tools";
 import { partialReplyMessage, type CoachEvent } from "./stream";
-import { activeThread, addMessage, addNotes, claimThread, recentMessages, releaseThread, removeNotes, type CoachMessage, type CoachOption } from "./store";
+import { activeThread, addMessage, addNotes, claimThread, listNotes, recentMessages, releaseThread, removeNotes, type CoachMessage, type CoachMeta, type CoachOption } from "./store";
 
 /** Fetching data costs rounds: room for a few reads, a plan check and the reply. */
 export const MAX_ROUNDS = 10;
@@ -46,8 +46,11 @@ const BASE_TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "reply",
-    description: "Finish the turn: your message to the runner and 0–3 options. Each option is a complete set of plan changes applied with one tap (none without a plan).",
+    description: "Finish the turn: your message to the person and 0–3 options. Each option is a complete set of plan changes applied with one tap (none without a plan).",
     input_schema: schema(ReplyInput),
+    // Streams its input as it is written (the API buffers tool input otherwise), so the message shows live.
+    // The input is validated with ReplyInput before use, and a cut-off turn never runs its tools.
+    eager_input_streaming: true,
   },
 ];
 /** The tools for this conversation: the read tools, plan changes only with a plan, notes and the reply. */
@@ -133,6 +136,7 @@ export async function runCoach(
     // The context is cached, so later rounds in this turn read it from cache.
     const messages: Anthropic.MessageParam[] = [{ role: "user", content: [{ type: "text", text: cc.text, cache_control: { type: "ephemeral" } }] }];
     let reply: z.infer<typeof ReplyInput> | null = null;
+    const meta: CoachMeta = { tools: [], remembered: [], forgot: [] };
     let fallbackText = "";
 
     for (let round = 0; round < MAX_ROUNDS && !reply; round++) {
@@ -162,7 +166,10 @@ export async function runCoach(
       const results: Anthropic.ToolResultBlockParam[] = [];
       for (const u of uses) {
         let out: unknown;
-        if (TOOL_LABELS[u.name]) emit({ type: "status", label: TOOL_LABELS[u.name]! });
+        if (TOOL_LABELS[u.name]) {
+          emit({ type: "status", label: TOOL_LABELS[u.name]! });
+          if (!meta.tools.includes(u.name)) meta.tools.push(u.name);
+        }
         if (u.name === "reply") {
           const p = ReplyInput.safeParse(u.input);
           if (p.success) reply = p.data;
@@ -175,8 +182,11 @@ export async function runCoach(
           if (!p.success) out = { is_error: true, error: "invalid input", issues: p.error.issues.slice(0, 3) };
           else {
             try {
+              // What it forgot, by text (looked up before the notes go).
+              const gone = p.data.remove.length ? (await listNotes(userId, cc.today)).filter((n) => p.data.remove.includes(n.id)).map((n) => n.text) : [];
               await removeNotes(userId, p.data.remove);
-              await addNotes(userId, p.data.add, "coach");
+              meta.forgot.push(...gone);
+              meta.remembered.push(...(await addNotes(userId, p.data.add, "coach")));
               out = "saved";
             } catch (e) {
               out = { is_error: true, error: e instanceof Error ? e.message : "notes not saved" };
@@ -228,6 +238,7 @@ export async function runCoach(
       text,
       options,
       usedHealth: cc.usedHealth,
+      meta,
       usage: { model: COACH_MODEL, input: usage.input + usage.cacheRead + usage.cacheWrite, output: usage.output, costUsd: costUsd(COACH_MODEL, usage), promptVersion: COACH_PROMPT_VERSION },
     });
     return { ok: true as const, message };

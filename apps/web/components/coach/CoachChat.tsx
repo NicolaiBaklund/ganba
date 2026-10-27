@@ -2,13 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useFormatter, useTranslations } from "next-intl";
-import { ArrowUp, BookMarked, MoreHorizontal } from "lucide-react";
+import { ArrowUp, BookMarked, Check, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import type { CoachMessage, CoachNote } from "@/lib/coach/store";
 import type { CoachEvent } from "@/lib/coach/stream";
 import { cn } from "@/lib/utils";
+import { MemoryLine } from "./MemoryLine";
 import { NotesPanel } from "./NotesPanel";
-import { OptionCard } from "./OptionCard";
+import { PlanCard } from "./PlanCard";
 
 type Data = { messages: CoachMessage[]; notes: CoachNote[]; archived: { id: string; createdAt: string }[]; hasKey: boolean; hasPlan: boolean };
 
@@ -28,10 +29,11 @@ export function CoachChat({ aboutWorkoutId, aboutDate, draft }: { aboutWorkoutId
   const [menu, setMenu] = useState(false);
   const [reading, setReading] = useState<CoachMessage[] | null>(null);
   const [memo, setMemo] = useState(false);
-  const [showAll, setShowAll] = useState(false);
   // A topic from a link (session, day) applies to the first message only.
   const [aboutUsed, setAboutUsed] = useState(false);
   const end = useRef<HTMLDivElement>(null);
+  // Follow new text only while the reader is at the bottom; scrolled up stays put.
+  const atBottom = useRef(true);
   const box = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     const el = box.current;
@@ -54,20 +56,21 @@ export function CoachChat({ aboutWorkoutId, aboutDate, draft }: { aboutWorkoutId
       });
   useEffect(() => void load(), []);
   useEffect(() => {
-    end.current?.scrollIntoView({ block: "end" });
+    if (atBottom.current) end.current?.scrollIntoView({ block: "end" });
   }, [data?.messages.length, busy, live, status]);
 
   async function send(body = text, retry = false) {
     const msg = body.trim();
     if (!msg || busy || !data) return;
     setBusy(true);
+    // Sending brings the conversation back to the bottom, also when scrolled up to reread something.
+    atBottom.current = true;
     setFailed(null);
     setStatus(null);
     setLive("");
     setText("");
-    setShowAll(false);
     const about = aboutUsed ? {} : { aboutWorkoutId: aboutWorkoutId ?? null, aboutDate: aboutDate ?? null };
-    const optimistic: CoachMessage = { id: `local-${Date.now()}`, role: "user", text: msg, aboutWorkoutId: aboutUsed ? null : (aboutWorkoutId ?? null), options: [], usedHealth: false, createdAt: new Date().toISOString() };
+    const optimistic: CoachMessage = { id: `local-${Date.now()}`, role: "user", text: msg, aboutWorkoutId: aboutUsed ? null : (aboutWorkoutId ?? null), options: [], usedHealth: false, meta: { tools: [], remembered: [], forgot: [] }, createdAt: new Date().toISOString() };
     // A retry reuses the message already shown (and stored).
     if (!retry) setData({ ...data, messages: [...data.messages, optimistic] });
     const res = await fetch("/api/coach/messages", {
@@ -135,7 +138,6 @@ export function CoachChat({ aboutWorkoutId, aboutDate, draft }: { aboutWorkoutId
 
   async function newConversation() {
     setMenu(false);
-    setShowAll(false);
     const res = await fetch("/api/coach/new", { method: "POST" }).catch(() => null);
     if (res?.status === 409) return toast(t("busy"));
     await load();
@@ -147,10 +149,6 @@ export function CoachChat({ aboutWorkoutId, aboutDate, draft }: { aboutWorkoutId
   }
 
   const shown = reading ?? data?.messages ?? [];
-  // Only the latest exchange is shown in full; everything before folds into one line per message or option.
-  const lastUser = reading || showAll ? -1 : shown.map((m) => m.role).lastIndexOf("user");
-  const earlier = lastUser > 0 ? shown.slice(0, lastUser) : [];
-  const current = lastUser > 0 ? shown.slice(lastUser) : shown;
   const update = (messageId: string) => (next: CoachMessage["options"][number]) =>
     data &&
     setData({
@@ -159,6 +157,18 @@ export function CoachChat({ aboutWorkoutId, aboutDate, draft }: { aboutWorkoutId
         x.id === messageId ? { ...x, options: x.options.map((y) => (y.id === next.id ? next : next.status === "applied" && (y.status === "pending" || y.status === "stale") ? { ...y, status: "not_used" } : y)) } : x,
       ),
     });
+  // Day separators: "Today 07:42", "Yesterday", else the date.
+  const dayKey = (iso: string) => new Date(iso).toDateString();
+  const dayLabel = (iso: string) => {
+    const d = new Date(iso);
+    const days = Math.round((new Date(new Date().toDateString()).getTime() - new Date(d.toDateString()).getTime()) / 86_400_000);
+    const time = format.dateTime(d, { hour: "2-digit", minute: "2-digit" });
+    return days === 0 ? t("todayAt", { time }) : days === 1 ? t("yesterday") : format.dateTime(d, { weekday: "short", day: "numeric", month: "short" });
+  };
+  const checked = (tools: string[]) => {
+    const names = tools.filter((x) => x !== "update_notes" && x !== "reply").map((x) => t(`checked.${x}`));
+    return names.length ? t("checkedLine", { what: names.slice(0, 2).join(", ") + (names.length > 2 ? ` +${names.length - 2}` : "") }) : null;
+  };
   const chips = data?.hasPlan ? (["food", "tired", "move"] as const) : (["food", "recovery"] as const);
 
   return (
@@ -193,52 +203,49 @@ export function CoachChat({ aboutWorkoutId, aboutDate, draft }: { aboutWorkoutId
         <button onClick={() => setReading(null)} className="self-start py-2 text-[13px] font-semibold text-primary">{t("back")}</button>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto py-3 [mask-image:linear-gradient(to_bottom,transparent,#000_20px)]">
-        {!data && failed !== "load" && <div className="h-24 animate-pulse rounded-md bg-muted" role="status" />}
+      <div
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+        }}
+        className="min-h-0 flex-1 overflow-y-auto py-3 [mask-image:linear-gradient(to_bottom,transparent,#000_20px)]"
+      >
+        {!data && failed !== "load" && <div className="h-24 animate-pulse rounded-md bg-muted" />}
         {data && !shown.length && <p className="text-[14px] text-muted-foreground">{t("empty")}</p>}
-        {!!earlier.length && (
-          <div className="mb-2">
-            <button onClick={() => setShowAll(true)} className="flex w-full items-center gap-2 py-1 text-[12px] font-semibold text-muted-foreground">
-              <span className="h-px flex-1 bg-border" />
-              {t("earlierInThread")}
-              <span className="h-px flex-1 bg-border" />
-            </button>
-            {earlier.map((m) =>
-              m.role === "user" ? (
-                <p key={m.id} className="truncate pt-2 text-[13px] text-muted-foreground">{m.text}</p>
-              ) : m.options.length ? (
-                m.options.map((o) => <OptionCard key={o.id} messageId={m.id} option={o} readOnly={!!reading} collapsed onChange={update(m.id)} />)
+        {shown.map((m, i) => {
+          const newDay = i === 0 || dayKey(shown[i - 1]!.createdAt) !== dayKey(m.createdAt);
+          // The first open suggestion is open; the rest wait folded.
+          const firstOpen = m.options.findIndex((o) => o.status === "pending" || o.status === "stale");
+          return (
+            <div key={m.id}>
+              {newDay && <p className="py-2 text-center text-[11px] text-muted-foreground">{dayLabel(m.createdAt)}</p>}
+              {m.role === "user" ? (
+                <p className="mb-3 ml-auto mt-1 w-fit max-w-[82%] whitespace-pre-wrap rounded-2xl bg-muted px-3.5 py-2 text-[14.5px]">{m.text}</p>
               ) : (
-                <p key={m.id} className="truncate pt-1 text-[13px]">
-                  <span className="font-semibold">{t("title")}:</span> {m.text.replace(/\*\*/g, "")}
-                </p>
-              ),
-            )}
-          </div>
-        )}
-        {current.map((m) =>
-          m.role === "user" ? (
-            <p key={m.id} className="mb-3 ml-auto mt-4 w-fit max-w-[80%] whitespace-pre-wrap rounded-[14px_14px_4px_14px] bg-muted px-3 py-2 text-[14px]">{m.text}</p>
-          ) : (
-            <div key={m.id} className="mb-3">
-              <p className="mb-1 text-[12px] font-semibold text-muted-foreground">{t("title")}</p>
-              <RichText text={m.text} />
-              {m.options.map((o, i, all) => (
-                <OptionCard key={o.id} messageId={m.id} option={o} readOnly={!!reading} collapsed={i !== all.findIndex((x) => x.status === "pending" || x.status === "stale")} onChange={update(m.id)} />
-              ))}
+                <div className="mb-4">
+                  {checked(m.meta.tools) && (
+                    <p className="mb-1 flex items-center gap-1.5 text-[12px] text-muted-foreground">
+                      <Check className="size-3.5" /> {checked(m.meta.tools)}
+                    </p>
+                  )}
+                  <RichText text={m.text} />
+                  {m.options.map((o, k) => (
+                    <PlanCard key={o.id} messageId={m.id} option={o} open={k === firstOpen} readOnly={!!reading} onChange={update(m.id)} />
+                  ))}
+                  {!reading && <MemoryLine meta={m.meta} onOpen={() => setMemo(true)} />}
+                </div>
+              )}
             </div>
-          ),
-        )}
+          );
+        })}
         {busy && (
-          <div className="mb-3" role="status" aria-live="polite">
-            <p className="mb-1 flex items-center gap-2 text-[12px] font-semibold text-muted-foreground">
-              {t("title")}
-              <span className="inline-flex gap-0.5" aria-hidden>
-                {[0, 1, 2].map((i) => (
-                  <span key={i} className="size-1 animate-pulse rounded-full bg-primary" style={{ animationDelay: `${i * 200}ms` }} />
-                ))}
+          <div className="mb-4" role="status" aria-live="polite">
+            <p className="mb-1 flex items-center gap-2 text-[12px] text-muted-foreground">
+              <span className="relative flex size-2" aria-hidden>
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-60 motion-reduce:animate-none" />
+                <span className="relative inline-flex size-2 rounded-full bg-primary" />
               </span>
-              <span className="font-normal">{status ?? `${t("thinking")}…`}</span>
+              {status ?? `${t("thinking")}…`}
             </p>
             {live && <RichText text={live} />}
           </div>
@@ -301,10 +308,10 @@ export function CoachChat({ aboutWorkoutId, aboutDate, draft }: { aboutWorkoutId
   );
 }
 
-/** Coach text: paragraphs, with **bold** for the key numbers. */
+/** Coach text: plain paragraphs, no bubble, with **bold** for the key numbers. */
 function RichText({ text }: { text: string }) {
   return (
-    <div className="text-[15px] leading-relaxed">
+    <div className="text-[15px] leading-[1.55] text-foreground">
       {text.split(/\n{2,}/).map((para, i) => (
         <p key={i} className={cn("whitespace-pre-wrap", i > 0 && "mt-2")}>
           {para.split(/(\*\*[^*]+\*\*)/).map((part, k) => (part.startsWith("**") && part.endsWith("**") && part.length > 4 ? <b key={k}>{part.slice(2, -2)}</b> : part))}

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useFormatter, useTranslations } from "next-intl";
 import type { CoachNote } from "@/lib/coach/store";
 
-/** What the coach remembers; opened from the memory icon in the sheet's header. */
+/** What the coach remembers, with when and who wrote it; opened from the memory icon or a "Remembered" line. */
 export function NotesPanel({ notes, onChange }: { notes: CoachNote[]; onChange: (n: CoachNote[]) => void }) {
   const t = useTranslations("coach");
   const format = useFormatter();
@@ -38,6 +38,9 @@ export function NotesPanel({ notes, onChange }: { notes: CoachNote[]; onChange: 
                   <span className="min-w-0 flex-1">
                     {n.text}
                     {n.until && <span className="text-muted-foreground"> ({t("until", { date: format.dateTime(new Date(`${n.until}T00:00:00Z`), { day: "numeric", month: "short", timeZone: "UTC" }) })})</span>}
+                    <span className="block text-[11px] text-muted-foreground">
+                      {t(n.source === "user" ? "byYou" : "byCoach", { date: format.dateTime(new Date(n.createdAt), { day: "numeric", month: "short" }) })}
+                    </span>
                   </span>
                   <button onClick={() => { setEditing(n.id); setDraft(n.text); }} className="text-muted-foreground">{t("edit")}</button>
                   <button onClick={() => remove(n.id)} className="text-destructive">{t("delete")}</button>

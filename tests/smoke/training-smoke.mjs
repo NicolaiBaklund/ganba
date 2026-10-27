@@ -105,11 +105,13 @@ try {
   await page.getByText("Easy run +2 km").waitFor();
   await page.waitForTimeout(400);
   await shot("46-coach");
-  const folded = await page.getByText("Drop Friday").count();
-  const previewShown = await page.getByText("Now", { exact: true }).count();
-  const useAnyway = await page.getByRole("button", { name: "Use anyway" }).count();
+  // One continuous conversation: the earlier question is there in full; its unused option is hidden.
+  const folded = (await page.getByText("Can I skip Friday?").count()) > 0 && (await page.getByText("Drop Friday").count()) === 0 ? 1 : 0;
+  const previewShown = await page.getByText(/^(This week|Week of .+) · [0-9.]+ km$/).count();
+  // Warnings are the coach's to say: no warning lines on the cards, one plain button.
+  const noWarnings = (await page.getByRole("button", { name: "Use anyway" }).count()) === 0 && (await page.getByText(/\+100 %/).count()) === 0;
   const bold = await page.locator("b", { hasText: "fine" }).count();
-  await page.getByRole("button", { name: "Use this" }).click();
+  await page.getByRole("button", { name: "Use this" }).first().click();
   await page.getByText("Applied").waitFor({ timeout: 30_000 }).catch(() => null);
   const { data: afterEasy } = await admin.from("planned_workouts").select("planned_km").eq("id", easy.id).single();
   await page.getByRole("button", { name: /What the coach remembers/ }).click();
@@ -129,9 +131,9 @@ try {
     "race on race day": (ws ?? []).some((w) => w.type === "race" && w.date === addDays(today, 63)),
     "activity tag on Today": hasBreakdown > 0,
     "fuel section on session": hasFuel > 0,
-    "coach: earlier exchange folded": folded > 0,
+    "coach: earlier exchange in the conversation": folded > 0,
     "coach: week preview": previewShown > 0,
-    "coach: serious warning asks Use anyway": useAnyway > 0,
+    "coach: no warning lists on cards": noWarnings,
     "coach: bold key numbers": bold > 0,
     "ask the coach on session": hasAskCoach > 0,
     "coach option applied": Number(afterEasy.planned_km) === longer,

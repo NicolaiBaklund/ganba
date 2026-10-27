@@ -269,6 +269,7 @@ export type Database = {
           created_at: string
           id: string
           input_tokens: number | null
+          meta: Json
           model: string | null
           options: Json
           output_tokens: number | null
@@ -287,6 +288,7 @@ export type Database = {
           created_at?: string
           id?: string
           input_tokens?: number | null
+          meta?: Json
           model?: string | null
           options?: Json
           output_tokens?: number | null
@@ -305,6 +307,7 @@ export type Database = {
           created_at?: string
           id?: string
           input_tokens?: number | null
+          meta?: Json
           model?: string | null
           options?: Json
           output_tokens?: number | null

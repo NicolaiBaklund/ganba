@@ -261,7 +261,7 @@ describe("coach: applying options", () => {
     expect((data!.options as { status: string }[]).map((o) => o.status)).toEqual(["not_used", "applied"]);
   });
 
-  it("if the plan changed meanwhile and the warnings differ, it asks again; confirm applies", async () => {
+  it("a valid option is applied even when the plan changed and its warnings differ (the coach said what mattered)", async () => {
     // A real move on any weekday: when the long run is already tomorrow (Saturdays), the day after.
     const plan = await activePlan(u.id);
     const before = await planWorkouts(plan!.id);
@@ -271,11 +271,7 @@ describe("coach: applying options", () => {
     // Meanwhile a hard session lands the day before.
     const quality = before.find((w) => ["intervals", "threshold", "tempo"].includes(w.type) && w.date > today)!;
     await admin().from("planned_workouts").update({ date: addDays(target, -1) }).eq("id", quality.id);
-    const first = await applyOption(u.id, m.id, m.options[0]!.id);
-    expect(first.ok).toBe(false);
-    expect(!first.ok && first.error).toBe("changed");
-    expect(!first.ok && first.warnings!.some((w) => w.code === "hard_back_to_back")).toBe(true);
-    expect(await applyOption(u.id, m.id, m.options[0]!.id, { confirm: true })).toEqual({ ok: true });
+    expect(await applyOption(u.id, m.id, m.options[0]!.id)).toEqual({ ok: true });
   });
 
   it("all or nothing: an option where a change no longer applies is never applied in part", async () => {
@@ -293,24 +289,12 @@ describe("coach: applying options", () => {
     await admin().from("planned_workouts").update({ status: "done" }).eq("id", easyId);
     const r1 = await applyOption(u.id, m.id, m.options[0]!.id);
     expect(!r1.ok && r1.error).toBe("invalid");
-    const r2 = await applyOption(u.id, m.id, m.options[0]!.id, { confirm: true });
+    expect(!r1.ok && "reason" in r1 && r1.reason).toBeTruthy();
+    const r2 = await applyOption(u.id, m.id, m.options[0]!.id);
     expect(r2.ok).toBe(false);
     const plan = await activePlan(u.id);
     expect((await planWorkouts(plan!.id)).some((w) => w.date === addDays(today, 3) && Number(w.planned_km) === 4)).toBe(false);
     await admin().from("planned_workouts").update({ status: "planned" }).eq("id", easyId);
-  });
-
-  it("confirm only applies what was shown: a second change in between asks again", async () => {
-    const m = await askFor((p) => [{ title: "Long run sooner", summary: "", changes: [{ op: "move", session: refFor(p, "long"), toDate: addDays(today, 4) }] }]);
-    const plan = await activePlan(u.id);
-    const ws = await planWorkouts(plan!.id);
-    const easy = ws.find((w) => w.type === "easy" && w.status === "planned" && w.date > today)!;
-    await admin().from("planned_workouts").update({ date: addDays(today, 3), type: "threshold" }).eq("id", easy.id);
-    const first = await applyOption(u.id, m.id, m.options[0]!.id);
-    expect(!first.ok && first.error).toBe("changed");
-    await admin().from("planned_workouts").update({ date: addDays(today, 5), type: "intervals" }).eq("id", easy.id);
-    const second = await applyOption(u.id, m.id, m.options[0]!.id, { confirm: true });
-    expect(!second.ok && second.error).toBe("changed");
   });
 
   it("two taps at once: only one option is applied", async () => {
