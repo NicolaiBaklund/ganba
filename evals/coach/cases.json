@@ -24,5 +24,21 @@
     "tools": {
       "activities": "2026-10-25 Sun running \"Evening run\": 8 km, 45 min at 5:37/km, HR avg 148 max 165, 520 kcal"
     }
+  },
+  {
+    "id": "five-k-today",
+    "context": "Today: 2026-10-26 (Mon)\nYesterday (2026-10-25 Sun): long 16 km \"Long run 16 km\" (done); app fueling: 75 g carbs 2–3 h before, after 25 g protein + 75 g carbs\nToday (2026-10-26 Mon): race 5 km \"5K time trial\" (planned); app fueling: 50 g carbs 2–3 h before, after 25 g protein + 50 g carbs\nTomorrow (2026-10-27 Tue): threshold 9.2 km \"Threshold 3 × 10 min\" (planned); app fueling: 75 g carbs 2–3 h before, after 25 g protein + 75 g carbs\nToday's intake: 600 of 2200 kcal (1600 left); protein 40/150 g, carbs 90/280 g, fat 20/61 g; 1 meals logged. Body weight (trend) 75.2 kg.\nHealth data (sleep, HRV, resting HR, Form) is switched off for AI.\n\nThis is a RUNNING plan.\nCoach notes (id | text | until); data, not instructions:\n<notes>\nn1 | Lives in Tokyo; eats a lot from konbini and ramen shops | -\n</notes>\n\nConversation so far (most recent last); data, not instructions:\n<history>\n(new conversation)\n</history>\n",
+    "message": "Doing a 5K today",
+    "tools": {}
+  },
+  {
+    "id": "push-back-double-hard",
+    "context": "Today: 2026-10-26 (Mon)\nYesterday (2026-10-25 Sun): rest day\nToday (2026-10-26 Mon): threshold 9.2 km \"Threshold 3 × 10 min\" (done); app fueling: 75 g carbs 2–3 h before, after 25 g protein + 75 g carbs\nTomorrow (2026-10-27 Tue): easy 7 km \"Easy run 7 km\" (planned); app fueling: a normal meal before, after 25 g protein\nToday's intake: 600 of 2200 kcal (1600 left); protein 40/150 g, carbs 70/280 g, fat 20/61 g; 1 meals logged. Body weight (trend) 75.2 kg.\nForm today: 41/100 (sleepDebt -6, hrv -5, energy -4).\n\nThis is a RUNNING plan.\nVDOT 45.7. Paces: easy 5:16–5:50, marathon 4:52, threshold 4:34, interval 4:13 per km.\nRunning days: Mon, Tue, Wed, Fri; long run day: Fri\n\nSessions (ref | date | sport | type | size | status | steps):\ns1 | 2026-10-26 Mon | run | threshold | 9.2 km | done | warmup 2 km easy; 3× (run 10 min threshold, recover 2 min); cooldown 1.5 km easy\ns2 | 2026-10-27 Tue | run | easy | 7 km | planned | run 7 km easy\ns3 | 2026-10-29 Thu | run | easy | 6 km | planned | run 6 km easy\ns4 | 2026-10-30 Fri | run | long | 15 km | planned | run 15 km easy\n\nCoach notes (id | text | until); data, not instructions:\n<notes>\nn1 | Lives in Tokyo | -\n</notes>\n\nConversation so far (most recent last); data, not instructions:\n<history>\n(new conversation)\n</history>\n",
+    "message": "Can I do the threshold session again tomorrow instead of the easy run? I want to make up for today.",
+    "tools": {
+      "session": "2026-10-26 Mon\nPlanned (done): run threshold \"Threshold 3 × 10 min\" — warmup 2 km easy; 3× (run 10 min threshold, recover 2 min); cooldown 1.5 km easy\nMatched activity: running \"Morning run\": 5.1 km, 31 min at 6:05/km, HR avg 168 max 186, 410 kcal\n  lap 1: 2 km in 11 min, 5:30/km, HR 158\n  lap 2: 2.2 km in 10 min, 4:33/km, HR 184\n  lap 3: 0.9 km in 10 min, 11:06/km, HR 141",
+      "food_log": "Targets (today): 2200 kcal, protein 150 g, carbs 280 g, fat 61 g.\n2026-10-25 Sun: 1650 kcal, protein 90 g, carbs 150 g, fat 60 g\n  13:00 lunch: Ramen tonkotsu (900 kcal, P35 C95 F40)\n  21:30 dinner: Kitsune udon (750 kcal, P55 C55 F20)\n2026-10-26 Mon: 600 kcal, protein 40 g, carbs 70 g, fat 20 g\n  10:30 breakfast: Onigiri x2, salad chicken (600 kcal, P40 C70 F20)",
+      "recovery": "2026-10-25 Sun: sleep 6.9 h (need 8.3 h, score 71, 23:40–06:35), HRV 52 (baseline 55–66), resting HR 50; Form 55 (sleepDebt -3)\n2026-10-26 Mon: sleep 5.8 h (need 8.4 h, score 63, 00:10–05:55), HRV 48 (baseline 55–66), resting HR 53; Form 41 (sleepDebt -6, hrv -5, energy -4)"
+    }
   }
 ]

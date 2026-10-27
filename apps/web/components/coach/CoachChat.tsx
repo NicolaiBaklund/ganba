@@ -67,7 +67,7 @@ export function CoachChat({ aboutWorkoutId, aboutDate, draft }: { aboutWorkoutId
     setText("");
     setShowAll(false);
     const about = aboutUsed ? {} : { aboutWorkoutId: aboutWorkoutId ?? null, aboutDate: aboutDate ?? null };
-    const optimistic: CoachMessage = { id: `local-${Date.now()}`, role: "user", text: msg, aboutWorkoutId: aboutUsed ? null : (aboutWorkoutId ?? null), options: [], usedHealth: false, createdAt: new Date().toISOString() };
+    const optimistic: CoachMessage = { id: `local-${Date.now()}`, role: "user", text: msg, aboutWorkoutId: aboutUsed ? null : (aboutWorkoutId ?? null), options: [], usedHealth: false, meta: { tools: [], remembered: [], forgot: [] }, createdAt: new Date().toISOString() };
     // A retry reuses the message already shown (and stored).
     if (!retry) setData({ ...data, messages: [...data.messages, optimistic] });
     const res = await fetch("/api/coach/messages", {

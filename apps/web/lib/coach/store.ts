@@ -28,17 +28,26 @@ export interface CoachMessage {
   options: CoachOption[];
   /** The reply was written with recovery data in its context. */
   usedHealth: boolean;
+  /** Coach replies: the tools it used ("✓ Checked …") and what it remembered or forgot. Empty otherwise. */
+  meta: CoachMeta;
   createdAt: string;
 }
+export interface CoachMeta {
+  tools: string[];
+  remembered: string[];
+  forgot: string[];
+}
+const EMPTY_META: CoachMeta = { tools: [], remembered: [], forgot: [] };
 export interface CoachNote {
   id: string;
   text: string;
   until: string | null;
   source: "coach" | "user";
+  createdAt: string;
 }
 
 const db = () => createAdminSupabase();
-type Row = { id: string; role: string; text: string; about_workout_id: string | null; options: Json; used_health: boolean; created_at: string };
+type Row = { id: string; role: string; text: string; about_workout_id: string | null; options: Json; used_health: boolean; meta: Json; created_at: string };
 const toMessage = (r: Row): CoachMessage => ({
   id: r.id,
   role: r.role as CoachMessage["role"],
@@ -46,9 +55,10 @@ const toMessage = (r: Row): CoachMessage => ({
   aboutWorkoutId: r.about_workout_id,
   options: (r.options as unknown as CoachOption[]) ?? [],
   usedHealth: r.used_health,
+  meta: { ...EMPTY_META, ...((r.meta as Partial<CoachMeta> | null) ?? {}) },
   createdAt: r.created_at,
 });
-const COLS = "id, role, text, about_workout_id, options, used_health, created_at";
+const COLS = "id, role, text, about_workout_id, options, used_health, meta, created_at";
 
 export async function activeThread(userId: string): Promise<{ id: string }> {
   const { data } = await db().from("coach_threads").select("id").eq("user_id", userId).is("archived_at", null).maybeSingle();
@@ -94,7 +104,15 @@ export async function recentMessages(threadId: string, n: number): Promise<Coach
 export async function addMessage(
   userId: string,
   threadId: string,
-  m: { role: "user" | "coach"; text: string; aboutWorkoutId?: string | null; options?: CoachOption[]; usedHealth?: boolean; usage?: { model: string; input: number; output: number; costUsd: number | null; promptVersion: number } },
+  m: {
+    role: "user" | "coach";
+    text: string;
+    aboutWorkoutId?: string | null;
+    options?: CoachOption[];
+    usedHealth?: boolean;
+    meta?: CoachMeta;
+    usage?: { model: string; input: number; output: number; costUsd: number | null; promptVersion: number };
+  },
 ): Promise<CoachMessage> {
   const { data, error } = await db()
     .from("coach_messages")
@@ -106,6 +124,7 @@ export async function addMessage(
       about_workout_id: m.aboutWorkoutId ?? null,
       options: (m.options ?? []) as unknown as Json,
       used_health: m.usedHealth ?? false,
+      meta: (m.meta ?? EMPTY_META) as unknown as Json,
       model: m.usage?.model ?? null,
       prompt_version: m.usage?.promptVersion ?? null,
       input_tokens: m.usage?.input ?? null,
@@ -155,8 +174,8 @@ export async function releaseMessage(messageId: string): Promise<void> {
 /** Notes for the coach; expired ones are deleted first. */
 export async function listNotes(userId: string, today: string): Promise<CoachNote[]> {
   await db().from("coach_notes").delete().eq("user_id", userId).lt("until", today);
-  const { data } = await db().from("coach_notes").select("id, text, until, source").eq("user_id", userId).order("created_at");
-  return (data ?? []).map((n) => ({ id: n.id, text: n.text, until: n.until, source: n.source as CoachNote["source"] }));
+  const { data } = await db().from("coach_notes").select("id, text, until, source, created_at").eq("user_id", userId).order("created_at");
+  return (data ?? []).map((n) => ({ id: n.id, text: n.text, until: n.until, source: n.source as CoachNote["source"], createdAt: n.created_at }));
 }
 
 /** Adds notes; over the limit the oldest coach notes go first (the user's own stay). */
