@@ -130,11 +130,11 @@ try {
       id, title, summary: "", status: "pending", lines: [], warnings: [{ code: "off_day", severity: "caution", date: toDate }],
       changes: [{ op: "move", workoutId: easy.id, toDate }], weeks: [{ monday: monday.toISOString().slice(0, 10), beforeKm: 30, afterKm: 30, days: days(titles) }],
     });
+    await admin.from("coach_messages").insert({ thread_id: thread.id, user_id: uid, role: "coach", text: "An older suggestion.", options: [option(`old-${scheme}`, `Old suggestion (${scheme})`, false)] });
+    await new Promise((r) => setTimeout(r, 20));
     await admin.from("coach_messages").insert({ thread_id: thread.id, user_id: uid, role: "user", text: `Move my easy run (${scheme})`, options: [] });
     await new Promise((r) => setTimeout(r, 20));
     await admin.from("coach_messages").insert({ thread_id: thread.id, user_id: uid, role: "coach", text: "Sure, the day after works.", options: [option(`new-${scheme}`, `Easy run a day later (${scheme})`, true)] });
-    await new Promise((r) => setTimeout(r, 20));
-    await admin.from("coach_messages").insert({ thread_id: thread.id, user_id: uid, role: "coach", text: "An older suggestion.", options: [option(`old-${scheme}`, `Old suggestion (${scheme})`, false)] });
     await page.goto(`${BASE}/coach`);
     const card = page.locator("div.rounded-xl", { hasText: `Easy run a day later (${scheme})` });
     await card.waitFor();
@@ -144,7 +144,10 @@ try {
     await page.waitForTimeout(400); // the bib opens over 200 ms
     await shot("4-plan-card");
     checks[`${scheme}: no warning lists`] = (await page.getByText(/not one of your running days/).count()) === 0;
+    // Only the latest reply's card is open; an earlier one waits folded and opens on tap.
     const old = page.locator("div.rounded-xl", { hasText: `Old suggestion (${scheme})` });
+    checks[`${scheme}: earlier reply's card is folded`] = (await old.locator("button[aria-expanded]").first().getAttribute("aria-expanded")) === "false";
+    await old.locator("button[aria-expanded]").first().click();
     await old.locator("button[aria-pressed]").nth((to.getUTCDay() + 6) % 7).click();
     checks[`${scheme}: old option without titles shows no bib, no crash`] = (await old.getByText("No details for this day.").count()) > 0;
     // An option that no longer fits (its session is gone): tapping it shows why, the card stays open.
@@ -155,6 +158,17 @@ try {
     await goneCard.getByRole("button", { name: "Use this" }).click();
     await goneCard.getByText(/Can.t be applied/).waitFor({ timeout: 15_000 }).catch(() => null);
     checks[`${scheme}: invalid option shows why`] = (await goneCard.getByText(/Can.t be applied/).isVisible().catch(() => false)) === true;
+    // "Not now" turns the suggestion down: one quiet line, stored as dismissed.
+    await admin.from("coach_messages").insert({ thread_id: thread.id, user_id: uid, role: "coach", text: "Or this.", options: [option(`no-${scheme}`, `Turned down (${scheme})`, true)] });
+    await page.reload();
+    const noCard = page.locator("div.rounded-xl", { hasText: `Turned down (${scheme})` });
+    await noCard.getByRole("button", { name: "Not now" }).click();
+    await noCard.getByText("Not used").waitFor({ timeout: 15_000 }).catch(() => null);
+    checks[`${scheme}: Not now folds to a quiet line`] = (await noCard.getByText("Not used").count()) > 0 && (await noCard.getByRole("button", { name: "Use this" }).count()) === 0;
+    await shot("5-not-now");
+    // The card that was open is folded now that the talk moved on; open it and use it.
+    checks[`${scheme}: card folds once the talk moves on`] = (await card.locator("button[aria-expanded]").first().getAttribute("aria-expanded")) === "false";
+    await card.locator("button[aria-expanded]").first().click();
     await card.getByRole("button", { name: "Use this" }).click();
     await card.getByText("Applied").waitFor({ timeout: 30_000 }).catch(() => null);
     checks[`${scheme}: Use this folds to one line`] = (await page.locator("div.rounded-xl", { hasText: `Easy run a day later (${scheme})` }).getByText("Applied").count()) > 0;

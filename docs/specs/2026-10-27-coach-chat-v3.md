@@ -83,6 +83,8 @@ Prinsipper, ikke regler. Prompt-versjonen økes.
 - **Data:** forhåndsvisningscellene må ha det bib-en trenger (tittel, varighet, sport og dato økta kom fra). Det lagres i alternativet når det lages. Gamle alternativer uten feltene viser ukeraden uten bib.
 - **Flere alternativer:** det første er åpent, de andre er sammenbrettet til én linje («Intervals → Saturday · show»). Når coachen pusher tilbake, er det første alternativet coachens anbefaling, og brukerens eget ønske ligger sammenbrettet under.
 - **Etter «Use this»:** kortet krymper til én linje med hake og «On your watch» / «Applied». De andre alternativene forsvinner fra visningen. Trykk på linjen åpner uka igjen, kun til visning.
+- **«Not now»** (tillegg 2026-10-27): ved siden av «Use this». Avviser alle åpne forslag i svaret, og kortet blir én dempet linje «Not used» som kan åpnes til visning. Coachen ser dem som `dismissed`.
+- **Eldre svar:** bare forslagene i siste svar er åpne. Når samtalen går videre, lukkes de eldre til én linje, men kan åpnes og brukes.
 - **Hvis planen har endret seg siden forslaget:**
   - Gjelder ikke endringen lenger, står det kort i kortet («No longer fits the plan: …»), og knappen forsvinner.
   - Gjelder den fortsatt, brukes den direkte. Det spørres ikke på nytt om advarsler, siden de ikke vises lenger.

@@ -149,14 +149,25 @@ export function CoachChat({ aboutWorkoutId, aboutDate, draft }: { aboutWorkoutId
   }
 
   const shown = reading ?? data?.messages ?? [];
+  // Functional updates: an apply can finish after a newer reply was added.
   const update = (messageId: string) => (next: CoachMessage["options"][number]) =>
-    data &&
-    setData({
-      ...data,
-      messages: data.messages.map((x) =>
-        x.id === messageId ? { ...x, options: x.options.map((y) => (y.id === next.id ? next : next.status === "applied" && (y.status === "pending" || y.status === "stale") ? { ...y, status: "not_used" } : y)) } : x,
-      ),
-    });
+    setData((d) =>
+      d && {
+        ...d,
+        messages: d.messages.map((x) =>
+          x.id === messageId ? { ...x, options: x.options.map((y) => (y.id === next.id ? next : next.status === "applied" && (y.status === "pending" || y.status === "stale") ? { ...y, status: "not_used" as const } : y)) } : x,
+        ),
+      },
+    );
+  const dismiss = (messageId: string) => () =>
+    setData((d) =>
+      d && {
+        ...d,
+        messages: d.messages.map((x) =>
+          x.id === messageId ? { ...x, options: x.options.map((y) => (y.status === "pending" || y.status === "stale" ? { ...y, status: "dismissed" as const } : y)) } : x,
+        ),
+      },
+    );
   // Day separators: "Today 07:42", "Yesterday", else the date.
   const dayKey = (iso: string) => new Date(iso).toDateString();
   const dayLabel = (iso: string) => {
@@ -214,8 +225,8 @@ export function CoachChat({ aboutWorkoutId, aboutDate, draft }: { aboutWorkoutId
         {data && !shown.length && <p className="text-[14px] text-muted-foreground">{t("empty")}</p>}
         {shown.map((m, i) => {
           const newDay = i === 0 || dayKey(shown[i - 1]!.createdAt) !== dayKey(m.createdAt);
-          // The first open suggestion is open; the rest wait folded.
-          const firstOpen = m.options.findIndex((o) => o.status === "pending" || o.status === "stale");
+          // The first open suggestion of the latest reply is open; the rest wait folded, also once the talk moves on.
+          const firstOpen = i === shown.length - 1 ? m.options.findIndex((o) => o.status === "pending" || o.status === "stale") : -1;
           return (
             <div key={m.id}>
               {newDay && <p className="py-2 text-center text-[11px] text-muted-foreground">{dayLabel(m.createdAt)}</p>}
@@ -230,7 +241,7 @@ export function CoachChat({ aboutWorkoutId, aboutDate, draft }: { aboutWorkoutId
                   )}
                   <RichText text={m.text} />
                   {m.options.map((o, k) => (
-                    <PlanCard key={o.id} messageId={m.id} option={o} open={k === firstOpen} readOnly={!!reading} onChange={update(m.id)} />
+                    <PlanCard key={o.id} messageId={m.id} option={o} open={k === firstOpen} readOnly={!!reading} onChange={update(m.id)} onDismiss={dismiss(m.id)} />
                   ))}
                   {!reading && <MemoryLine meta={m.meta} onOpen={() => setMemo(true)} />}
                 </div>

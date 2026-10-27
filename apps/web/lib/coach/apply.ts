@@ -23,7 +23,8 @@ export async function applyOption(userId: string, messageId: string, optionId: s
     const options = (fresh?.options as unknown as CoachOption[] | undefined) ?? [];
     const o = options.find((x) => x.id === optionId);
     if (!o) return { ok: false as const, error: "not_found" as ApplyError };
-    if (o.status !== "pending" && o.status !== "stale") return { ok: false as const, error: "not_pending" as ApplyError };
+    // Already decided (maybe in another tab): say how, so the card shows that and not "applied".
+    if (o.status !== "pending" && o.status !== "stale") return { ok: false as const, error: "not_pending" as ApplyError, status: o.status };
     const plan = await activePlan(userId);
     if (!plan) return { ok: false as const, error: "no_plan" as ApplyError };
     const today = await todayFor(userId);
@@ -43,6 +44,28 @@ export async function applyOption(userId: string, messageId: string, optionId: s
       m.id,
       options.map((x) => (x.id === o.id ? { ...x, status: "applied" } : x.status === "pending" || x.status === "stale" ? { ...x, status: "not_used" } : x)),
     );
+    return { ok: true as const };
+  } finally {
+    await releaseMessage(m.id);
+  }
+}
+
+/**
+ * "Not now" on one option turns down every open option in its reply. The coach sees them as dismissed in the
+ * conversation.
+ */
+export async function dismissOptions(userId: string, messageId: string, optionId: string) {
+  const db = createAdminSupabase();
+  const { data: m } = await db.from("coach_messages").select("id, thread_id").eq("id", messageId).eq("user_id", userId).maybeSingle();
+  if (!m) return { ok: false as const, error: "not_found" as ApplyError };
+  const { data: thread } = await db.from("coach_threads").select("archived_at").eq("id", m.thread_id).single();
+  if (thread?.archived_at) return { ok: false as const, error: "archived" as ApplyError };
+  if (!(await claimMessage(m.id))) return { ok: false as const, error: "busy" as ApplyError };
+  try {
+    const { data: fresh } = await db.from("coach_messages").select("options").eq("id", m.id).single();
+    const options = (fresh?.options as unknown as CoachOption[] | undefined) ?? [];
+    if (!options.some((x) => x.id === optionId)) return { ok: false as const, error: "not_found" as ApplyError };
+    await updateOptions(m.id, options.map((x) => (x.status === "pending" || x.status === "stale" ? { ...x, status: "dismissed" } : x)));
     return { ok: true as const };
   } finally {
     await releaseMessage(m.id);
