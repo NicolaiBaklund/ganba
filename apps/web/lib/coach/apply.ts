@@ -48,3 +48,19 @@ export async function applyOption(userId: string, messageId: string, optionId: s
     await releaseMessage(m.id);
   }
 }
+
+/** "Not now": turns down every open option in a reply. The coach sees them as dismissed in the conversation. */
+export async function dismissOptions(userId: string, messageId: string) {
+  const db = createAdminSupabase();
+  const { data: m } = await db.from("coach_messages").select("id").eq("id", messageId).eq("user_id", userId).maybeSingle();
+  if (!m) return { ok: false as const, error: "not_found" as ApplyError };
+  if (!(await claimMessage(m.id))) return { ok: false as const, error: "busy" as ApplyError };
+  try {
+    const { data: fresh } = await db.from("coach_messages").select("options").eq("id", m.id).single();
+    const options = (fresh?.options as unknown as CoachOption[] | undefined) ?? [];
+    await updateOptions(m.id, options.map((x) => (x.status === "pending" || x.status === "stale" ? { ...x, status: "dismissed" } : x)));
+    return { ok: true as const };
+  } finally {
+    await releaseMessage(m.id);
+  }
+}

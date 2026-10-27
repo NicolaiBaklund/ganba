@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { addDays, weekday } from "@loop/core";
 import { encryptSecret } from "@/lib/ai/crypto";
+import { applyOption, dismissOptions } from "@/lib/coach/apply";
 import { runCoach } from "@/lib/coach/run";
 import { addNotes, activeThread, listNotes, recentMessages } from "@/lib/coach/store";
 import { createPlan, planWorkouts, activePlan } from "@/lib/training/service";
@@ -76,6 +77,35 @@ describe("coach v3: streaming, meta, preview cells, memory", () => {
     const cell = days.find((d) => d.date === to)!.after.find((c) => c.title === easy.title)!;
     expect(cell).toMatchObject({ title: easy.title, fromDate: easy.date });
     expect(cell.durationS).toBeGreaterThan(0);
+  });
+
+  it("Not now turns down the reply's open options; they can't be applied after, and the coach sees it", async () => {
+    const plan = (await activePlan(u.id))!;
+    const easy = (await planWorkouts(plan.id)).find((w) => w.type === "easy" && w.status === "planned" && w.date > today)!;
+    ai.script = [
+      (p) => {
+        const ref = ctxOf(p).match(new RegExp(`^(s\\d+) \\| ${easy.date} `, "m"))![1]!;
+        return tool("reply", {
+          message: "Two ways.",
+          options: [
+            { title: "Shorter easy run", summary: "", changes: [{ op: "edit", session: ref, steps: [{ kind: "run", km: 3, zone: "easy" }] }] },
+            { title: "Longer easy run", summary: "", changes: [{ op: "edit", session: ref, steps: [{ kind: "run", km: 9, zone: "easy" }] }] },
+          ],
+        });
+      },
+    ];
+    const r = await runCoach(u.id, { text: "change my easy run" }, { ai });
+    const m = r.ok ? r.message : null!;
+    expect(await dismissOptions(u.id, m.id)).toEqual({ ok: true });
+    const stored = (await recentMessages((await activeThread(u.id)).id, 1))[0]!;
+    expect(stored.options.map((o) => o.status)).toEqual(["dismissed", "dismissed"]);
+    const late = await applyOption(u.id, m.id, m.options[0]!.id);
+    expect(!late.ok && late.error).toBe("not_pending");
+    expect((await planWorkouts(plan.id)).find((w) => w.id === easy.id)!.planned_km).toBe(easy.planned_km);
+
+    ai.script = [() => tool("reply", { message: "ok", options: [] })];
+    await runCoach(u.id, { text: "fine" }, { ai });
+    expect(ctxOf(ai.calls.at(-1)!)).toContain("Shorter easy run (dismissed)");
   });
 
   it("a cut-off reply is never applied", async () => {

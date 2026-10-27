@@ -796,6 +796,8 @@
     "rest": "Rest day",
     "noBib": "No details for this day.",
     "weekOfKm": "Week of {date} · {km} km",
-    "moreWeeks": "{n, plural, one {# more week changes too} other {# more weeks change too}}"
+    "moreWeeks": "{n, plural, one {# more week changes too} other {# more weeks change too}}",
+    "notNow": "Not now",
+    "notUsed": "Not used"
   }
 }

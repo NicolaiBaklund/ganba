@@ -16,7 +16,8 @@ export interface CoachOption {
   warnings: PlanWarning[];
   /** The touched weeks before and after, day by day (options made before this existed have none). */
   weeks?: PreviewWeek[];
-  status: "pending" | "applied" | "not_used" | "stale" | "invalid";
+  /** not_used: another option in the reply was applied; dismissed: turned down with "Not now". */
+  status: "pending" | "applied" | "not_used" | "dismissed" | "stale" | "invalid";
   /** Why an option can no longer be applied. */
   reason?: string;
 }

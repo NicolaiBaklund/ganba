@@ -33,12 +33,15 @@ export function PlanCard({
   open: openByDefault,
   readOnly = false,
   onChange,
+  onDismiss,
 }: {
   messageId: string;
   option: CoachOption;
   open: boolean;
   readOnly?: boolean;
   onChange: (o: CoachOption) => void;
+  /** "Not now" turned down the reply's open options. */
+  onDismiss: () => void;
 }) {
   const t = useTranslations("coach");
   const tw = useTranslations("workout");
@@ -84,8 +87,21 @@ export function PlanCard({
     toast.error(t("error"));
   }
 
+  async function dismiss() {
+    setBusy(true);
+    const res = await fetch(`/api/coach/options/${messageId}/${option.id}`, { method: "DELETE" }).catch(() => null);
+    setBusy(false);
+    if (res?.ok) {
+      setOpened(false);
+      return onDismiss();
+    }
+    if (res?.status === 409) return;
+    toast.error(t("error"));
+  }
+
   if (option.status === "not_used") return null;
   const applied = option.status === "applied";
+  const dismissed = option.status === "dismissed";
 
   // The week row: the days after the change, changed ones outlined; tap one for its bib.
   const cells = week?.days ?? [];
@@ -157,15 +173,20 @@ export function PlanCard({
     </>
   );
 
-  if (applied) {
+  // Applied or turned down: one line; tapping it shows the week again, to look at only.
+  if (applied || dismissed) {
     return (
       <div className="my-2 rounded-xl border border-border">
         <button type="button" onClick={() => setOpened(!open)} aria-expanded={open} className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[13px]">
-          <span className="grid size-[18px] shrink-0 place-items-center rounded-full bg-success text-background">
-            <Check className="size-3" strokeWidth={3} />
-          </span>
-          <span className="min-w-0 flex-1 truncate font-semibold">{option.title}</span>
-          <span className="shrink-0 text-[12px] text-muted-foreground">{t("onWatch")}</span>
+          {applied ? (
+            <span className="grid size-[18px] shrink-0 place-items-center rounded-full bg-success text-background">
+              <Check className="size-3" strokeWidth={3} />
+            </span>
+          ) : (
+            <span className="size-[18px] shrink-0 rounded-full border-[1.5px] border-muted-foreground/50" />
+          )}
+          <span className={cn("min-w-0 flex-1 truncate font-semibold", dismissed && "text-muted-foreground")}>{option.title}</span>
+          <span className="shrink-0 text-[12px] text-muted-foreground">{t(applied ? "onWatch" : "notUsed")}</span>
         </button>
         <Reveal open={open}>{body}</Reveal>
       </div>
@@ -188,8 +209,11 @@ export function PlanCard({
           <p className="border-t border-border px-3 py-2.5 text-[13px] text-muted-foreground">{t("invalid", { reason: option.reason ?? "" })}</p>
         ) : (
           !readOnly && (
-            <div className="border-t border-border px-3 py-2.5">
-              <button type="button" disabled={busy} onClick={apply} className="h-9 w-full rounded-full bg-primary text-[13px] font-bold text-primary-foreground disabled:opacity-50">
+            <div className="flex gap-2 border-t border-border px-3 py-2.5">
+              <button type="button" disabled={busy} onClick={dismiss} className="h-9 shrink-0 rounded-full px-4 text-[13px] font-semibold text-muted-foreground disabled:opacity-50">
+                {t("notNow")}
+              </button>
+              <button type="button" disabled={busy} onClick={apply} className="h-9 flex-1 rounded-full bg-primary text-[13px] font-bold text-primary-foreground disabled:opacity-50">
                 {t("use")}
               </button>
             </div>
