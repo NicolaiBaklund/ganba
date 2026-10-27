@@ -198,7 +198,7 @@ try {
   await shot("form");
 
   // The coach: a real answer with a key (it looks up the food log and tomorrow's session itself).
-  const QUESTION = "I'm in Tokyo and run the intervals this evening. What should I eat before and after?";
+  const QUESTION = "Can I do the intervals tomorrow instead of today? Long day at work.";
   if (!realAi) {
     const ANSWER = "Make tonight about carbs: you have **700 kcal** left with most of your fat already used, and tomorrow's intervals want full glycogen.\n\nAt a konbini: two salmon onigiri, a pack of salad chicken and a banana, about **650 kcal** with 45 g protein and 95 g carbs. Prefer to sit down? Kake soba with an onsen egg does the same job.";
     await page.route("**/api/coach/messages", async (route) => {

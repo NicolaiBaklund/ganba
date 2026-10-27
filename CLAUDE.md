@@ -7,6 +7,7 @@ Personlig trenings- + ernæringsapp (Runna + MyFitnessPal i ett). Webapp, må fu
 Systemet er **generelt/flerbruker** — aldri hardkod brukerens personlige verdier.
 
 ## Les først
+- [docs/specs/2026-10-27-coach-chat-v3.md](docs/specs/2026-10-27-coach-chat-v3.md) — **coach-chat v3** (claude.ai-aktig chat, planendringskort med bib, ingen advarselslister, korte svar som pusher tilbake, minnelinje; plan: docs/plans/2026-10-27-coach-chat-v3-plan.md)
 - [docs/specs/2026-10-26-coach-v2.md](docs/specs/2026-10-26-coach-v2.md) — **coach v2** (egen fane, coach for alt, lesverktøy, strømming, Form-detaljside; plan: docs/plans/2026-10-26-coach-v2-plan.md)
 - [docs/specs/2026-10-23-sykling-del2.md](docs/specs/2026-10-23-sykling-del2.md) — **sykling del 2** (watt/FTP og ERG, sideøkter av den andre sporten i én plan)
 - [docs/specs/2026-10-23-sykling.md](docs/specs/2026-10-23-sykling.md) — **sykling del 1** (sykkelplan, puls og tid, innendørs, coach; plan: docs/plans/2026-10-23-sykling-plan.md)
