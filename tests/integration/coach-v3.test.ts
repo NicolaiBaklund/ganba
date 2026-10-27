@@ -3,7 +3,6 @@ import { addDays, weekday } from "@loop/core";
 import { encryptSecret } from "@/lib/ai/crypto";
 import { runCoach } from "@/lib/coach/run";
 import { addNotes, activeThread, listNotes, recentMessages } from "@/lib/coach/store";
-import { TOOL_LABELS } from "@/lib/coach/tools";
 import { createPlan, planWorkouts, activePlan } from "@/lib/training/service";
 // @ts-expect-error — plain JS helper shared with the smoke scripts
 import { seedUser } from "../smoke/seed.mjs";
@@ -40,7 +39,7 @@ describe("coach v3: streaming, meta, preview cells, memory", () => {
       () => tool("reply", { message: "Noted.", options: [] }),
     ];
     const r = await runCoach(u.id, { text: "I'm better now, and I live in Tokyo" }, { ai });
-    const meta = { tools: [TOOL_LABELS.food_log, TOOL_LABELS.update_notes], remembered: ["Lives in Tokyo"], forgot: ["Sick since Monday"] };
+    const meta = { tools: ["food_log", "update_notes"], remembered: ["Lives in Tokyo"], forgot: ["Sick since Monday"] };
     expect(r.ok && r.message.meta).toEqual(meta);
     const stored = (await recentMessages((await activeThread(u.id)).id, 1))[0]!;
     expect(stored.meta).toEqual(meta);

@@ -33,6 +33,7 @@ export interface CoachMessage {
   createdAt: string;
 }
 export interface CoachMeta {
+  /** Names of the tools used (the chat shows them as "✓ Checked …"). */
   tools: string[];
   remembered: string[];
   forgot: string[];

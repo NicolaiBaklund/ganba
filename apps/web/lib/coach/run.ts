@@ -168,7 +168,7 @@ export async function runCoach(
         let out: unknown;
         if (TOOL_LABELS[u.name]) {
           emit({ type: "status", label: TOOL_LABELS[u.name]! });
-          if (!meta.tools.includes(TOOL_LABELS[u.name]!)) meta.tools.push(TOOL_LABELS[u.name]!);
+          if (!meta.tools.includes(u.name)) meta.tools.push(u.name);
         }
         if (u.name === "reply") {
           const p = ReplyInput.safeParse(u.input);
