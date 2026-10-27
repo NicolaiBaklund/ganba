@@ -11,18 +11,22 @@ export async function POST(_req: Request, ctx: RouteContext<"/api/coach/options/
   const u = await apiUser();
   if (!u) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const r = await applyOption(u.user.id, messageId, optionId);
-  if (!r.ok) return NextResponse.json({ error: r.error, reason: "reason" in r ? r.reason : undefined }, { status: r.error === "not_found" ? 404 : 409 });
+  if (!r.ok)
+    return NextResponse.json(
+      { error: r.error, reason: "reason" in r ? r.reason : undefined, status: "status" in r ? r.status : undefined },
+      { status: r.error === "not_found" ? 404 : 409 },
+    );
   const today = await todayFor(u.user.id);
   after(() => pushToGarmin(u.user.id, today));
   return NextResponse.json({ ok: true });
 }
 
-/** "Not now": turns down all open options in the reply this one belongs to. */
+/** "Not now" on this option: turns down all open options in its reply. */
 export async function DELETE(_req: Request, ctx: RouteContext<"/api/coach/options/[messageId]/[optionId]">) {
-  const { messageId } = await ctx.params;
+  const { messageId, optionId } = await ctx.params;
   const u = await apiUser();
   if (!u) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const r = await dismissOptions(u.user.id, messageId);
+  const r = await dismissOptions(u.user.id, messageId, optionId);
   if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.error === "not_found" ? 404 : 409 });
   return NextResponse.json({ ok: true });
 }

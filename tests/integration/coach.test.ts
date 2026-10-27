@@ -334,6 +334,6 @@ describe("coach: applying options", () => {
   it("an applied option cannot be applied twice", async () => {
     const m = await askFor((p) => [{ title: "Shorter easy", summary: "", changes: [{ op: "edit", session: refFor(p, "easy"), steps: [{ kind: "run", km: 6 }] }] }]);
     expect((await applyOption(u.id, m.id, m.options[0]!.id)).ok).toBe(true);
-    expect(await applyOption(u.id, m.id, m.options[0]!.id)).toEqual({ ok: false, error: "not_pending" });
+    expect(await applyOption(u.id, m.id, m.options[0]!.id)).toEqual({ ok: false, error: "not_pending", status: "applied" });
   });
 });

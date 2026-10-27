@@ -96,16 +96,26 @@ describe("coach v3: streaming, meta, preview cells, memory", () => {
     ];
     const r = await runCoach(u.id, { text: "change my easy run" }, { ai });
     const m = r.ok ? r.message : null!;
-    expect(await dismissOptions(u.id, m.id)).toEqual({ ok: true });
+    expect(await dismissOptions(u.id, m.id, "no-such-option")).toMatchObject({ ok: false, error: "not_found" });
+    expect(await dismissOptions(u.id, m.id, m.options[1]!.id)).toEqual({ ok: true });
     const stored = (await recentMessages((await activeThread(u.id)).id, 1))[0]!;
     expect(stored.options.map((o) => o.status)).toEqual(["dismissed", "dismissed"]);
     const late = await applyOption(u.id, m.id, m.options[0]!.id);
-    expect(!late.ok && late.error).toBe("not_pending");
+    // The card learns it was turned down (another tab), not that it was applied.
+    expect(late).toMatchObject({ ok: false, error: "not_pending", status: "dismissed" });
     expect((await planWorkouts(plan.id)).find((w) => w.id === easy.id)!.planned_km).toBe(easy.planned_km);
 
     ai.script = [() => tool("reply", { message: "ok", options: [] })];
     await runCoach(u.id, { text: "fine" }, { ai });
     expect(ctxOf(ai.calls.at(-1)!)).toContain("Shorter easy run (dismissed)");
+  });
+
+  it("options in an archived conversation can't be turned down", async () => {
+    ai.script = [() => tool("reply", { message: "ok", options: [] })];
+    const r = await runCoach(u.id, { text: "hi" }, { ai });
+    const m = r.ok ? r.message : null!;
+    await admin().from("coach_threads").update({ archived_at: new Date().toISOString() }).eq("id", (await activeThread(u.id)).id);
+    expect(await dismissOptions(u.id, m.id, "any")).toMatchObject({ ok: false, error: "archived" });
   });
 
   it("a cut-off reply is never applied", async () => {

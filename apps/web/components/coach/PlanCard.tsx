@@ -82,7 +82,8 @@ export function PlanCard({
       setOpened(true);
       return onChange({ ...option, status: "invalid", reason: body.reason });
     }
-    if (res?.status === 409 && body?.error === "not_pending") return onChange({ ...option, status: "applied" });
+    // Decided elsewhere (another tab): show what happened there.
+    if (res?.status === 409 && body?.error === "not_pending") return body.status === "dismissed" ? onDismiss() : onChange({ ...option, status: body.status ?? "applied" });
     if (res?.status === 409 && body?.error === "busy") return;
     toast.error(t("error"));
   }

@@ -149,14 +149,16 @@ export function CoachChat({ aboutWorkoutId, aboutDate, draft }: { aboutWorkoutId
   }
 
   const shown = reading ?? data?.messages ?? [];
+  // Functional updates: an apply can finish after a newer reply was added.
   const update = (messageId: string) => (next: CoachMessage["options"][number]) =>
-    data &&
-    setData({
-      ...data,
-      messages: data.messages.map((x) =>
-        x.id === messageId ? { ...x, options: x.options.map((y) => (y.id === next.id ? next : next.status === "applied" && (y.status === "pending" || y.status === "stale") ? { ...y, status: "not_used" } : y)) } : x,
-      ),
-    });
+    setData((d) =>
+      d && {
+        ...d,
+        messages: d.messages.map((x) =>
+          x.id === messageId ? { ...x, options: x.options.map((y) => (y.id === next.id ? next : next.status === "applied" && (y.status === "pending" || y.status === "stale") ? { ...y, status: "not_used" as const } : y)) } : x,
+        ),
+      },
+    );
   const dismiss = (messageId: string) => () =>
     setData((d) =>
       d && {
