@@ -51,4 +51,12 @@ describe("core flow: onboarding rows + quick add + weight → day snapshot", () 
     expect(snap.intake.kcal).toBe(0);
     expect(snap.entries).toEqual([]);
   });
+
+  it("a base target set by the user gets the day's activity on top", async () => {
+    await u.client.from("energy_plans").update({ manual_kcal_override: 2000 }).eq("user_id", u.id);
+    const snap = await getDaySnapshot(u.client, u.id);
+    expect(snap.trainingKcal).toBeGreaterThan(0);
+    expect(snap.baseKcal).toBe(2000);
+    expect(snap.target.kcal).toBe(Math.round(2000 + trainingKcalPerDay({ stepsPerDay: 9000, runKmPerWeek: 20, otherTrainingHoursPerWeek: 2 }, 66)));
+  });
 });

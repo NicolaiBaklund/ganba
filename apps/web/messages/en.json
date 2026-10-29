@@ -211,7 +211,7 @@
       "title": "Nutrition targets",
       "protein": "Protein",
       "fat": "Fat",
-      "override": "Fixed calorie target (optional)"
+      "override": "Base target (optional)"
     },
     "checkinDay": "Weekly check-in day",
     "account": {

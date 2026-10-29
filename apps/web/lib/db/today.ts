@@ -45,8 +45,9 @@ export interface DaySnapshot {
   today: ISODate;
   timezone: string;
   target: { kcal: number; floored: boolean };
+  /** The rest-day energy the target builds on: the user's base target, else the estimated expenditure. */
   baseKcal: number;
-  /** Fixed calorie target set by the user (no breakdown applies). */
+  /** Base target set by the user: it already holds the goal; activity comes on top. */
   manualTarget: boolean;
   trainingKcal: number;
   /** Garmin users: where today's activity energy comes from. Null without Garmin. */
@@ -117,7 +118,7 @@ export async function getDaySnapshot(supabase: DB, userId: string, dateArg?: ISO
     today,
     timezone: profile.timezone,
     target,
-    baseKcal: plan.baseExpenditureKcal,
+    baseKcal: plan.manualKcalOverride ?? plan.baseExpenditureKcal,
     manualTarget: plan.manualKcalOverride != null,
     trainingKcal: Math.round(training),
     activity,

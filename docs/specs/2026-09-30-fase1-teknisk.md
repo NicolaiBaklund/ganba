@@ -80,7 +80,7 @@ Treningskcal/dag      = (run_km_per_week · kg · 0.9 + other_training_hours_per
 
 ### 4.2 Dagsmål
 ```
-dagsmål = manual_kcal_override
+dagsmål = manual_kcal_override + treningskcal(dag)        (eget «base target»: hviledagsmål med mål inkludert; endret 2026-10-29)
        ?? base_expenditure_kcal + treningskcal(dag) − rate_kg_per_week · 7700 / 7
 ```
 - Fase 1: `treningskcal(dag)` = snitt fra gjeldende `activity_baselines`.

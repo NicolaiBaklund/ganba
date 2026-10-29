@@ -15,7 +15,7 @@ export function TargetSheet({ target, breakdown, children }: { target: number; b
       </button>
       <BottomSheet open={open} onOpenChange={setOpen} title={t("targetHow")}>
         <p className="num text-lg">
-          {t("breakdown.base")} <b>{breakdown.base}</b> {signed(breakdown.activity)} {t("breakdown.activity").toLowerCase()} {signed(breakdown.goal)} {t("breakdown.goal").toLowerCase()} = <b className="text-primary">{target}</b>
+          {t("breakdown.base")} <b>{breakdown.base}</b> {signed(breakdown.activity)} {t("breakdown.activity").toLowerCase()} {breakdown.goal !== 0 && <>{signed(breakdown.goal)} {t("breakdown.goal").toLowerCase()} </>}= <b className="text-primary">{target}</b>
         </p>
       </BottomSheet>
     </>

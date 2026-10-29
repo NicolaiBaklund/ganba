@@ -17,8 +17,9 @@ export default async function FoodPage({ searchParams }: PageProps<"/food">) {
     loadWeekStrip(supabase, user.id, snap.date),
   ]);
   const urls = Object.fromEntries(paths.map((p, i) => [p, signed[i]?.signedUrl ?? null]));
-  const activity = snap.activity && !snap.manualTarget && !snap.target.floored ? snap.activity.total : null;
-  const goalKcal = Math.round((snap.goal.rateKgPerWeek * KCAL_PER_KG) / 7);
+  const activity = snap.activity && !snap.target.floored ? snap.activity.total : null;
+  // A base target set by the user already holds the goal.
+  const goalKcal = snap.manualTarget ? 0 : Math.round((snap.goal.rateKgPerWeek * KCAL_PER_KG) / 7);
 
   return (
     <main className="flex flex-col px-[18px] pb-4">
