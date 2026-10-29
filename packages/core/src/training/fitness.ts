@@ -18,6 +18,19 @@ export type FitnessSource =
   | { kind: "garmin"; time10kS: number }
   | { kind: "default" };
 
+/**
+ * Without logged runs (no Garmin, nothing entered yet): the volume the runner states takes the place of what
+ * runs would show (spec 2026-10-29 §7).
+ */
+export function withStatedStart<F extends { runCount: number; baseKmPerWeek: number; kmPerWeek: number; longestKm: number; experienced: boolean }>(
+  fit: F,
+  start: { kmPerWeek: number; longestKm: number } | null | undefined,
+): F {
+  if (!start || fit.runCount > 0) return fit;
+  const r1 = (n: number) => Math.round(n * 10) / 10;
+  return { ...fit, baseKmPerWeek: r1(start.kmPerWeek), kmPerWeek: r1(start.kmPerWeek), longestKm: r1(start.longestKm), experienced: start.kmPerWeek >= EXPERIENCED_KM };
+}
+
 export interface Fitness {
   vdot: number;
   /** Average km/week over the last 4 weeks. */
@@ -82,11 +95,12 @@ export function bestCalendarWeek(items: readonly { date: ISODate; amount: number
  * and Garmin's 10K prediction minus a small discount.
  */
 export function fitnessFrom(runs: RunRecord[], today: ISODate, garmin?: { time10kS?: number | null }): Fitness {
-  const valid = runs.filter((r) => r.distanceM > 0 && r.timeS > 0 && r.timeS / (r.distanceM / 1000) >= MIN_PACE_S_PER_KM);
+  // A run logged by hand may have no time: it counts for volume, never for VDOT.
+  const valid = runs.filter((r) => r.distanceM > 0 && (r.timeS <= 0 || r.timeS / (r.distanceM / 1000) >= MIN_PACE_S_PER_KM));
   const last8 = valid.filter((r) => r.date >= addDays(today, -56) && r.date < today);
   const last4 = valid.filter((r) => r.date >= addDays(today, -28) && r.date < today);
 
-  const outdoor = last8.filter((r) => !r.indoor);
+  const outdoor = last8.filter((r) => !r.indoor && r.timeS > 0);
   const candidates: { vdot: number; source: FitnessSource }[] = [
     ...outdoor
       .filter((r) => r.distanceM >= 3000)

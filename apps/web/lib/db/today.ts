@@ -94,7 +94,8 @@ export async function getDaySnapshot(supabase: DB, userId: string, dateArg?: ISO
   ]);
   if (entriesRes.error) throw entriesRes.error;
   if (weightsRes.error) throw weightsRes.error;
-  if (!goalRow || !planRow || !baselineRow) throw new Error("missing_onboarding_rows");
+  // Training only has no body or food data: its pages never ask for a day snapshot.
+  if (!goalRow || !planRow || !baselineRow || !profile.sex) throw new Error("missing_onboarding_rows");
 
   const weights = weightsRes.data.map((w) => ({
     localDate: w.local_date,

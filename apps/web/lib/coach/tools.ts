@@ -49,9 +49,12 @@ const DEFS: { name: string; description: string; input: z.ZodType; needsPlan?: b
   { name: "plan", description: "Planned sessions in a date range with steps and status.", input: Range, needsPlan: true },
 ];
 
-/** The read tools for this conversation: health ones only with consent, the plan one only with a plan. */
+/** Food and body data: none in Training only. */
+const FOOD = new Set(["food_log", "weight"]);
+
+/** The read tools for this conversation: health ones only with consent, the plan one only with a plan, no food ones in Training only. */
 export function readTools(cc: CoachContext): Anthropic.Tool[] {
-  return DEFS.filter((d) => (!HEALTH.has(d.name) || cc.consent) && (!d.needsPlan || cc.plan)).map((d) => ({ name: d.name, description: d.description, input_schema: schema(d.input) }));
+  return DEFS.filter((d) => (!HEALTH.has(d.name) || cc.consent) && (!d.needsPlan || cc.plan) && !(FOOD.has(d.name) && cc.training)).map((d) => ({ name: d.name, description: d.description, input_schema: schema(d.input) }));
 }
 export const isReadTool = (name: string) => DEFS.some((d) => d.name === name);
 
@@ -228,6 +231,7 @@ export async function runReadTool(cc: CoachContext, name: string, input: unknown
   if (!def) return `Unknown tool ${name}.`;
   if (HEALTH.has(name) && !cc.consent) return "Not available: health data is off for AI (the person can switch it on in Profile).";
   if (def.needsPlan && !cc.plan) return "There is no training plan.";
+  if (FOOD.has(name) && cc.training) return "Not available: this person uses Ganba for training only.";
   const p = def.input.safeParse(input ?? {});
   if (!p.success) return `Invalid input: ${p.error.issues.map((i) => `${i.path.join(".")} ${i.message}`).join("; ")}`;
   try {

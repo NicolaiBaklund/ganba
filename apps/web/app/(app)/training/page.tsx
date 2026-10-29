@@ -24,15 +24,15 @@ export default async function TrainingPage() {
   const { user } = await requireUser();
   const v = await loadTrainingView(user.id);
 
-  if (!v.garmin || !v.plan) {
-    const garmin = !!v.garmin;
+  // No Garmin needed: without it the runner logs what was done (spec 2026-10-29).
+  if (!v.plan) {
     return (
       <main className="flex flex-col px-[18px] pt-5">
         <h1 className="cond text-[34px] leading-none">{t("title")}</h1>
-        <h2 className="cond mt-8 text-2xl leading-tight">{garmin ? t("noPlan") : t("garminRequired")}</h2>
-        <Link href={garmin ? "/training/new" : "/profile#garmin"} className={cn(buttonVariants(), "mt-4 h-12 self-start px-5")}>
-          {garmin && <Plus className="size-4" />}
-          {garmin ? t("create") : t("connect")}
+        <h2 className="cond mt-8 text-2xl leading-tight">{t("noPlan")}</h2>
+        <Link href="/training/new" className={cn(buttonVariants(), "mt-4 h-12 self-start px-5")}>
+          <Plus className="size-4" />
+          {t("create")}
         </Link>
       </main>
     );

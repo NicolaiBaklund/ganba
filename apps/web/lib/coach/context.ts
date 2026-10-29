@@ -17,6 +17,7 @@ import {
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { getDaySnapshot } from "@/lib/db/today";
 import { getAiHealthConsent } from "@/lib/recovery/consent";
+import { modeOf } from "@/lib/db/mode";
 import { knownParts } from "@/lib/recovery/view";
 import { activePlan, goalOf, planContext, planWorkoutsWithKm, recentRides, recentRuns, todayFor, type PlanRow } from "@/lib/training/service";
 import { listNotes, recentMessages } from "./store";
@@ -44,6 +45,8 @@ export interface CoachContext {
   /** AI health-data consent: health data in the context and the health tools. */
   consent: boolean;
   usedHealth: boolean;
+  /** Training only: no food or weight data, tools or talk. */
+  training: boolean;
 }
 
 const sessionLine = (w: PlanWorkout) =>
@@ -53,9 +56,10 @@ const sessionLine = (w: PlanWorkout) =>
  * The short block the coach always sees: the sessions around today with the app's fueling numbers, and what is
  * left of today's food targets (and Form, with consent). Food advice and session talk then never miss the training.
  */
-async function dayBlock(userId: string, today: ISODate, workouts: PlanWorkout[], consent: boolean): Promise<string> {
+async function dayBlock(userId: string, today: ISODate, workouts: PlanWorkout[], consent: boolean, training: boolean): Promise<string> {
   // The food side can be missing (onboarding not finished, a failed query): the coach still answers.
-  const snap = await getDaySnapshot(createAdminSupabase(), userId, today).catch(() => null);
+  // Training only has no food side at all.
+  const snap = training ? null : await getDaySnapshot(createAdminSupabase(), userId, today).catch(() => null);
   const kg = snap?.latestTrendKg ?? 70;
   const on = (d: ISODate) => workouts.filter((w) => w.date === d && w.status !== "removed");
   const day = (label: string, d: ISODate) => {
@@ -63,6 +67,7 @@ async function dayBlock(userId: string, today: ISODate, workouts: PlanWorkout[],
     if (!ws.length) return `${label} (${d} ${DAY[weekday(d)]}): rest day`;
     return `${label} (${d} ${DAY[weekday(d)]}): ${ws
       .map((w) => {
+        if (training) return sessionLine(w);
         const f = fuelingFor({ type: w.type, plannedDurationS: w.plannedDurationS }, kg, w.sport);
         const before = f.before.carbsG ? `${f.before.carbsG} g carbs ${f.before.hoursBefore[0]}–${f.before.hoursBefore[1]} h before` : "a normal meal before";
         return `${sessionLine(w)}; app fueling: ${before}, after ${f.after.proteinG} g protein${f.after.carbsG ? ` + ${f.after.carbsG} g carbs` : ""}`;
@@ -75,7 +80,11 @@ async function dayBlock(userId: string, today: ISODate, workouts: PlanWorkout[],
   };
   const lines = [
     ...(workouts.length ? [day("Yesterday", addDays(today, -1)), day("Today", today), day("Tomorrow", addDays(today, 1))] : []),
-    snap ? intake(snap) : "Today's intake: not available right now (food targets could not be read).",
+    training
+      ? "This person uses Ganba for training only: no food or weight tracking. Don't bring up food, calories or weight unless they ask."
+      : snap
+        ? intake(snap)
+        : "Today's intake: not available right now (food targets could not be read).",
   ];
   if (consent) {
     const { data } = await createAdminSupabase().from("form_days").select("score, parts").eq("user_id", userId).eq("local_date", today).maybeSingle();
@@ -193,17 +202,19 @@ export async function buildCoachContext(
   opts: { aboutWorkoutId?: string | null; aboutDate?: string | null; message: string },
 ): Promise<CoachContext> {
   const [plan, today] = await Promise.all([activePlan(userId), todayFor(userId)]);
-  const [part, notes, history, consent] = await Promise.all([
+  const [part, notes, history, consent, mode] = await Promise.all([
     plan ? planSection(userId, plan, today, opts.aboutWorkoutId) : Promise.resolve(null),
     listNotes(userId, today),
     recentMessages(threadId, CONTEXT_MESSAGES + 1),
     getAiHealthConsent(userId),
+    modeOf(userId),
   ]);
+  const training = mode === "training";
   // A retry: the same message is already the last one stored; it goes in once, as the new message.
   if (history.at(-1)?.role === "user" && history.at(-1)?.text === opts.message) history.pop();
   if (history.length > CONTEXT_MESSAGES) history.shift();
   const workouts = part?.workouts ?? [];
-  const day = await dayBlock(userId, today, workouts, consent);
+  const day = await dayBlock(userId, today, workouts, consent, training);
   const aboutRef = opts.aboutWorkoutId ? part?.refOf.get(opts.aboutWorkoutId) : undefined;
 
   const text = [
@@ -243,5 +254,6 @@ export async function buildCoachContext(
     today,
     consent,
     usedHealth: consent,
+    training,
   };
 }

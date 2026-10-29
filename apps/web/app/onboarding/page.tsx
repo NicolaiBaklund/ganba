@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { use, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Footprints, Utensils } from "lucide-react";
 import {
   ageOn,
   dailyTarget,
@@ -18,14 +18,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/common/Chip";
 import { NumberField, parseNum } from "@/components/common/NumberField";
-import { completeOnboarding } from "./actions";
+import { completeOnboarding, startTrainingOnly } from "./actions";
 
 const RATES = [-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5];
 const STEPS = 4;
 
-export default function OnboardingPage() {
+export default function OnboardingPage({ searchParams }: PageProps<"/onboarding">) {
   const t = useTranslations("onboarding");
   const router = useRouter();
+  // "Track food too" from Training only goes straight to the body steps.
+  const [chosen, setChosen] = useState(use(searchParams).food === "1");
   const [step, setStep] = useState(0);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -86,6 +88,29 @@ export default function OnboardingPage() {
       if (res.ok) router.replace("/today");
       else setError(t("error"));
     });
+  }
+
+  function trainingOnly() {
+    setError(null);
+    startTransition(async () => {
+      const res = await startTrainingOnly({ timezone });
+      if (res.ok) router.replace("/training/new");
+      else setError(t("error"));
+    });
+  }
+
+  if (!chosen) {
+    return (
+      <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-8 pt-14">
+        <Header title={t("mode.title")} subtitle={t("mode.subtitle")} />
+        <div className="mt-4 flex flex-col gap-3">
+          <ModeCard icon={<Utensils className="size-5" />} title={t("mode.full")} text={t("mode.fullText")} disabled={pending} onClick={() => setChosen(true)} />
+          <ModeCard icon={<Footprints className="size-5" />} title={t("mode.training")} text={t("mode.trainingText")} disabled={pending} onClick={trainingOnly} />
+        </div>
+        {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
+        <p className="mt-auto pt-8 text-xs text-muted-foreground">{t("mode.later")}</p>
+      </main>
+    );
   }
 
   return (
@@ -203,6 +228,18 @@ export default function OnboardingPage() {
         </Button>
       </div>
     </main>
+  );
+}
+
+function ModeCard({ icon, title, text, disabled, onClick }: { icon: React.ReactNode; title: string; text: string; disabled: boolean; onClick: () => void }) {
+  return (
+    <button type="button" disabled={disabled} onClick={onClick} className="flex items-start gap-3 rounded-md border border-border bg-card p-4 text-left active:border-primary disabled:opacity-60">
+      <span className="mt-0.5 text-primary">{icon}</span>
+      <span>
+        <span className="block text-[16px] font-semibold">{title}</span>
+        <span className="mt-0.5 block text-sm text-muted-foreground">{text}</span>
+      </span>
+    </button>
   );
 }
 

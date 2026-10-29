@@ -62,6 +62,8 @@ try {
   // Onboarding
   await page.goto(`${BASE}/today`);
   await page.waitForURL(/onboarding/);
+  // First the choice: food and training (Training only has its own smoke).
+  await page.getByRole("button", { name: /Food & training/ }).click();
   await shot(page, "01-onboarding-body");
   await page.getByRole("button", { name: "Male", exact: true }).click();
   await page.locator("#birth").fill("2004-03-15");

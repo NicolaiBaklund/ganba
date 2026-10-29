@@ -19,7 +19,7 @@ import {
 } from "@loop/core";
 import { getGarminStatus } from "@/lib/garmin/accounts";
 import { createAdminSupabase } from "@/lib/supabase/admin";
-import { activePlan, distanceOf, planWorkouts, todayFor } from "./service";
+import { activePlan, distanceOf, planWorkouts, todayFor, upkeepWithoutGarmin } from "./service";
 
 export interface WorkoutListItem {
   id: string;
@@ -33,6 +33,8 @@ export interface WorkoutListItem {
   actualKm: number | null;
   /** Running or cycling session: labels, units and targets differ. */
   sport: Sport;
+  /** Done with a run logged by hand (no Garmin): it can be undone. */
+  manual?: boolean;
 }
 
 export interface WeekView {
@@ -97,7 +99,10 @@ export interface TrainingView {
  * runs after each Garmin sync, which the app triggers on open, so viewing stays fast.
  */
 export async function loadTrainingView(userId: string): Promise<TrainingView> {
-  const [today, garmin, plan] = await Promise.all([todayFor(userId), getGarminStatus(userId), activePlan(userId)]);
+  const [today, garmin] = await Promise.all([todayFor(userId), getGarminStatus(userId)]);
+  // Without Garmin the plan is kept up to date here (once a day), before it is read.
+  if (!garmin) await upkeepWithoutGarmin(userId, today);
+  const plan = await activePlan(userId);
   if (!plan) return { today, garmin: garmin?.status ?? null, plan: null, thisWeek: null, upcoming: [], proposals: [] };
 
   const db = createAdminSupabase();
@@ -194,6 +199,7 @@ export interface WorkoutDetail extends WorkoutListItem {
     movingS: number | null;
     avgHr: number | null;
     laps: { distanceM: number; durationS: number; avgSpeed: number | null; avgHr: number | null }[];
+    manual: boolean;
   };
 }
 
@@ -204,7 +210,7 @@ export async function loadWorkout(userId: string, id: string): Promise<WorkoutDe
   if (!r) return null;
   let activity: WorkoutDetail["activity"] = null;
   if (r.activity_id) {
-    const { data: a } = await db.from("activities").select("distance_m, duration_s, moving_s, avg_hr, splits").eq("id", r.activity_id).maybeSingle();
+    const { data: a } = await db.from("activities").select("distance_m, duration_s, moving_s, avg_hr, splits, source").eq("id", r.activity_id).maybeSingle();
     if (a) {
       const laps = ((a.splits as { lapDTOs?: Record<string, number | null>[] } | null)?.lapDTOs ?? []).map((l) => ({
         distanceM: Number(l.distance ?? 0),
@@ -218,6 +224,7 @@ export async function loadWorkout(userId: string, id: string): Promise<WorkoutDe
         movingS: a.moving_s == null ? null : Number(a.moving_s),
         avgHr: a.avg_hr,
         laps,
+        manual: a.source === "manual",
       };
     }
   }
@@ -231,6 +238,7 @@ export async function loadWorkout(userId: string, id: string): Promise<WorkoutDe
     status: r.status,
     push: r.garmin_push_status,
     actualKm: activity?.distanceKm ?? null,
+    manual: !!activity?.manual,
     blocks: r.blocks as unknown as Block[],
     kg: await latestKg(userId),
     fuelAdvice: (r.fuel_advice as { advice?: FuelAdvice } | null)?.advice ?? null,
@@ -264,9 +272,11 @@ export async function todaysWorkout(userId: string, today: ISODate): Promise<{ p
     .maybeSingle();
   if (!data) return { plan: true, workout: null };
   let actualKm: number | null = null;
+  let manual = false;
   if (data.activity_id) {
-    const { data: a } = await createAdminSupabase().from("activities").select("distance_m").eq("id", data.activity_id).maybeSingle();
+    const { data: a } = await createAdminSupabase().from("activities").select("distance_m, source").eq("id", data.activity_id).maybeSingle();
     actualKm = a ? Math.round(Number(a.distance_m ?? 0) / 100) / 10 : null;
+    manual = a?.source === "manual";
   }
   return {
     plan: true,
@@ -281,6 +291,7 @@ export async function todaysWorkout(userId: string, today: ISODate): Promise<{ p
       push: data.garmin_push_status,
       actualKm,
       sport: data.sport as Sport,
+      manual,
     },
   };
 }

@@ -88,13 +88,14 @@ export async function syncGarmin(userId: string, opts: SyncOptions = {}): Promis
       .from("activities")
       .select("garmin_activity_id")
       .eq("user_id", userId)
+      .eq("source", "garmin")
       .gte("local_date", addDays(from, -1))
       .not("splits", "is", null);
     const res = await source.fetch(
       tokens,
       from,
       today,
-      (known ?? []).map((k) => k.garmin_activity_id),
+      (known ?? []).map((k) => k.garmin_activity_id!),
     );
     if (res.tokens) await updateTokens(userId, res.tokens);
 
@@ -133,9 +134,11 @@ export async function syncGarmin(userId: string, opts: SyncOptions = {}): Promis
       .from("activities")
       .select("id, garmin_activity_id")
       .eq("user_id", userId)
+      // Runs logged by hand are the user's, never removed by a sync.
+      .eq("source", "garmin")
       .gte("local_date", from)
       .lte("local_date", today);
-    const gone = (stored ?? []).filter((s) => !ids.has(s.garmin_activity_id)).map((s) => s.id);
+    const gone = (stored ?? []).filter((s) => !ids.has(s.garmin_activity_id!)).map((s) => s.id);
     if (gone.length) await db.from("activities").delete().in("id", gone);
 
     await db

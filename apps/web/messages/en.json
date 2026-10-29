@@ -61,6 +61,15 @@
       "carbs": "Carbs",
       "fat": "Fat",
       "adaptiveNote": "After 14 days with enough logs, Ganba calculates what you actually burn and suggests a new target each week."
+    },
+    "mode": {
+      "title": "Welcome to Ganba",
+      "subtitle": "How do you want to use it?",
+      "full": "Food & training",
+      "fullText": "Log food, follow your weight trend and train with a plan.",
+      "training": "Training only",
+      "trainingText": "A running or cycling plan that adapts to you. No calorie tracking.",
+      "later": "With Training only you can turn on food tracking later in your profile."
     }
   },
   "nav": {
@@ -156,7 +165,15 @@
     "goalEta": "Goal {kg} kg around {date}.",
     "goalOnly": "Goal {kg} kg.",
     "allMeals": "All meals",
-    "form": "Form {score}, open Recovery"
+    "form": "Form {score}, open Recovery",
+    "noPlanTitle": "Let’s make your plan",
+    "noPlanText": "Pick a goal and the days you can train. The plan adapts as you go.",
+    "noPlanCta": "Create a plan",
+    "askCoach": "Ask the coach about your training",
+    "ridesDone": "{done} / {total} rides",
+    "sessionsLeft": "{n, plural, =0 {Week done} one {# session left} other {# sessions left}}",
+    "sessionsDone": "{done} of {total} sessions done",
+    "suggestions": "{n, plural, one {# suggestion for your plan} other {# suggestions for your plan}}"
   },
   "weight": {
     "title": "Log weight",
@@ -220,6 +237,11 @@
       "deleteTitle": "Delete account",
       "deleteExplain": "Deletes all your data and photos permanently. Type DELETE to confirm.",
       "delete": "Delete everything"
+    },
+    "trackFood": {
+      "title": "Track food too",
+      "text": "Add calorie and weight tracking next to your training. A few questions about you, then it’s on.",
+      "cta": "Turn on food tracking"
     }
   },
   "apiKey": {
@@ -232,7 +254,9 @@
     "unavailable": "Couldn’t verify the key right now. Try again.",
     "verified": "Verified {date}",
     "replace": "Replace",
-    "remove": "Remove"
+    "remove": "Remove",
+    "titleCoach": "AI coach",
+    "explainCoach": "The coach uses your own Anthropic API key. Create one at console.anthropic.com → API keys. Usage is billed to your Anthropic account (a few cents per message)."
   },
   "foodLog": {
     "title": "Log food",
@@ -375,7 +399,15 @@
     },
     "rideAbout": "{time}, about {km} km",
     "bibMetaRide": "{time}, about {km} km",
-    "nextTextRide": "{day}, {type} {time}"
+    "nextTextRide": "{day}, {type} {time}",
+    "markDone": "Mark as done",
+    "timeOptional": "Time (optional)",
+    "timeInvalid": "Use mm:ss or h:mm:ss",
+    "cancel": "Cancel",
+    "save": "Save",
+    "undo": "Undo",
+    "loggedByHand": "Logged by you",
+    "logError": "Couldn’t save. Try again."
   },
   "training": {
     "title": "Training",
@@ -501,7 +533,8 @@
       "laps": "Based on your interval laps on {date}",
       "garmin": "Based on Garmin’s 10K estimate ({time}), read slightly cautiously",
       "default": "No recent runs found. Starting cautiously.",
-      "manual": "Based on the time you entered"
+      "manual": "Based on the time you entered",
+      "stated": "Based on the volume you entered"
     },
     "focus": "Focus",
     "focusGeneral": "General",
@@ -548,7 +581,11 @@
     "crossRunsHint": "Optional extras: an easy 5 km, growing a little. Your cycling plan stays the same.",
     "crossWeekRides": "Rides that week",
     "crossWeekRuns": "Runs that week",
-    "crossRideZones": "Rides use heart rate zones from your threshold of {lthr} bpm."
+    "crossRideZones": "Rides use heart rate zones from your threshold of {lthr} bpm.",
+    "startTitle": "Your running lately",
+    "startHint": "So the plan starts where you are. Leave blank to start gently.",
+    "startLongest": "Longest run",
+    "startKmField": "Km per week"
   },
   "garmin": {
     "title": "Garmin",
@@ -768,7 +805,8 @@
       "food": "What should I eat with what I have left today?",
       "recovery": "How did I recover last night?",
       "tired": "I'm tired today",
-      "move": "Move tomorrow's session"
+      "move": "Move tomorrow's session",
+      "week": "How is my week going?"
     },
     "reconnecting": "Connection lost, waiting for the answer…",
     "todayAt": "Today {time}",

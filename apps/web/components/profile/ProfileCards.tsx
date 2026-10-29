@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Chip } from "@/components/common/Chip";
 import { NumberField, parseNum } from "@/components/common/NumberField";
 import { createClient } from "@/lib/supabase/client";
@@ -29,6 +31,8 @@ export interface ProfileValues {
   email: string;
   /** Garmin users get activity from the watch; manual activity settings are hidden. */
   garmin: boolean;
+  /** Training only: no goal, activity, macros or check-in; food can be turned on. */
+  training: boolean;
 }
 
 const RATES = [-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5];
@@ -93,6 +97,15 @@ export function ProfileCards({ v }: { v: ProfileValues }) {
 
   return (
     <>
+      {v.training ? (
+        <Card title={t("trackFood.title")}>
+          <p className="-mt-2 text-sm text-muted-foreground">{t("trackFood.text")}</p>
+          <Link href="/onboarding?food=1" className={cn(buttonVariants({ variant: "secondary" }), "h-11")}>
+            {t("trackFood.cta")}
+          </Link>
+        </Card>
+      ) : (
+      <>
       <Card title={t("goal.title")}>
         <NumberField label={t("goal.target")} unit="kg" value={target} onChange={setTarget} />
         <div className="flex flex-wrap gap-2">
@@ -169,6 +182,8 @@ export function ProfileCards({ v }: { v: ProfileValues }) {
           ))}
         </div>
       </Card>
+      </>
+      )}
 
       <Card title={t("account.title")}>
         <p className="-mt-2 text-sm text-muted-foreground">{v.email}</p>

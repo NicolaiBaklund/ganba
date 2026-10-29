@@ -10,9 +10,12 @@ export async function TodayBib({
   workout,
   kg,
   next,
+  fuel: showFuel = true,
 }: {
   workout: WorkoutListItem | null;
   kg: number;
+  /** Training only has no food: no fueling line. */
+  fuel?: boolean;
   next: { date: string; type: WorkoutType; title: string; plannedKm: number; plannedDurationS: number; sport: "run" | "ride" } | null;
 }) {
   const t = await getTranslations("workout");
@@ -66,7 +69,7 @@ export async function TodayBib({
         )
       }
       footer={
-        workout.status === "planned" ? (
+        workout.status === "planned" && showFuel ? (
           <>
             <UtensilsCrossed className="size-4 shrink-0" />
             <span className="num min-w-0 flex-1 truncate">{fuelLine}</span>

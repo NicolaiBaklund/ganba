@@ -1,5 +1,5 @@
 import "server-only";
-import {
+import { withStatedStart,
   addDays,
   crossSessions,
   fitnessFrom,
@@ -158,6 +158,8 @@ export interface CreatePlanInput {
   crossWeekdays?: number[];
   /** Optional recent race result that overrides the Garmin estimate. */
   recentRace?: { distanceM: number; timeS: number } | null;
+  /** Running lately as the runner states it; used only when no runs are logged (no Garmin). */
+  start?: { kmPerWeek: number; longestKm: number } | null;
 }
 
 async function deficitKcal(userId: string, today: ISODate): Promise<number> {
@@ -376,7 +378,7 @@ export async function previewPlan(userId: string, input: CreatePlanInput, source
   const today = await todayFor(userId);
   const cross = input.crossWeekdays ?? [];
   const [fit, deficit, ride] = await Promise.all([
-    currentFitness(userId, today),
+    currentFitness(userId, today).then((f) => withStatedStart(f, input.start)),
     deficitKcal(userId, today),
     // Only a plan with rides needs the cycling side (and its Garmin call).
     cross.length ? rideSetup(userId, today, source) : Promise.resolve(null),
@@ -423,7 +425,11 @@ export async function previewPlan(userId: string, input: CreatePlanInput, source
   const crossWorkouts = crossOf(crossSource(row), plan, cross, !!input.indoor);
   return {
     today,
-    fitness: { ...fit, vdot, source: input.recentRace ? ({ kind: "manual" } as const) : fit.source },
+    fitness: {
+      ...fit,
+      vdot,
+      source: input.recentRace ? ({ kind: "manual" } as const) : input.start && fit.runCount === 0 ? ({ kind: "stated" } as const) : fit.source,
+    },
     ride,
     power,
     plan,
@@ -931,4 +937,73 @@ export async function afterGarminSync(userId: string, today: ISODate, source?: G
   } catch (e) {
     console.error("recovery compute failed", userId, e instanceof Error ? e.message : e);
   }
+}
+
+/**
+ * Without Garmin no sync runs: the plan's upkeep (done/missed, extending, proposals) happens on the first page load
+ * of the day, and after every run logged by hand (`force`). The day is claimed in one update, so two loads at once
+ * never both extend the plan or add the same proposal.
+ */
+export async function upkeepWithoutGarmin(userId: string, today: ISODate, opts: { force?: boolean } = {}): Promise<void> {
+  const plan = await activePlan(userId);
+  if (!plan) return;
+  if (!opts.force) {
+    const { data } = await db().from("training_plans").update({ upkept_on: today }).eq("id", plan.id).or(`upkept_on.is.null,upkept_on.lt.${today}`).select("id");
+    if (!data?.length) return;
+  }
+  await reconcilePlan(userId, today);
+  await refreshProposals(userId, today);
+}
+
+export type ManualRunError = "not_found" | "not_open" | "not_manual";
+
+/**
+ * "Done" without Garmin: the session's run (or ride) is stored as a manual activity, so everything that reads
+ * activities (start volume, missed sessions, the coach, the week strip) sees it (spec 2026-10-29 §7).
+ */
+export async function logManualRun(userId: string, workoutId: string, input: { km: number; timeS: number | null }) {
+  const d = db();
+  const today = await todayFor(userId);
+  const { data: w } = await d.from("planned_workouts").select("id, date, title, sport, status").eq("id", workoutId).eq("user_id", userId).maybeSingle();
+  if (!w) return { ok: false as const, error: "not_found" as ManualRunError };
+  if ((w.status !== "planned" && w.status !== "missed") || w.date > today) return { ok: false as const, error: "not_open" as ManualRunError };
+  // Claimed in one update: of two submits at once, only one logs a run.
+  const { data: claimed } = await d.from("planned_workouts").update({ status: "done" }).eq("id", w.id).in("status", ["planned", "missed"]).select("id");
+  if (!claimed?.length) return { ok: false as const, error: "not_open" as ManualRunError };
+  const { data: a, error } = await d
+    .from("activities")
+    .insert({
+      user_id: userId,
+      source: "manual",
+      local_date: w.date,
+      start_time: `${w.date}T12:00:00Z`,
+      type_key: w.sport === "ride" ? "cycling" : "running",
+      name: w.title,
+      distance_m: Math.round(input.km * 1000),
+      duration_s: input.timeS,
+      moving_s: input.timeS,
+    })
+    .select("id")
+    .single();
+  if (error) {
+    await d.from("planned_workouts").update({ status: w.status }).eq("id", w.id);
+    throw error;
+  }
+  await d.from("planned_workouts").update({ activity_id: a.id }).eq("id", w.id);
+  await upkeepWithoutGarmin(userId, today, { force: true });
+  return { ok: true as const };
+}
+
+/** "Undo" on a session done by hand: the manual activity goes, the session is open again. */
+export async function undoManualRun(userId: string, workoutId: string) {
+  const d = db();
+  const today = await todayFor(userId);
+  const { data: w } = await d.from("planned_workouts").select("id, date, activity_id").eq("id", workoutId).eq("user_id", userId).maybeSingle();
+  if (!w) return { ok: false as const, error: "not_found" as ManualRunError };
+  const { data: a } = w.activity_id ? await d.from("activities").select("id, source").eq("id", w.activity_id).maybeSingle() : { data: null };
+  if (!a || a.source !== "manual") return { ok: false as const, error: "not_manual" as ManualRunError };
+  await d.from("planned_workouts").update({ status: w.date < today ? "missed" : "planned", activity_id: null }).eq("id", w.id);
+  await d.from("activities").delete().eq("id", a.id);
+  await upkeepWithoutGarmin(userId, today, { force: true });
+  return { ok: true as const };
 }

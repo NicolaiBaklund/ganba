@@ -17,7 +17,8 @@ const RIGHT = [
   { href: "/body", key: "body", Icon: Scale },
 ] as const;
 
-export function BottomNav() {
+/** Training only: Today · Training · Coach (no food logging or body). */
+export function BottomNav({ training = false }: { training?: boolean }) {
   const t = useTranslations("nav");
   const pathname = usePathname();
 
@@ -42,12 +43,14 @@ export function BottomNav() {
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card pb-[env(safe-area-inset-bottom)]">
       <div className="mx-auto flex max-w-md items-center px-2">
         {LEFT.map(item)}
-        <div className="flex flex-1 justify-center">
-          <Suspense>
-            <PlusMenu />
-          </Suspense>
-        </div>
-        {RIGHT.map(item)}
+        {!training && (
+          <div className="flex flex-1 justify-center">
+            <Suspense>
+              <PlusMenu />
+            </Suspense>
+          </div>
+        )}
+        {RIGHT.filter((r) => !training || r.key !== "body").map(item)}
       </div>
     </nav>
   );

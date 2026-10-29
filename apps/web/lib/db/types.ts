@@ -46,7 +46,7 @@ export type Database = {
           distance_m: number | null
           duration_s: number | null
           elevation_gain_m: number | null
-          garmin_activity_id: number
+          garmin_activity_id: number | null
           garmin_kcal: number | null
           hr_zones: Json | null
           id: string
@@ -55,6 +55,7 @@ export type Database = {
           moving_s: number | null
           name: string | null
           raw: Json | null
+          source: string
           splits: Json | null
           start_time: string
           steps: number | null
@@ -71,7 +72,7 @@ export type Database = {
           distance_m?: number | null
           duration_s?: number | null
           elevation_gain_m?: number | null
-          garmin_activity_id: number
+          garmin_activity_id?: number | null
           garmin_kcal?: number | null
           hr_zones?: Json | null
           id?: string
@@ -80,6 +81,7 @@ export type Database = {
           moving_s?: number | null
           name?: string | null
           raw?: Json | null
+          source?: string
           splits?: Json | null
           start_time: string
           steps?: number | null
@@ -96,7 +98,7 @@ export type Database = {
           distance_m?: number | null
           duration_s?: number | null
           elevation_gain_m?: number | null
-          garmin_activity_id?: number
+          garmin_activity_id?: number | null
           garmin_kcal?: number | null
           hr_zones?: Json | null
           id?: string
@@ -105,6 +107,7 @@ export type Database = {
           moving_s?: number | null
           name?: string | null
           raw?: Json | null
+          source?: string
           splits?: Json | null
           start_time?: string
           steps?: number | null
@@ -940,13 +943,14 @@ export type Database = {
         Row: {
           ai_health_consent: boolean
           ai_health_consent_at: string | null
-          birth_date: string
+          birth_date: string | null
           checkin_weekday: number
           created_at: string
-          height_cm: number
+          height_cm: number | null
           locale: string
+          mode: string
           onboarded_at: string | null
-          sex: Database["public"]["Enums"]["sex"]
+          sex: Database["public"]["Enums"]["sex"] | null
           timezone: string
           updated_at: string
           user_id: string
@@ -954,13 +958,14 @@ export type Database = {
         Insert: {
           ai_health_consent?: boolean
           ai_health_consent_at?: string | null
-          birth_date: string
+          birth_date?: string | null
           checkin_weekday?: number
           created_at?: string
-          height_cm: number
+          height_cm?: number | null
           locale?: string
+          mode?: string
           onboarded_at?: string | null
-          sex: Database["public"]["Enums"]["sex"]
+          sex?: Database["public"]["Enums"]["sex"] | null
           timezone?: string
           updated_at?: string
           user_id: string
@@ -968,13 +973,14 @@ export type Database = {
         Update: {
           ai_health_consent?: boolean
           ai_health_consent_at?: string | null
-          birth_date?: string
+          birth_date?: string | null
           checkin_weekday?: number
           created_at?: string
-          height_cm?: number
+          height_cm?: number | null
           locale?: string
+          mode?: string
           onboarded_at?: string | null
-          sex?: Database["public"]["Enums"]["sex"]
+          sex?: Database["public"]["Enums"]["sex"] | null
           timezone?: string
           updated_at?: string
           user_id?: string
@@ -1294,6 +1300,7 @@ export type Database = {
           status: Database["public"]["Enums"]["plan_status"]
           target_time_s: number | null
           updated_at: string
+          upkept_on: string | null
           user_id: string
           vdot: number
           weekdays: number[]
@@ -1329,6 +1336,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["plan_status"]
           target_time_s?: number | null
           updated_at?: string
+          upkept_on?: string | null
           user_id: string
           vdot: number
           weekdays: number[]
@@ -1364,6 +1372,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["plan_status"]
           target_time_s?: number | null
           updated_at?: string
+          upkept_on?: string | null
           user_id?: string
           vdot?: number
           weekdays?: number[]
