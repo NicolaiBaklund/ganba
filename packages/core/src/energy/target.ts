@@ -18,7 +18,8 @@ export function dailyTarget(args: {
   sex: Sex;
 }): { kcal: number; floored: boolean } {
   const { plan, trainingKcal, rateKgPerWeek, sex } = args;
-  if (plan.manualKcalOverride != null) return { kcal: plan.manualKcalOverride, floored: false };
+  // The user's base target: what they eat on a rest day, goal included; the day's activity comes on top.
+  if (plan.manualKcalOverride != null) return { kcal: Math.round(plan.manualKcalOverride + trainingKcal), floored: false };
   const raw = plan.baseExpenditureKcal + trainingKcal + (rateKgPerWeek * C.KCAL_PER_KG) / 7;
   const floor = C.KCAL_FLOOR[sex];
   return raw < floor ? { kcal: floor, floored: true } : { kcal: Math.round(raw), floored: false };
