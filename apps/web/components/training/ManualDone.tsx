@@ -7,7 +7,7 @@ import { Check } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { NumberField, parseNum } from "@/components/common/NumberField";
-import { clockInput, fmtClock, parseRaceTime } from "@/lib/training/format";
+import { clockInput, fmtClock, parseClock } from "@/lib/training/format";
 
 /**
  * Without Garmin: "Done" logs the session's run by hand (km prefilled, time optional), and "Undo" takes a run
@@ -21,7 +21,8 @@ export function ManualDone({ workoutId, plannedKm, done, manual }: { workoutId: 
   const [time, setTime] = useState("");
   const [busy, setBusy] = useState(false);
   const kmNum = parseNum(km);
-  const timeS = time.trim() && kmNum ? parseRaceTime(time, kmNum) : null;
+  // Any sport's time (a fast ride is no running pace).
+  const timeS = time.trim() ? parseClock(time) : null;
   const timeBad = !!time.trim() && timeS == null;
 
   async function send(method: "POST" | "DELETE") {

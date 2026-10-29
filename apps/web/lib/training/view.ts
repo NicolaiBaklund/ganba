@@ -99,9 +99,11 @@ export interface TrainingView {
  * runs after each Garmin sync, which the app triggers on open, so viewing stays fast.
  */
 export async function loadTrainingView(userId: string): Promise<TrainingView> {
-  const [today, garmin, plan] = await Promise.all([todayFor(userId), getGarminStatus(userId), activePlan(userId)]);
-  if (!plan) return { today, garmin: garmin?.status ?? null, plan: null, thisWeek: null, upcoming: [], proposals: [] };
+  const [today, garmin] = await Promise.all([todayFor(userId), getGarminStatus(userId)]);
+  // Without Garmin the plan is kept up to date here (once a day), before it is read.
   if (!garmin) await upkeepWithoutGarmin(userId, today);
+  const plan = await activePlan(userId);
+  if (!plan) return { today, garmin: garmin?.status ?? null, plan: null, thisWeek: null, upcoming: [], proposals: [] };
 
   const db = createAdminSupabase();
   const [rows, props] = await Promise.all([

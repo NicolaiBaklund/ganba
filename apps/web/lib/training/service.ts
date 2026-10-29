@@ -939,8 +939,18 @@ export async function afterGarminSync(userId: string, today: ISODate, source?: G
   }
 }
 
-/** Without Garmin no sync runs: the plan's upkeep happens on page load and after a run logged by hand. */
-export async function upkeepWithoutGarmin(userId: string, today: ISODate): Promise<void> {
+/**
+ * Without Garmin no sync runs: the plan's upkeep (done/missed, extending, proposals) happens on the first page load
+ * of the day, and after every run logged by hand (`force`). The day is claimed in one update, so two loads at once
+ * never both extend the plan or add the same proposal.
+ */
+export async function upkeepWithoutGarmin(userId: string, today: ISODate, opts: { force?: boolean } = {}): Promise<void> {
+  const plan = await activePlan(userId);
+  if (!plan) return;
+  if (!opts.force) {
+    const { data } = await db().from("training_plans").update({ upkept_on: today }).eq("id", plan.id).or(`upkept_on.is.null,upkept_on.lt.${today}`).select("id");
+    if (!data?.length) return;
+  }
   await reconcilePlan(userId, today);
   await refreshProposals(userId, today);
 }
@@ -957,6 +967,9 @@ export async function logManualRun(userId: string, workoutId: string, input: { k
   const { data: w } = await d.from("planned_workouts").select("id, date, title, sport, status").eq("id", workoutId).eq("user_id", userId).maybeSingle();
   if (!w) return { ok: false as const, error: "not_found" as ManualRunError };
   if ((w.status !== "planned" && w.status !== "missed") || w.date > today) return { ok: false as const, error: "not_open" as ManualRunError };
+  // Claimed in one update: of two submits at once, only one logs a run.
+  const { data: claimed } = await d.from("planned_workouts").update({ status: "done" }).eq("id", w.id).in("status", ["planned", "missed"]).select("id");
+  if (!claimed?.length) return { ok: false as const, error: "not_open" as ManualRunError };
   const { data: a, error } = await d
     .from("activities")
     .insert({
@@ -972,9 +985,12 @@ export async function logManualRun(userId: string, workoutId: string, input: { k
     })
     .select("id")
     .single();
-  if (error) throw error;
-  await d.from("planned_workouts").update({ status: "done", activity_id: a.id }).eq("id", w.id);
-  await upkeepWithoutGarmin(userId, today);
+  if (error) {
+    await d.from("planned_workouts").update({ status: w.status }).eq("id", w.id);
+    throw error;
+  }
+  await d.from("planned_workouts").update({ activity_id: a.id }).eq("id", w.id);
+  await upkeepWithoutGarmin(userId, today, { force: true });
   return { ok: true as const };
 }
 
@@ -988,6 +1004,6 @@ export async function undoManualRun(userId: string, workoutId: string) {
   if (!a || a.source !== "manual") return { ok: false as const, error: "not_manual" as ManualRunError };
   await d.from("planned_workouts").update({ status: w.date < today ? "missed" : "planned", activity_id: null }).eq("id", w.id);
   await d.from("activities").delete().eq("id", a.id);
-  await upkeepWithoutGarmin(userId, today);
+  await upkeepWithoutGarmin(userId, today, { force: true });
   return { ok: true as const };
 }

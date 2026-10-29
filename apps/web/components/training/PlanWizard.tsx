@@ -413,7 +413,7 @@ export function PlanWizard({ minDate, needsStart = false }: { minDate: string; n
               <p className="text-sm font-bold">{t("startTitle")}</p>
               <p className="mb-2 text-xs text-muted-foreground">{t("startHint")}</p>
               <div className="grid grid-cols-2 gap-3">
-                <NumberField label={t("startKm")} unit="km" value={startKm} onChange={setStartKm} />
+                <NumberField label={t("startKmField")} unit="km" value={startKm} onChange={setStartKm} />
                 <NumberField label={t("startLongest")} unit="km" value={longestKm} onChange={setLongestKm} />
               </div>
             </div>

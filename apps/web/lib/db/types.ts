@@ -1300,6 +1300,7 @@ export type Database = {
           status: Database["public"]["Enums"]["plan_status"]
           target_time_s: number | null
           updated_at: string
+          upkept_on: string | null
           user_id: string
           vdot: number
           weekdays: number[]
@@ -1335,6 +1336,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["plan_status"]
           target_time_s?: number | null
           updated_at?: string
+          upkept_on?: string | null
           user_id: string
           vdot: number
           weekdays: number[]
@@ -1370,6 +1372,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["plan_status"]
           target_time_s?: number | null
           updated_at?: string
+          upkept_on?: string | null
           user_id?: string
           vdot?: number
           weekdays?: number[]

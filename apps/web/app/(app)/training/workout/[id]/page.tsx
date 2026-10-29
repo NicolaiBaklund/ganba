@@ -9,7 +9,7 @@ import { todayFor } from "@/lib/training/service";
 import { getGarminStatus } from "@/lib/garmin/accounts";
 import { modeOf } from "@/lib/db/mode";
 import { ManualDone } from "@/components/training/ManualDone";
-import { bibNumber, fmtClock, fmtMinutes, fmtPaceRange, paceFromSpeed, typeKey } from "@/lib/training/format";
+import { bibNumber, canLogByHand, fmtClock, fmtMinutes, fmtPaceRange, paceFromSpeed, typeKey } from "@/lib/training/format";
 import { FuelSection } from "@/components/training/FuelSection";
 import { AskCoachLink } from "@/components/coach/AskCoachLink";
 import { Bib } from "@/components/tasuki/Bib";
@@ -63,7 +63,7 @@ export default async function WorkoutPage({ params }: PageProps<"/training/worko
   const [w, garmin, mode, today] = await Promise.all([loadWorkout(user.id, id), getGarminStatus(user.id), modeOf(user.id), todayFor(user.id)]);
   if (!w) notFound();
   // Without Garmin the runner says what was done; with it, the watch does.
-  const canLog = !garmin && (((w.status === "planned" || w.status === "missed") && w.date <= today) || (w.status === "done" && !!w.manual));
+  const canLog = canLogByHand(w, today, !!garmin);
 
   const a = w.activity;
   // A run logged by hand may have no time (no pace then), and never a heart rate.

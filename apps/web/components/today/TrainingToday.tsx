@@ -5,12 +5,12 @@ import type { ISODate } from "@loop/core";
 import type { DB } from "@/lib/db/current";
 import { loadWeekStrip } from "@/lib/db/week";
 import { loadTrainingView, nextWorkout, todaysWorkout } from "@/lib/training/view";
-import { getGarminStatus } from "@/lib/garmin/accounts";
 import { WeekStrip } from "@/components/today/WeekStrip";
 import { TodayBib } from "@/components/today/TodayBib";
 import { WeekCard } from "@/components/today/WeekCard";
 import { ManualDone } from "@/components/training/ManualDone";
 import { buttonVariants } from "@/components/ui/button";
+import { canLogByHand } from "@/lib/training/format";
 import { cn } from "@/lib/utils";
 
 /**
@@ -22,10 +22,10 @@ export async function TrainingToday({ supabase, userId, date }: { supabase: DB; 
   // Plan upkeep without Garmin (done, missed, proposals) happens while loading the view.
   const v = await loadTrainingView(userId);
   const day: ISODate = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : v.today;
-  const [week, session, garmin] = await Promise.all([loadWeekStrip(supabase, userId, day), todaysWorkout(userId, day), getGarminStatus(userId)]);
+  const [week, session] = await Promise.all([loadWeekStrip(supabase, userId, day), todaysWorkout(userId, day)]);
   const next = session.plan && !session.workout ? await nextWorkout(userId, day) : null;
   const w = session.workout;
-  const canLog = !garmin && !!w && (((w.status === "planned" || w.status === "missed") && w.date <= v.today) || (w.status === "done" && !!w.manual));
+  const canLog = !!w && canLogByHand(w, v.today, !!v.garmin);
 
   return (
     <main className="flex flex-col px-[18px] pb-4">
@@ -43,7 +43,7 @@ export async function TrainingToday({ supabase, userId, date }: { supabase: DB; 
         <>
           <div className="mt-4">
             <TodayBib workout={w} kg={70} next={next} fuel={false} />
-            {canLog && <ManualDone workoutId={w!.id} plannedKm={w!.plannedKm} done={w!.status === "done"} manual={!!w!.manual} />}
+            {canLog && <ManualDone key={w!.id} workoutId={w!.id} plannedKm={w!.plannedKm} done={w!.status === "done"} manual={!!w!.manual} />}
           </div>
           {v.thisWeek && <WeekCard week={v.thisWeek} sport={v.plan.sport} today={v.today} proposals={v.proposals.length} />}
           <Link href="/coach" className="mt-3 flex items-center gap-3 rounded-md bg-card px-4 py-3 text-sm">

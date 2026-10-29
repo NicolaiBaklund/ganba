@@ -18,6 +18,7 @@ import { TrainingToday } from "@/components/today/TrainingToday";
 import { ManualDone } from "@/components/training/ManualDone";
 import { modeOf } from "@/lib/db/mode";
 import { upkeepWithoutGarmin } from "@/lib/training/service";
+import { canLogByHand } from "@/lib/training/format";
 
 export default async function TodayPage({ searchParams }: PageProps<"/today">) {
   const { date } = await searchParams;
@@ -67,8 +68,8 @@ export default async function TodayPage({ searchParams }: PageProps<"/today">) {
       {session.plan && (
         <div className="mt-4">
           <TodayBib workout={session.workout} kg={snap.latestTrendKg ?? 70} next={next} />
-          {!snap.garmin && session.workout && ((["planned", "missed"].includes(session.workout.status) && session.workout.date <= snap.today) || (session.workout.status === "done" && session.workout.manual)) && (
-            <ManualDone workoutId={session.workout.id} plannedKm={session.workout.plannedKm} done={session.workout.status === "done"} manual={!!session.workout.manual} />
+          {session.workout && canLogByHand(session.workout, snap.today, !!snap.garmin) && (
+            <ManualDone key={session.workout.id} workoutId={session.workout.id} plannedKm={session.workout.plannedKm} done={session.workout.status === "done"} manual={!!session.workout.manual} />
           )}
         </div>
       )}

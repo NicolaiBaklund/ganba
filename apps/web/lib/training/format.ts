@@ -77,3 +77,20 @@ export function bibNumber(title: string, km: number, ride?: { durationS: number 
 
 /** Message key for a session type: rides have their own names ("Long ride", "Endurance"). */
 export const typeKey = (type: string, sport: "run" | "ride" = "run") => (sport === "ride" ? `rideTypes.${type}` : `types.${type}`);
+
+/** A typed time ("32:10", "1:05:30") in seconds, any sport; null when it isn't one (or outside a minute to a day). */
+export function parseClock(s: string): number | null {
+  const parts = s.trim().split(":");
+  if (parts.length < 2 || parts.length > 3 || parts.some((p) => !/^\d+$/.test(p))) return null;
+  const n = parts.map(Number);
+  if (n.slice(1).some((x) => x >= 60)) return null;
+  const sec = n.length === 3 ? n[0]! * 3600 + n[1]! * 60 + n[2]! : n[0]! * 60 + n[1]!;
+  return sec >= 60 && sec <= 86_400 ? sec : null;
+}
+
+/**
+ * Without Garmin the runner says what was done: an open session up to today can be marked done, and one done by
+ * hand can be undone. With Garmin the watch says it.
+ */
+export const canLogByHand = (w: { status: string; date: string; manual?: boolean }, today: string, garmin: boolean) =>
+  !garmin && (((w.status === "planned" || w.status === "missed") && w.date <= today) || (w.status === "done" && !!w.manual));

@@ -542,7 +542,7 @@
     "focusDistanceHint": "Trains like a plan for that distance, with no race day. A 5K test every 8 weeks keeps your paces right.",
     "hills": "I have hills nearby",
     "hillsHint": "Adds hill repeats. Off: everything runs on flat ground.",
-    "startKm": "Km per week",
+    "startKm": "Starts at {km} km/week (your best recent week)",
     "sportRun": "Running",
     "sportRide": "Cycling",
     "rideEvent": "Event",
@@ -584,7 +584,8 @@
     "crossRideZones": "Rides use heart rate zones from your threshold of {lthr} bpm.",
     "startTitle": "Your running lately",
     "startHint": "So the plan starts where you are. Leave blank to start gently.",
-    "startLongest": "Longest run"
+    "startLongest": "Longest run",
+    "startKmField": "Km per week"
   },
   "garmin": {
     "title": "Garmin",

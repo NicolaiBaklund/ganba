@@ -37,7 +37,6 @@ export async function completeOnboarding(raw: OnboardingInput) {
     birth_date: i.birthDate,
     height_cm: i.heightCm,
     timezone: i.timezone,
-    mode: "full",
   });
   if (profileError) return { ok: false as const, error: profileError.message };
 
@@ -73,10 +72,11 @@ export async function completeOnboarding(raw: OnboardingInput) {
   const failed = results.find((r) => r.error);
   if (failed?.error) return { ok: false as const, error: failed.error.message };
 
-  // Mark onboarded last, so a partial failure lets the user retry the wizard.
+  // Mark onboarded (and food on) last, so a partial failure lets the user retry the wizard; Training only stays
+  // Training only until everything is stored.
   const { error } = await supabase
     .from("profiles")
-    .update({ onboarded_at: new Date().toISOString() })
+    .update({ onboarded_at: new Date().toISOString(), mode: "full" })
     .eq("user_id", uid);
   if (error) return { ok: false as const, error: error.message };
   return { ok: true as const };

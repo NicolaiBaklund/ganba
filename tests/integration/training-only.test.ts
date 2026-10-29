@@ -7,7 +7,7 @@ import { readTools } from "@/lib/coach/tools";
 import { activeThread } from "@/lib/coach/store";
 import { modeOf } from "@/lib/db/mode";
 import { loadWeekStrip } from "@/lib/db/week";
-import { activePlan, createPlan, logManualRun, planWorkouts, previewPlan, undoManualRun } from "@/lib/training/service";
+import { activePlan, createPlan, currentFitness, logManualRun, planWorkouts, previewPlan, undoManualRun } from "@/lib/training/service";
 import { loadTrainingView, todaysWorkout } from "@/lib/training/view";
 import { admin, cleanup, createTestUser, type TestUser } from "./setup";
 import { FakeGarmin } from "./fake-garmin";
@@ -74,6 +74,34 @@ describe("Training only: a plan without Garmin or food", () => {
     const back = (await planWorkouts(plan.id)).find((w) => w.id === s.id)!;
     expect(back).toMatchObject({ status: "planned", activity_id: null });
     expect((await admin().from("activities").select("id").eq("user_id", u.id)).data).toEqual([]);
+  });
+
+  it("two Done taps at once log one run", async () => {
+    const plan = (await activePlan(u.id))!;
+    const s = (await planWorkouts(plan.id)).find((w) => w.date === today)!;
+    const rs = await Promise.all([logManualRun(u.id, s.id, { km: 5, timeS: null }), logManualRun(u.id, s.id, { km: 5, timeS: null })]);
+    expect(rs.filter((r) => r.ok)).toHaveLength(1);
+    expect((await admin().from("activities").select("id").eq("user_id", u.id)).data).toHaveLength(1);
+    expect(await undoManualRun(u.id, s.id)).toEqual({ ok: true });
+  });
+
+  it("a run logged without a time counts for the volume", async () => {
+    const plan = (await activePlan(u.id))!;
+    const s = (await planWorkouts(plan.id)).find((w) => w.status === "planned")!;
+    const yesterday = addDays(today, -1);
+    await admin().from("planned_workouts").update({ date: yesterday }).eq("id", s.id);
+    expect(await logManualRun(u.id, s.id, { km: 8, timeS: null })).toEqual({ ok: true });
+    const fit = await currentFitness(u.id, today);
+    expect(fit.runCount).toBe(1);
+    expect(fit.longestKm).toBe(8);
+    expect(await undoManualRun(u.id, s.id)).toEqual({ ok: true });
+    await admin().from("planned_workouts").update({ date: today, status: "planned" }).eq("id", s.id);
+  });
+
+  it("the plan is kept up to date once a day without Garmin", async () => {
+    await loadTrainingView(u.id);
+    const plan = (await activePlan(u.id))!;
+    expect(plan.upkept_on).toBe(today);
   });
 
   it("a session done with Garmin's run can't be undone here", async () => {
