@@ -5,6 +5,10 @@ import { ChevronLeft, Watch } from "lucide-react";
 import { formatPace, fuelingFor, type Block, type Step, type WorkoutType } from "@loop/core";
 import { requireUser } from "@/lib/supabase/server";
 import { loadWorkout } from "@/lib/training/view";
+import { todayFor } from "@/lib/training/service";
+import { getGarminStatus } from "@/lib/garmin/accounts";
+import { modeOf } from "@/lib/db/mode";
+import { ManualDone } from "@/components/training/ManualDone";
 import { bibNumber, fmtClock, fmtMinutes, fmtPaceRange, paceFromSpeed, typeKey } from "@/lib/training/format";
 import { FuelSection } from "@/components/training/FuelSection";
 import { AskCoachLink } from "@/components/coach/AskCoachLink";
@@ -56,11 +60,15 @@ export default async function WorkoutPage({ params }: PageProps<"/training/worko
   const tc = await getTranslations("coach");
   const format = await getFormatter();
   const { user } = await requireUser();
-  const w = await loadWorkout(user.id, id);
+  const [w, garmin, mode, today] = await Promise.all([loadWorkout(user.id, id), getGarminStatus(user.id), modeOf(user.id), todayFor(user.id)]);
   if (!w) notFound();
+  // Without Garmin the runner says what was done; with it, the watch does.
+  const canLog = !garmin && (((w.status === "planned" || w.status === "missed") && w.date <= today) || (w.status === "done" && !!w.manual));
 
   const a = w.activity;
-  const pace = a && a.distanceKm > 0 ? formatPace((a.movingS ?? a.durationS) / a.distanceKm) : null;
+  // A run logged by hand may have no time (no pace then), and never a heart rate.
+  const timeS = a ? (a.movingS ?? a.durationS) : 0;
+  const pace = a && a.distanceKm > 0 && timeS > 0 ? formatPace(timeS / a.distanceKm) : null;
   const ride = w.sport === "ride";
   const { big, unit } = bibNumber(w.title, w.plannedKm, ride ? { durationS: w.plannedDurationS } : undefined);
   const date = format.dateTime(new Date(`${w.date}T00:00:00Z`), { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
@@ -88,8 +96,12 @@ export default async function WorkoutPage({ params }: PageProps<"/training/worko
         footer={
           w.status === "planned" ? (
             <>
-              <Watch className="size-4 shrink-0" />
-              <span>{watch}</span>
+              {garmin && (
+                <>
+                  <Watch className="size-4 shrink-0" />
+                  <span>{watch}</span>
+                </>
+              )}
               <span className="num ml-auto font-bold">
                 {ride ? t("rideAbout", { time: fmtMinutes(w.plannedDurationS), km: w.plannedKm }) : `${w.plannedKm} km, ${fmtMinutes(w.plannedDurationS)}`}
               </span>
@@ -98,14 +110,16 @@ export default async function WorkoutPage({ params }: PageProps<"/training/worko
         }
       />
 
+      {canLog && <ManualDone workoutId={w.id} plannedKm={w.plannedKm} done={w.status === "done"} manual={!!w.manual} />}
+
       {a && (
         <div className="mt-5">
           <StatRow
             items={[
               { value: `${a.distanceKm} km`, label: t("actualKm") },
-              { value: `${pace ?? "–"} /km`, label: t("pace") },
-              { value: a.avgHr ?? "–", label: t("hr") },
-              { value: fmtClock(a.movingS ?? a.durationS), label: t("duration") },
+              { value: pace ? `${pace} /km` : "–", label: t("pace") },
+              ...(a.manual ? [] : [{ value: a.avgHr ?? "–", label: t("hr") }]),
+              { value: timeS > 0 ? fmtClock(timeS) : "–", label: t("duration") },
             ]}
           />
         </div>
@@ -130,7 +144,7 @@ export default async function WorkoutPage({ params }: PageProps<"/training/worko
         )}
       </div>
 
-      {w.status !== "removed" && (
+      {w.status !== "removed" && mode === "full" && (
         <FuelSection
           workoutId={w.id}
           fueling={fuelingFor({ type: w.type, plannedDurationS: w.plannedDurationS }, w.kg, w.sport)}

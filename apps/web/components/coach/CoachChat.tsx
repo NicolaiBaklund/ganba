@@ -11,7 +11,7 @@ import { MemoryLine } from "./MemoryLine";
 import { NotesPanel } from "./NotesPanel";
 import { PlanCard } from "./PlanCard";
 
-type Data = { messages: CoachMessage[]; notes: CoachNote[]; archived: { id: string; createdAt: string }[]; hasKey: boolean; hasPlan: boolean };
+type Data = { messages: CoachMessage[]; notes: CoachNote[]; archived: { id: string; createdAt: string }[]; hasKey: boolean; hasPlan: boolean; training?: boolean };
 
 /**
  * The coach conversation (the Coach tab). The answer streams in: a status line while the coach looks things up,
@@ -180,7 +180,14 @@ export function CoachChat({ aboutWorkoutId, aboutDate, draft }: { aboutWorkoutId
     const names = tools.filter((x) => x !== "update_notes" && x !== "reply").map((x) => t(`checked.${x}`));
     return names.length ? t("checkedLine", { what: names.slice(0, 2).join(", ") + (names.length > 2 ? ` +${names.length - 2}` : "") }) : null;
   };
-  const chips = data?.hasPlan ? (["food", "tired", "move"] as const) : (["food", "recovery"] as const);
+  // Training only: no food suggestions.
+  const chips = data?.training
+    ? data.hasPlan
+      ? (["tired", "move", "week"] as const)
+      : ([] as const)
+    : data?.hasPlan
+      ? (["food", "tired", "move"] as const)
+      : (["food", "recovery"] as const);
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">

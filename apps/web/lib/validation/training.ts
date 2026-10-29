@@ -38,6 +38,8 @@ export const PlanInputSchema = z
       .object({ distanceM: z.number().min(1000).max(50_000), timeS: z.number().int().min(120).max(30_000) })
       .nullable()
       .optional(),
+    /** Running lately as stated (no logged runs). */
+    start: z.object({ kmPerWeek: z.number().min(0).max(200), longestKm: z.number().min(0).max(60) }).nullable().optional(),
   })
   .refine((p) => p.runsPerWeek <= new Set(p.weekdays).size, { message: "more runs than days", path: ["runsPerWeek"] })
   .refine((p) => p.weekdays.includes(p.longRunWeekday), { message: "long run day not allowed", path: ["longRunWeekday"] })

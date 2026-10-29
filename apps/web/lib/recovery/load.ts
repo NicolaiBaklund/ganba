@@ -135,7 +135,7 @@ export async function loadRecoveryDays(userId: string, today: ISODate, days = RE
     const kg = trendAt(trend, date) ?? trend[0]?.trendKg ?? null;
     const plan = versionAt(plans, date);
     const goal = versionAt(goals, date);
-    if (kg == null || !plan || !goal) return null;
+    if (kg == null || !plan || !goal || !profile.sex) return null;
     const items = es.flatMap((e) => e.items);
     const kcal = items.reduce((s, i) => s + num(i.kcal), 0);
     const activity = activityOn(date, kg);

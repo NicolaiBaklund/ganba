@@ -6,6 +6,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/common/Chip";
+import { NumberField, parseNum } from "@/components/common/NumberField";
 import { SwitchRow } from "@/components/common/SwitchRow";
 import { DayPicker } from "@/components/common/DayPicker";
 import { clockInput, fmtClock, parseRaceTime, typeColor } from "@/lib/training/format";
@@ -31,7 +32,8 @@ interface Preview {
       | { kind: "laps"; date: string }
       | { kind: "garmin"; time10kS: number }
       | { kind: "default" }
-      | { kind: "manual" };
+      | { kind: "manual" }
+      | { kind: "stated" };
   };
   weeks: { week: number; phase: string; km: number }[];
   peakKm: number;
@@ -86,7 +88,7 @@ function TimeHint({ raw, seconds, hint, invalid }: { raw: string; seconds: numbe
   return <span className="text-xs">{raw.trim() === shown ? hint : `= ${shown}`}</span>;
 }
 
-export function PlanWizard({ minDate }: { minDate: string }) {
+export function PlanWizard({ minDate, needsStart = false }: { minDate: string; needsStart?: boolean }) {
   const t = useTranslations("planWizard");
   const tt = useTranslations("training");
   const tw = useTranslations("weekdays");
@@ -104,6 +106,9 @@ export function PlanWizard({ minDate }: { minDate: string }) {
   const [longDay, setLongDay] = useState(0);
   const [recentDist, setRecentDist] = useState<Distance | null>(null);
   const [recentTime, setRecentTime] = useState("");
+  /** Without logged runs: how much they run lately (blank = start cautiously). */
+  const [startKm, setStartKm] = useState("");
+  const [longestKm, setLongestKm] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
   const [ridePreview, setRidePreview] = useState<RidePreview | null>(null);
   const [sport, setSport] = useState<"run" | "ride">("run");
@@ -129,6 +134,10 @@ export function PlanWizard({ minDate }: { minDate: string }) {
       ? rideGoal === "build" || (raceDate >= minDate && kmNum >= 10 && kmNum <= 1500 && (elevNum == null || (Number.isInteger(elevNum) && elevNum >= 0)))
       : !isRace || (raceDate >= minDate && (targetTime.trim() === "" || targetS != null));
   const daysValid = days.length >= 2 && runs <= days.length && days.includes(longDay);
+  const startKmNum = parseNum(startKm);
+  const longestNum = parseNum(longestKm);
+  const statedStart =
+    needsStart && sport === "run" && startKmNum != null ? { kmPerWeek: Math.min(200, startKmNum), longestKm: Math.min(60, longestNum ?? Math.round(startKmNum * 0.3 * 10) / 10) } : null;
 
   const body = (over: Over = {}) => ({
     sport,
@@ -142,6 +151,7 @@ export function PlanWizard({ minDate }: { minDate: string }) {
     longRunWeekday: longDay,
     runsPerWeek: runs,
     recentRace: recentDist && recentS ? { distanceM: RACE_M[recentDist], timeS: recentS } : null,
+    start: statedStart,
   });
 
   function toggleDay(d: number) {
@@ -398,6 +408,16 @@ export function PlanWizard({ minDate }: { minDate: string }) {
               </button>
             )}
           </div>
+          {needsStart && sport === "run" && (
+            <div className="border-t border-border pt-4">
+              <p className="text-sm font-bold">{t("startTitle")}</p>
+              <p className="mb-2 text-xs text-muted-foreground">{t("startHint")}</p>
+              <div className="grid grid-cols-2 gap-3">
+                <NumberField label={t("startKm")} unit="km" value={startKm} onChange={setStartKm} />
+                <NumberField label={t("startLongest")} unit="km" value={longestKm} onChange={setLongestKm} />
+              </div>
+            </div>
+          )}
           {sport === "run" && (
           <div className="border-t border-border pt-4">
             <p className="mb-2 text-sm font-bold">{t("recentTitle")}</p>

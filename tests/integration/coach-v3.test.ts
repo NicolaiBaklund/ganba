@@ -64,7 +64,7 @@ describe("coach v3: streaming, meta, preview cells, memory", () => {
 
   it("preview cells carry what a bib needs, and where a moved session came from", async () => {
     const plan = (await activePlan(u.id))!;
-    const easy = (await planWorkouts(plan.id)).find((w) => w.type === "easy" && w.status === "planned" && w.date > today)!;
+    const easy = (await planWorkouts(plan.id)).find((w) => (w.type === "easy" || w.type === "strides") && w.status === "planned" && w.date > today)!;
     const to = [1, 2, 3].map((n) => addDays(easy.date, n)).find((d) => weekday(d) !== 1)!;
     ai.script = [
       (p) => {
@@ -81,7 +81,7 @@ describe("coach v3: streaming, meta, preview cells, memory", () => {
 
   it("Not now turns down the reply's open options; they can't be applied after, and the coach sees it", async () => {
     const plan = (await activePlan(u.id))!;
-    const easy = (await planWorkouts(plan.id)).find((w) => w.type === "easy" && w.status === "planned" && w.date > today)!;
+    const easy = (await planWorkouts(plan.id)).find((w) => (w.type === "easy" || w.type === "strides") && w.status === "planned" && w.date > today)!;
     ai.script = [
       (p) => {
         const ref = ctxOf(p).match(new RegExp(`^(s\\d+) \\| ${easy.date} `, "m"))![1]!;

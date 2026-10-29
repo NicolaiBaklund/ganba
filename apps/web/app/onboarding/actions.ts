@@ -37,6 +37,7 @@ export async function completeOnboarding(raw: OnboardingInput) {
     birth_date: i.birthDate,
     height_cm: i.heightCm,
     timezone: i.timezone,
+    mode: "full",
   });
   if (profileError) return { ok: false as const, error: profileError.message };
 
@@ -77,6 +78,21 @@ export async function completeOnboarding(raw: OnboardingInput) {
     .from("profiles")
     .update({ onboarded_at: new Date().toISOString() })
     .eq("user_id", uid);
+  if (error) return { ok: false as const, error: error.message };
+  return { ok: true as const };
+}
+
+/** Training only: no body or food data, straight to a plan (spec 2026-10-29). */
+export async function startTrainingOnly(raw: { timezone: string }) {
+  const parsed = z.object({ timezone: z.string().min(1) }).safeParse(raw);
+  if (!parsed.success) return { ok: false as const, error: "invalid_input" };
+  const { supabase, user } = await requireUser({ allowUnonboarded: true });
+  // Never turns an onboarded food user into Training only (their data and app stay as they are).
+  const { data: existing } = await supabase.from("profiles").select("mode, onboarded_at").eq("user_id", user.id).maybeSingle();
+  if (existing?.onboarded_at && existing.mode === "full") return { ok: false as const, error: "already_onboarded" };
+  const { error } = await supabase
+    .from("profiles")
+    .upsert({ user_id: user.id, timezone: parsed.data.timezone, mode: "training", onboarded_at: new Date().toISOString() });
   if (error) return { ok: false as const, error: error.message };
   return { ok: true as const };
 }

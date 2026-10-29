@@ -18,6 +18,19 @@ export type FitnessSource =
   | { kind: "garmin"; time10kS: number }
   | { kind: "default" };
 
+/**
+ * Without logged runs (no Garmin, nothing entered yet): the volume the runner states takes the place of what
+ * runs would show (spec 2026-10-29 §7).
+ */
+export function withStatedStart<F extends { runCount: number; baseKmPerWeek: number; kmPerWeek: number; longestKm: number; experienced: boolean }>(
+  fit: F,
+  start: { kmPerWeek: number; longestKm: number } | null | undefined,
+): F {
+  if (!start || fit.runCount > 0) return fit;
+  const r1 = (n: number) => Math.round(n * 10) / 10;
+  return { ...fit, baseKmPerWeek: r1(start.kmPerWeek), kmPerWeek: r1(start.kmPerWeek), longestKm: r1(start.longestKm), experienced: start.kmPerWeek >= EXPERIENCED_KM };
+}
+
 export interface Fitness {
   vdot: number;
   /** Average km/week over the last 4 weeks. */

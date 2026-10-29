@@ -7,7 +7,8 @@ import { KeyRound } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
-export function ApiKeyCard({ status }: { status: { last4: string; validatedAt: string | null } | null }) {
+/** The Anthropic key; in Training only it's there for the coach (no food logging). */
+export function ApiKeyCard({ status, training = false }: { status: { last4: string; validatedAt: string | null } | null; training?: boolean }) {
   const t = useTranslations("apiKey");
   const format = useFormatter();
   const router = useRouter();
@@ -43,7 +44,7 @@ export function ApiKeyCard({ status }: { status: { last4: string; validatedAt: s
     <section className="rounded-md bg-card p-4">
       <div className="mb-3 flex items-center gap-2">
         <KeyRound className="size-4 text-primary" />
-        <h2 className="cond text-lg leading-none">{t("title")}</h2>
+        <h2 className="cond text-lg leading-none">{t(training ? "titleCoach" : "title")}</h2>
       </div>
       {status && !editing ? (
         <div className="flex items-center justify-between gap-3 text-sm">
@@ -66,7 +67,7 @@ export function ApiKeyCard({ status }: { status: { last4: string; validatedAt: s
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          <p className="text-sm text-muted-foreground">{t("explain")}</p>
+          <p className="text-sm text-muted-foreground">{t(training ? "explainCoach" : "explain")}</p>
           <input
             type="password"
             autoComplete="off"
