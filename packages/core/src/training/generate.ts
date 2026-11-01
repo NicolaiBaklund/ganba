@@ -169,6 +169,9 @@ export function generatePlan(input: PlanInput): GeneratedPlan {
   let taperIdx = 0;
   let qualityIdx = 0;
   let peakReached = startKm;
+  // What the last whole growth week actually added up to: caps on single runs can leave a week under its target,
+  // and the next week grows from what was planned, not from the target, so it never jumps to catch up.
+  let lastGrowthKm = 0;
   // Last full-size long run (recovery and taper weeks don't count): the next one grows from here.
   let lastLong = Math.max(longStart, input.recentLongestKm ?? 0);
 
@@ -180,7 +183,7 @@ export function generatePlan(input: PlanInput): GeneratedPlan {
     else if (phase === "recovery") km = level * RECOVERY_FACTOR;
     else {
       // Week 1 matches the start volume (already the best recent week); growth starts in week 2.
-      if (growthIdx > 0) level = Math.min(peakKm, level * (1 + growth));
+      if (growthIdx > 0) level = Math.min(peakKm, level * (1 + growth), lastGrowthKm > 0 ? lastGrowthKm * (1 + growth) : Infinity);
       km = level;
       growthIdx++;
       peakReached = Math.max(peakReached, level);
@@ -289,7 +292,9 @@ export function generatePlan(input: PlanInput): GeneratedPlan {
 
     const kept = built.filter((b) => b.date >= input.startDate).sort((a, b) => (a.date < b.date ? -1 : 1));
     for (const b of kept) workouts.push({ ...b.w, sport: "run", date: b.date, week: w + 1, phase });
-    weeks.push({ week: w + 1, startDate: monday, phase, km: r1(kept.reduce((s, b) => s + b.w.plannedKm, 0)) });
+    const weekKm = kept.reduce((s, b) => s + b.w.plannedKm, 0);
+    if (phase !== "recovery" && phase !== "taper" && !partialFirst) lastGrowthKm = weekKm;
+    weeks.push({ week: w + 1, startDate: monday, phase, km: r1(weekKm) });
   }
 
   return { workouts, weeks, peakKm: r1(peakKm), predictedTimeS, racePaceS };
