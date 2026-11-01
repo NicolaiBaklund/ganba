@@ -74,6 +74,13 @@ describe("plan variety: build plans", () => {
     expect(long.workouts.filter((w) => w.week <= 8 && QUALITY.has(w.type)).map(key)).toEqual(short.workouts.filter((w) => QUALITY.has(w.type)).map(key));
   });
 
+  it("a growth week is never more than ~8 % over the last one, also when caps held a week back", () => {
+    // Before: 39.9 → 48.3 km when the long-run cap kept a week under its target and the next one caught up.
+    const p = generatePlan(base({ goal: { kind: "build", focus: "half" }, startDate: "2026-10-25", weekdays: [1, 2, 3, 5], untilDate: until, startKmPerWeek: 36.4, deficitKcal: 0, vdot: 45.7, recentLongestKm: 11.6 }));
+    const growth = p.weeks.filter((w) => w.km > 0 && w.phase !== "recovery");
+    for (let i = 1; i < growth.length; i++) expect(growth[i]!.km, `week ${growth[i]!.week}`).toBeLessThanOrEqual(growth[i - 1]!.km * 1.085);
+  });
+
   it("10K focus: race-pace sessions in the third block, no race day", () => {
     const p = generatePlan(base({ goal: { kind: "build", focus: "10k" }, untilDate: until }));
     expect(p.workouts.some((w) => w.week >= 9 && w.week <= 11 && w.title.startsWith("10K pace"))).toBe(true);

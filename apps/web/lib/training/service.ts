@@ -169,6 +169,7 @@ async function deficitKcal(userId: string, today: ISODate): Promise<number> {
     .eq("user_id", userId)
     .lte("valid_from", today)
     .order("valid_from", { ascending: false })
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   const rate = Number(data?.rate_kg_per_week ?? 0);
@@ -467,7 +468,9 @@ async function generateFromPlan(
   o: { indoor?: boolean; crossWeekdays?: number[]; until?: ISODate } = {},
 ): Promise<WorkoutSpec[]> {
   const indoor = o.indoor ?? plan.indoor;
-  const deficit = await deficitKcal(userId, today);
+  // The deficit when the plan was made: a later goal change would bend the growth curve, and weeks added to a
+  // build plan would jump away from the ones already there.
+  const deficit = await deficitKcal(userId, plan.start_date);
   const untilDate = plan.goal_kind === "build" ? (o.until ?? plan.generated_until) : undefined;
   const main =
     plan.sport === "ride"
