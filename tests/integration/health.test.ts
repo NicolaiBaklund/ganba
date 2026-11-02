@@ -123,10 +123,22 @@ describe("health: race clock, stamps and the morning note (spec 2026-11-02)", ()
 
   it("the sick note names a session it would swap, never an easy one", () => {
     const facts = (todayType: string, tomorrow: { type: string; title: string } | null) =>
-      templateNote({ alert: { kind: "sick", facts: { rhrUp: 6, hrv: 44 } }, yesterday: null, today: { type: todayType, title: todayType === "easy" ? "Easy run 6 km" : "Intervals 6 × 1 km", km: 6, hrMax: null }, tomorrow, clockDeltaS: null, raceName: null });
+      templateNote({ alert: { kind: "sick", facts: { rhrUp: 6, hrv: 44 } }, lastSession: null, today: { type: todayType, title: todayType === "easy" ? "Easy run 6 km" : "Intervals 6 × 1 km", km: 6, hrMax: null }, tomorrow, clockDeltaS: null, raceName: null });
     expect(facts("intervals", null)).toContain("Swap today's intervals");
     expect(facts("easy", { type: "threshold", title: "Threshold 2 × 12 min" })).toContain("Swap tomorrow's threshold");
     expect(facts("easy", null)).not.toContain("Swap");
+  });
+
+  it("a session already done today is the one the note talks about, then tomorrow's", () => {
+    const text = templateNote({
+      alert: null,
+      lastSession: { when: "today", type: "intervals", title: "Intervals 6 × 1 km", km: 12, avgSecPerKm: 325, avgHr: 160, repsAvgSecPerKm: 260, bestYet: true },
+      today: null,
+      tomorrow: { type: "easy", title: "Recovery run 5 km" },
+      clockDeltaS: null,
+      raceName: null,
+    });
+    expect(text).toBe("Today's intervals 6 × 1 km averaged 4:20/km on the reps, your fastest yet. Tomorrow: Recovery run 5 km.");
   });
 
   it("two first loads at once store one note and show the same text", async () => {

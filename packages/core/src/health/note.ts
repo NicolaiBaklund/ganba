@@ -6,7 +6,9 @@ import type { HealthAlert } from "./alerts";
 /** What the morning note may say (spec docs/specs/2026-11-02-health.md §7): Garmin, the plan and own tables only. */
 export interface NoteFacts {
   alert: HealthAlert | null;
-  yesterday: {
+  /** The latest session done: today's if it is already done when the note is written, else yesterday's. */
+  lastSession: {
+    when: "today" | "yesterday";
     type: string;
     title: string;
     km: number;
@@ -17,8 +19,9 @@ export interface NoteFacts {
     /** The fastest reps (or easy pace at the same heart rate) of this session type so far. */
     bestYet: boolean;
   } | null;
+  /** Today's session still to do (null when it is done or it is a rest day). */
   today: { type: string; title: string; km: number | null; hrMax: number | null } | null;
-  /** A hard session tomorrow, for the alerts and rest days. */
+  /** Tomorrow's session, any kind. */
   tomorrow: { type: string; title: string } | null;
   /** Race clock change since yesterday, seconds (negative = faster). */
   clockDeltaS: number | null;
@@ -27,13 +30,15 @@ export interface NoteFacts {
 
 export const NoteSchema = z.object({ text: z.string().min(1).max(500) });
 export type NoteAnswer = z.infer<typeof NoteSchema>;
-export const NOTE_PROMPT_VERSION = 1;
+export const NOTE_PROMPT_VERSION = 2;
 
 export const NOTE_PROMPT = `You are a running coach writing a runner's morning note in their app.
-You get facts as JSON: an alert (or null), yesterday's session, today's session, tomorrow's hard session, the change in their predicted race time since yesterday and the race's name.
-Write 1–3 short sentences, plain text, in the given language. Order: the alert if there is one (what is off and what you suggest), else how yesterday went against what was planned, then today's session in one sentence. Mention the race time change only when it is not zero.
+You get facts as JSON: an alert (or null), the latest session they did (today or yesterday, with its numbers), today's session still to do, tomorrow's session, the change in their predicted race time since yesterday and the race's name.
+Write 1–3 short sentences, plain text, in the given language. Order: the alert if there is one (what is off and what you suggest), else how the latest session went, then what comes next (today's session, or tomorrow's when today's is done or a rest day). Mention the race time change only when it is not zero.
 Rules:
 - Use only the facts given. Never invent numbers, places, people or feelings.
+- A null fact is simply left out. Never say that data is missing or that there is nothing to review.
+- A latest session with when "today" is already done: talk about it as done today, not as something to do.
 - Speak to the runner as "you". No greetings, no sign-off, no exclamation marks, no lists, no em dashes.
 - An alert "sick": resting heart rate up and HRV low two mornings in a row; suggest swapping today's or tomorrow's hard session for an easy run.
 - An alert "easy_fast": their easy runs are faster than easy; give the pace to stay above.
@@ -57,10 +62,10 @@ export function templateNote(f: NoteFacts): string {
   else if (a?.kind === "easy_fast") out.push(`Your easy runs have averaged ${pace(a.facts.avgSecPerKm!)}. Keep them slower than ${pace(a.facts.easyFastSecPerKm!)} so they stay easy.`);
   else if (a?.kind === "sleep") out.push(`You have slept about ${a.facts.avgShortH} h less than you need a night lately. An earlier night would help.`);
 
-  const y = f.yesterday;
+  const y = f.lastSession;
   if (!a && y) {
     const how = y.repsAvgSecPerKm != null ? `averaged ${pace(y.repsAvgSecPerKm)} on the reps` : y.avgSecPerKm != null ? `went at ${pace(y.avgSecPerKm)}` : null;
-    if (how) out.push(`Yesterday's ${y.title.toLowerCase()} ${how}${y.bestYet ? ", your fastest yet" : ""}.`);
+    if (how) out.push(`${y.when === "today" ? "Today's" : "Yesterday's"} ${y.title.toLowerCase()} ${how}${y.bestYet ? ", your fastest yet" : ""}.`);
   }
   if (!a && f.clockDeltaS) out.push(`Your predicted time is ${Math.abs(f.clockDeltaS)} s ${f.clockDeltaS < 0 ? "faster" : "slower"} than yesterday.`);
 
@@ -70,6 +75,7 @@ export function templateNote(f: NoteFacts): string {
     else if (f.tomorrow && swappable(f.tomorrow.type)) out.push(`Swap tomorrow's ${f.tomorrow.title.toLowerCase()} for an easy run?`);
     else out.push(t ? `Keep today's ${t.title.toLowerCase()} truly easy, or rest.` : "Rest today.");
   } else if (t) out.push(`Today: ${t.title}${t.hrMax ? `, heart rate under ${t.hrMax}` : ""}.`);
+  else if (y?.when === "today") out.push(f.tomorrow ? `Tomorrow: ${f.tomorrow.title}.` : "Rest tomorrow.");
   else if (f.tomorrow) out.push(`Rest today. Tomorrow: ${f.tomorrow.title}.`);
   else out.push("Rest today.");
   return out.slice(0, 3).join(" ");
