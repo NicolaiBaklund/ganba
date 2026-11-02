@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { addDays, alertFor, pickRace, planPrediction, zonedTime, type RecoveryDayInput } from "@loop/core";
+import { addDays, alertFor, pickRace, planPrediction, templateNote, zonedTime, type RecoveryDayInput } from "@loop/core";
 import { saveTokens } from "@/lib/garmin/accounts";
 import { syncGarmin } from "@/lib/garmin/sync";
 import { dailyNote, keepPlan, swapToEasy } from "@/lib/health/note";
@@ -42,6 +42,10 @@ describe("health: race clock, stamps and the morning note (spec 2026-11-02)", ()
 
   it("a sync stores daily predictions, records and the history once; stamps come from runs, rides and history", async () => {
     expect((await sync()).status).toBe("ok");
+    // The first sync leaves the history scan for the next one (it already fetches 90 days).
+    expect(garmin.historyFetches).toBe(0);
+    await admin().from("garmin_accounts").update({ sync_started_at: null }).eq("user_id", u.id);
+    expect((await sync()).status).toBe("ok");
     const { data: preds } = await admin().from("prediction_days").select("local_date, time_10k_s").eq("user_id", u.id).order("local_date");
     expect(preds!.map((p) => p.time_10k_s)).toEqual([2812, 2806, 2800]);
     const { data: acct } = await admin().from("garmin_accounts").select("personal_records, history_scanned_at").eq("user_id", u.id).single();
@@ -51,8 +55,9 @@ describe("health: race clock, stamps and the morning note (spec 2026-11-02)", ()
     const s = await stamps();
     const keys = s.map((x) => `${x.kind}:${x.key}`).sort();
     expect(keys).toEqual(expect.arrayContaining(["country:JPN", "country:NOR", "country:VNM", "country:KOR", "distance:10", "distance:15", "volume:50", "pr:pr-5-6200"]));
-    // No predictions stored yet: the first sync asks for a year of them.
+    // No predictions stored yet: the first sync asks for a year of them, the next one doesn't.
     expect(garmin.fetches[0]!.predictionsFrom).toBe(addDays(today, -365));
+    expect(garmin.fetches[1]!.predictionsFrom).toBeUndefined();
     expect(s.find((x) => x.key === "VNM")!.earned_on).toBe("2024-03-03");
 
     // A second sync neither fetches the history again nor adds rows.
@@ -106,6 +111,40 @@ describe("health: race clock, stamps and the morning note (spec 2026-11-02)", ()
     // The day after race day with no race run: the clock has moved on (the plan's focus, no race day).
     const after = await loadClock(u.id, addDays(today, 41));
     expect(after!.race.date).toBeNull();
+  });
+
+  it("pickRace: a race session without km takes its distance from the title", () => {
+    const race = (title: string) => pickRace({ today: "2026-11-02", workouts: [{ date: "2026-12-18", type: "race", title, plannedKm: null }], goal: null }).distance;
+    expect(race("Doomsday: Half Marathon")).toBe("half");
+    expect(race("Tokyo 10K")).toBe("10k");
+    expect(race("Marathon")).toBe("marathon");
+    expect(race("Club race")).toBe("half");
+  });
+
+  it("the sick note names a session it would swap, never an easy one", () => {
+    const facts = (todayType: string, tomorrow: { type: string; title: string } | null) =>
+      templateNote({ alert: { kind: "sick", facts: { rhrUp: 6, hrv: 44 } }, yesterday: null, today: { type: todayType, title: todayType === "easy" ? "Easy run 6 km" : "Intervals 6 × 1 km", km: 6, hrMax: null }, tomorrow, clockDeltaS: null, raceName: null });
+    expect(facts("intervals", null)).toContain("Swap today's intervals");
+    expect(facts("easy", { type: "threshold", title: "Threshold 2 × 12 min" })).toContain("Swap tomorrow's threshold");
+    expect(facts("easy", null)).not.toContain("Swap");
+  });
+
+  it("two first loads at once store one note and show the same text", async () => {
+    const other = await createTestUser("health-twice");
+    const day = (await seedUser(admin(), other.id, { days: 2 })).today;
+    const notes = await Promise.all([dailyNote(other.id, day), dailyNote(other.id, day)]);
+    expect(notes[0]).toBeNull(); // no plan, nothing to warn about
+    expect(notes[1]).toBeNull();
+    const { data: plan } = await admin()
+      .from("training_plans")
+      .insert({ user_id: other.id, goal_kind: "build", distance_km: 10, start_date: day, generated_until: addDays(day, 30), weekdays: [1, 3, 5], long_run_weekday: 5, runs_per_week: 3, vdot: 40, start_km_per_week: 20 })
+      .select("id")
+      .single();
+    await admin().from("planned_workouts").insert({ user_id: other.id, plan_id: plan!.id, date: day, type: "easy", title: "Easy run 5 km", planned_km: 5, planned_duration_s: 1800, blocks: [], phase: "build", week: 1 } as never);
+    const [a, b] = await Promise.all([dailyNote(other.id, day), dailyNote(other.id, day)]);
+    expect(a!.text).toBe(b!.text);
+    const { data: rows } = await admin().from("daily_notes").select("id").eq("user_id", other.id);
+    expect(rows).toHaveLength(1);
   });
 
   it("pickRace: a race plan's goal, a build focus, and a passed race moves on", () => {

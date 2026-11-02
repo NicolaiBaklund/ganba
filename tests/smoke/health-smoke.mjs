@@ -45,6 +45,8 @@ try {
   );
   // Predicted half marathon falling over 60 days (the plan's own value lands on today when the page loads).
   must(await admin.from("prediction_days").insert(Array.from({ length: 60 }, (_, i) => ({ user_id: uid, local_date: day(-60 + i), time_half_s: Math.round(6500 - i * 7 + (i % 5 === 0 ? 25 : 0)), time_5k_s: 1500 - i, time_10k_s: 3100 - i * 2, time_marathon_s: 13800 - i * 14, source: "plan" }))));
+  // Singapore is too small for the globe's map: it shows as a dot.
+  must(await admin.from("stamps").insert({ user_id: uid, kind: "country", key: "SGP", earned_on: day(-400) }));
   // A 15 km run in Tokyo last week: country, distance and volume stamps when the page loads.
   must(await admin.from("activities").insert({ user_id: uid, source: "manual", local_date: day(-5), start_time: `${day(-5)}T07:00:00Z`, type_key: "running", distance_m: 15200, duration_s: 5400, moving_s: 5400, raw: { startLatitude: 35.69, startLongitude: 139.7 } }));
   // 30 ordinary nights, then two with resting HR up and HRV under its baseline.
@@ -74,7 +76,7 @@ try {
     await page.goto(`${BASE}/progress`);
     await page.getByRole("heading", { name: "Stamps" }).waitFor();
     results[`${scheme}: Japan stamp`] = (await page.getByText("Japan").count()) > 0;
-    results[`${scheme}: globe`] = (await page.getByRole("img", { name: /Globe with the 1 countries/ }).count()) === 1;
+    results[`${scheme}: globe`] = (await page.getByRole("img", { name: /Globe with the 2 countries/ }).count()) === 1;
     await page.waitForTimeout(600);
     await page.screenshot({ path: `tests/smoke/out/62-health-progress-${scheme}.png`, fullPage: true, caret: "initial" });
     await page.goto(`${BASE}/today`);

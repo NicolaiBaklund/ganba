@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { HARD_TYPES, type WorkoutType } from "../training/types";
 import { formatPace } from "../training/vdot";
 import type { HealthAlert } from "./alerts";
 
@@ -17,8 +18,8 @@ export interface NoteFacts {
     bestYet: boolean;
   } | null;
   today: { type: string; title: string; km: number | null; hrMax: number | null } | null;
-  /** A hard session tomorrow, for the sleep alert and rest days. */
-  tomorrow: { title: string } | null;
+  /** A hard session tomorrow, for the alerts and rest days. */
+  tomorrow: { type: string; title: string } | null;
   /** Race clock change since yesterday, seconds (negative = faster). */
   clockDeltaS: number | null;
   raceName: string | null;
@@ -45,6 +46,8 @@ Facts: ${JSON.stringify(f)}`;
 }
 
 const pace = (s: number | null) => (s == null ? null : `${formatPace(s)}/km`);
+/** A session an alert may swap for an easy run: hard, but never a race or a fitness test. */
+const swappable = (type: string) => HARD_TYPES.has(type as WorkoutType) && type !== "race" && type !== "test";
 
 /** Without AI: the same facts in fixed sentences, at most three. */
 export function templateNote(f: NoteFacts): string {
@@ -62,8 +65,11 @@ export function templateNote(f: NoteFacts): string {
   if (!a && f.clockDeltaS) out.push(`Your predicted time is ${Math.abs(f.clockDeltaS)} s ${f.clockDeltaS < 0 ? "faster" : "slower"} than yesterday.`);
 
   const t = f.today;
-  if (a?.kind === "sick" && t) out.push(`Swap today's ${t.title.toLowerCase()} for an easy run?`);
-  else if (t) out.push(`Today: ${t.title}${t.hrMax ? `, heart rate under ${t.hrMax}` : ""}.`);
+  if (a?.kind === "sick") {
+    if (t && swappable(t.type)) out.push(`Swap today's ${t.title.toLowerCase()} for an easy run?`);
+    else if (f.tomorrow && swappable(f.tomorrow.type)) out.push(`Swap tomorrow's ${f.tomorrow.title.toLowerCase()} for an easy run?`);
+    else out.push(t ? `Keep today's ${t.title.toLowerCase()} truly easy, or rest.` : "Rest today.");
+  } else if (t) out.push(`Today: ${t.title}${t.hrMax ? `, heart rate under ${t.hrMax}` : ""}.`);
   else if (f.tomorrow) out.push(`Rest today. Tomorrow: ${f.tomorrow.title}.`);
   else out.push("Rest today.");
   return out.slice(0, 3).join(" ");
