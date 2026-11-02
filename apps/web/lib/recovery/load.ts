@@ -21,11 +21,26 @@ export const RECOVERY_LOAD_DAYS = 120;
 const FALLBACK_DAYS = 14;
 export const MIN_MEALS = 2;
 export const MIN_SHARE_OF_TARGET = 0.5;
-const QUALITY_TYPES = new Set(["intervals", "threshold", "tempo", "race", "test"]);
+export const QUALITY_TYPES = new Set(["intervals", "threshold", "tempo", "race", "test"]);
 export const HARD_TE = { aerobic: 3.5, anaerobic: 2.0 } as const;
 const LONG_RUN_S = 90 * 60;
 const EASY_MIN_S = 20 * 60;
 const INDOOR = /treadmill|indoor|virtual/;
+
+type EasyRunRow = { id: string; type_key: string; duration_s: unknown; avg_hr: unknown; distance_m: unknown; te_anaerobic: unknown };
+
+/** An outdoor run of 20 min or more with heart rate, not a planned quality session and not anaerobic: an easy run. */
+export function isEasyRun(a: EasyRunRow, qualityIds: ReadonlySet<string>): boolean {
+  return (
+    isRun(a.type_key) &&
+    !INDOOR.test(a.type_key) &&
+    num(a.duration_s) >= EASY_MIN_S &&
+    num(a.avg_hr) > 0 &&
+    num(a.distance_m) > 0 &&
+    !qualityIds.has(a.id) &&
+    num(a.te_anaerobic) < HARD_TE.anaerobic
+  );
+}
 
 type DayData = { steps: number | null; activities: ActivityLike[] };
 
@@ -159,16 +174,7 @@ export async function loadRecoveryDays(userId: string, today: ISODate, days = RE
     const dayActs = actsBy.get(date) ?? [];
     const types = plannedBy.get(date) ?? [];
     const easy = dayActs
-      .filter(
-        (a) =>
-          isRun(a.type_key) &&
-          !INDOOR.test(a.type_key) &&
-          num(a.duration_s) >= EASY_MIN_S &&
-          num(a.avg_hr) > 0 &&
-          num(a.distance_m) > 0 &&
-          !qualityIds.has(a.id) &&
-          num(a.te_anaerobic) < HARD_TE.anaerobic,
-      )
+      .filter((a) => isEasyRun(a, qualityIds))
       .map((a) => num(a.distance_m) / (num(a.moving_s ?? a.duration_s) / 60) / num(a.avg_hr));
     const ratios = qualityBy.get(date) ?? [];
     out.push({

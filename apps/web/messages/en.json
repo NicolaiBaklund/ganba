@@ -875,6 +875,8 @@
     "globeHint": "Drag to spin",
     "waiting": "Your note from the coach comes once last night's sleep has synced.",
     "days": "{days} days",
-    "raceOn": "{race}, {date}"
+    "raceOn": "{race}, {date}",
+    "easyAt": "Easy at {hr} bpm",
+    "easySince": "{delta} s since {month}"
   }
 }

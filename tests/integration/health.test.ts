@@ -4,6 +4,7 @@ import { saveTokens } from "@/lib/garmin/accounts";
 import { syncGarmin } from "@/lib/garmin/sync";
 import { dailyNote, keepPlan, swapToEasy } from "@/lib/health/note";
 import { refreshStamps } from "@/lib/health/stamps";
+import { loadEasyPace } from "@/lib/health/easyPace";
 import { loadClock, loadStampLine } from "@/lib/health/view";
 import { afterGarminSync, upkeepWithoutGarmin } from "@/lib/training/service";
 // @ts-expect-error — plain JS helper shared with the smoke scripts
@@ -244,5 +245,33 @@ describe("health without Garmin", () => {
     const n = await dailyNote(u.id, today);
     expect(n!.alert).toBeNull();
     expect(n!.text).toContain("Easy run 6 km");
+  });
+});
+
+describe("easy pace at heart rate on Progress", () => {
+  let u: TestUser;
+  let today: string;
+  const runOn = (daysAgo: number, km: number, secPerKm: number, hr: number, type = "running") => {
+    const date = addDays(today, -daysAgo);
+    return { user_id: u.id, source: "manual", local_date: date, start_time: `${date}T07:00:00Z`, type_key: type, distance_m: km * 1000, duration_s: km * secPerKm, moving_s: km * secPerKm, avg_hr: hr };
+  };
+  beforeAll(async () => {
+    u = await createTestUser("health-easypace");
+    ({ today } = await seedUser(admin(), u.id, { days: 2 }));
+  });
+  afterAll(cleanup);
+
+  it("needs 5 easy runs in 6 weeks; compares with the 6 weeks before; treadmill and short runs don't count", async () => {
+    // 6 weeks before: 6:00/km at 145 bpm. Last 6 weeks: four at 5:48, a treadmill run and a 15 min run.
+    await admin().from("activities").insert([
+      ...[50, 55, 60, 65, 70].map((d) => runOn(d, 10, 360, 145)),
+      ...[3, 10, 17, 24].map((d) => runOn(d, 10, 348, 145)),
+      runOn(5, 10, 300, 145, "treadmill_running"),
+      runOn(6, 3, 300, 145),
+    ] as never);
+    expect(await loadEasyPace(u.id, today)).toBeNull();
+    await admin().from("activities").insert(runOn(31, 10, 348, 145) as never);
+    const e = await loadEasyPace(u.id, today);
+    expect(e).toMatchObject({ hr: 145, secPerKm: 348, deltaS: -12, since: addDays(today, -63) });
   });
 });

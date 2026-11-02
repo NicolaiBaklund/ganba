@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { ChevronLeft } from "lucide-react";
-import type { RaceDistance } from "@loop/core";
+import { formatPace, type RaceDistance } from "@loop/core";
 import { requireUser } from "@/lib/supabase/server";
 import { loadClock, loadStampBook } from "@/lib/health/view";
+import { loadEasyPace } from "@/lib/health/easyPace";
 import { loadRecoveryView } from "@/lib/recovery/view";
 import { RECOVERY_HISTORY_DAYS } from "@/lib/recovery/fetch";
 import { fmtClock } from "@/lib/training/format";
@@ -15,12 +16,12 @@ import { globeCountry } from "@/lib/health/country";
 
 const DISTANCES: RaceDistance[] = ["5k", "10k", "half", "marathon"];
 
-/** Progress (spec docs/specs/2026-11-02-health.md §9): the clock with all distances, the stamp book, the body. */
+/** Progress (spec docs/specs/2026-11-02-health.md §9): the clock with all distances, easy pace at heart rate, the stamp book, the body. */
 export default async function ProgressPage() {
   const { user } = await requireUser();
   const t = await getTranslations("health");
   const v = await loadRecoveryView(user.id);
-  const [clock, stamps] = await Promise.all([loadClock(user.id, v.today), loadStampBook(user.id)]);
+  const [clock, stamps, easy] = await Promise.all([loadClock(user.id, v.today), loadStampBook(user.id), loadEasyPace(user.id, v.today)]);
   // Newest first, so the globe opens facing the latest country.
   const countries = stamps.filter((s) => s.kind === "country" && s.earnedOn).flatMap((s) => globeCountry(s.key) ?? []);
 
@@ -43,6 +44,24 @@ export default async function ProgressPage() {
             ))}
           </dl>
         </>
+      )}
+      {easy && (
+        <div className="mt-6 flex items-end justify-between gap-3 border-t border-border pt-4">
+          <div>
+            <p className="text-[13px] text-muted-foreground">{t("easyAt", { hr: easy.hr })}</p>
+            <p className="num mt-1 text-[34px] font-black leading-none [font-stretch:62%]">
+              {formatPace(easy.secPerKm)} <span className="text-[17px] font-bold text-muted-foreground">/km</span>
+            </p>
+          </div>
+          {easy.deltaS != null && easy.deltaS !== 0 && (
+            <span className={`num pb-0.5 text-[15px] font-extrabold ${easy.deltaS < 0 ? "text-success" : "text-warning"}`}>
+              {t("easySince", {
+                delta: `${easy.deltaS < 0 ? "−" : "+"}${Math.abs(easy.deltaS)}`,
+                month: new Date(`${easy.since}T12:00:00Z`).toLocaleDateString("en-GB", { month: "long", timeZone: "UTC" }),
+              })}
+            </span>
+          )}
+        </div>
       )}
       {countries.length > 0 && (
         <section className="mt-10">
