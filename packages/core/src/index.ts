@@ -28,3 +28,4 @@ export * from "./recovery/curves";
 export * from "./recovery/ai";
 export * from "./recovery/form";
 export * from "./training/coach";
+export * from "./health";
