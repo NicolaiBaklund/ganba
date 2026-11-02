@@ -30,6 +30,8 @@ const SWAPPABLE: ReadonlySet<string> = new Set([...HARD_TYPES].filter((t) => t !
 const HISTORY_DAYS = 120;
 
 export interface DailyNote {
+  /** Garmin users: last night's sleep hasn't synced yet, so there is no note yet (the text is empty). */
+  waiting?: boolean;
   text: string;
   alert: HealthAlertKind | null;
   alertDone: boolean;
@@ -124,10 +126,10 @@ function swapTarget(alert: HealthAlertKind | null, workouts: Awaited<ReturnType<
 /** Same time as the session, at easy pace, to the nearest half km. */
 const easyKm = (durationS: number, easyMaxSecPerKm: number, easyMinSecPerKm: number) => Math.max(3, Math.round((durationS / ((easyMaxSecPerKm + easyMinSecPerKm) / 2)) * 2) / 2);
 
-/** Without a night (watch off in bed), a sync after this hour still counts as "the morning's data is in". */
-export const NOTE_WAIT_HOUR = 10;
+/** No sleep by a sync after this hour (watch off in bed): the note comes without it. */
+export const NOTE_WAIT_HOUR = 14;
 
-/** Last night is in: today's night row, or a sync today late enough that no night is coming. */
+/** Last night is in: today's sleep has synced, or a sync today late enough that none is coming. */
 async function morningIsIn(userId: string, today: ISODate): Promise<boolean> {
   const [{ data: night }, { data: acct }, { data: profile }] = await Promise.all([
     db().from("recovery_days").select("id").eq("user_id", userId).eq("local_date", today).maybeSingle(),
@@ -139,9 +141,9 @@ async function morningIsIn(userId: string, today: ISODate): Promise<boolean> {
 }
 
 /**
- * Today's note (spec §7): written once, stored and reused. With Garmin it waits for the morning's data (a note
- * written before the sync would miss the alert); until then a template without the alert is shown and nothing is
- * stored. No plan and nothing to warn about: no note at all.
+ * Today's note (spec §7): written once, stored and reused. With Garmin it waits for today's sleep (a note written
+ * before it would miss the alert): until then it is `waiting` and nothing is stored. No plan and nothing to warn
+ * about: no note at all.
  */
 export async function dailyNote(userId: string, today: ISODate, opts: { ai?: RecoveryAi } = {}): Promise<DailyNote | null> {
   const stored = await storedNote(userId, today);
@@ -151,10 +153,7 @@ export async function dailyNote(userId: string, today: ISODate, opts: { ai?: Rec
   const swap = swapOffer(built.facts.alert?.kind ?? null, built, today);
   const { facts } = built;
   const garmin = await getGarminStatus(userId);
-  if (garmin && !(await morningIsIn(userId, today))) {
-    if (!built.plan) return null;
-    return { text: templateNote({ ...facts, alert: null }), alert: null, alertDone: false, swap: null };
-  }
+  if (garmin && !(await morningIsIn(userId, today))) return { text: "", alert: null, alertDone: false, swap: null, waiting: true };
   if (!built.plan && !facts.alert) return null;
   const text = templateNote(facts);
 

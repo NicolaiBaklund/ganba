@@ -870,6 +870,7 @@
     },
     "countries": "Countries",
     "globeLabel": "Globe with the {n} countries you have run or ridden in",
-    "globeHint": "Drag to spin"
+    "globeHint": "Drag to spin",
+    "waiting": "Your note from the coach comes once last night's sleep has synced."
   }
 }

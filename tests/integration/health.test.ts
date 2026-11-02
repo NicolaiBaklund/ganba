@@ -168,11 +168,10 @@ describe("health: race clock, stamps and the morning note (spec 2026-11-02)", ()
     expect(alertFor({ days: days(99), today: "2026-11-02", easyRuns: easy, easyFastSecPerKm: 330 })?.kind).toBe("easy_fast");
   });
 
-  it("the note waits for the night: before a late enough sync it carries no alert and is not stored", async () => {
-    await admin().from("garmin_accounts").update({ last_synced_date: today, last_synced_at: zonedTime(today, "06:00", "Europe/Oslo").toISOString() }).eq("user_id", u.id);
+  it("the note waits for today's sleep: before it (or a sync after 14:00) there is no note and nothing is stored", async () => {
+    await admin().from("garmin_accounts").update({ last_synced_date: today, last_synced_at: zonedTime(today, "11:00", "Europe/Oslo").toISOString() }).eq("user_id", u.id);
     const n = await dailyNote(u.id, today);
-    expect(n!.alert).toBeNull();
-    expect(n!.swap).toBeNull();
+    expect(n).toEqual({ text: "", alert: null, alertDone: false, swap: null, waiting: true });
     const { data } = await admin().from("daily_notes").select("id").eq("user_id", u.id).eq("local_date", today);
     expect(data).toHaveLength(0);
   });
@@ -184,7 +183,6 @@ describe("health: race clock, stamps and the morning note (spec 2026-11-02)", ()
         return { user_id: u.id, local_date: addDays(today, -31 + i), resting_hr: off ? 57 : 50 + (i % 3), hrv_avg: off ? 44 : 60 + (i % 4), hrv_baseline_low: 52, hrv_baseline_high: 68, sleep_score: 78 };
       }),
     );
-    await admin().from("garmin_accounts").update({ last_synced_at: zonedTime(today, "11:00", "Europe/Oslo").toISOString() }).eq("user_id", u.id);
     const n = (await dailyNote(u.id, today))!;
     expect(n.alert).toBe("sick");
     expect(n.text).toContain("resting heart rate is up");
