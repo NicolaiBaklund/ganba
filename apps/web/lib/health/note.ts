@@ -12,7 +12,6 @@ import {
   type HealthAlertKind,
   type ISODate,
   type NoteFacts,
-  type WorkoutType,
 } from "@loop/core";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import type { Json } from "@/lib/db/types";
@@ -84,13 +83,15 @@ async function factsFor(userId: string, today: ISODate) {
   const days = await loadRecoveryDays(userId, today, 40);
   const alert = alertFor({ days, today, easyRuns, easyFastSecPerKm: paces?.easy.min ?? null });
 
-  const yRow = doneRows.find((w) => w.date === addDays(today, -1));
+  // Today's session if it is already done (the note can be written after a morning run), else yesterday's.
+  const yRow = doneRows.find((w) => w.date === today) ?? doneRows.find((w) => w.date === addDays(today, -1));
   const yAct = yRow ? actOf.get(yRow.activity_id!) : undefined;
-  let yesterday: NoteFacts["yesterday"] = null;
+  let lastSession: NoteFacts["lastSession"] = null;
   if (yRow && yAct) {
     const reps = QUALITY.has(yRow.type) ? repsPace(yAct.splits) : null;
     const earlier = doneRows.filter((w) => w.type === yRow.type && w.date < yRow.date).map((w) => repsPace(actOf.get(w.activity_id!)?.splits ?? null)).filter((p): p is number => p != null);
-    yesterday = {
+    lastSession = {
+      when: yRow.date === today ? "today" : "yesterday",
       type: yRow.type,
       title: yRow.title,
       km: Math.round(Number(yAct.distance_m ?? 0) / 100) / 10,
@@ -107,9 +108,9 @@ async function factsFor(userId: string, today: ISODate) {
   const clock = await loadClock(userId, today).catch(() => null);
   const facts: NoteFacts = {
     alert,
-    yesterday,
+    lastSession,
     today: t ? { type: t.type, title: t.title, km: t.plannedKm, hrMax: null } : null,
-    tomorrow: tomorrow && HARD_TYPES.has(tomorrow.type as WorkoutType) ? { type: tomorrow.type, title: tomorrow.title } : null,
+    tomorrow: tomorrow ? { type: tomorrow.type, title: tomorrow.title } : null,
     clockDeltaS: clock?.deltaS ?? null,
     raceName: clock?.race.name ?? null,
   };
