@@ -19,7 +19,7 @@ import { activePlan, goalOf, planWorkouts } from "@/lib/training/service";
 import { stampText } from "./stamps";
 
 const db = () => createAdminSupabase();
-/** How far back the clock line reaches when the plan is older or there is none. */
+/** How far back the clock line reaches at least (further for an older plan). */
 export const CLOCK_LINE_DAYS = 120;
 
 export interface ClockPoint {
@@ -66,7 +66,8 @@ export async function loadClock(userId: string, date: ISODate): Promise<HealthCl
     goal: plan && plan.sport !== "ride" ? goalOf(plan) : null,
   });
 
-  const from = plan && plan.start_date > addDays(date, -CLOCK_LINE_DAYS) ? plan.start_date : addDays(date, -CLOCK_LINE_DAYS);
+  // The last 120 days, or the whole plan when it is older: a plan made today still shows where the time came from.
+  const from = plan && plan.start_date < addDays(date, -CLOCK_LINE_DAYS) ? plan.start_date : addDays(date, -CLOCK_LINE_DAYS);
   const { data, error } = await db()
     .from("prediction_days")
     .select("local_date, time_5k_s, time_10k_s, time_half_s, time_marathon_s")

@@ -59,7 +59,7 @@ export function templateNote(f: NoteFacts): string {
     const how = y.repsAvgSecPerKm != null ? `averaged ${pace(y.repsAvgSecPerKm)} on the reps` : y.avgSecPerKm != null ? `went at ${pace(y.avgSecPerKm)}` : null;
     if (how) out.push(`Yesterday's ${y.title.toLowerCase()} ${how}${y.bestYet ? ", your fastest yet" : ""}.`);
   }
-  if (!a && f.clockDeltaS) out.push(`${f.raceName ?? "Your race"} prediction moved ${f.clockDeltaS < 0 ? "down" : "up"} ${Math.abs(f.clockDeltaS)} s.`);
+  if (!a && f.clockDeltaS) out.push(`Your predicted time is ${Math.abs(f.clockDeltaS)} s ${f.clockDeltaS < 0 ? "faster" : "slower"} than yesterday.`);
 
   const t = f.today;
   if (a?.kind === "sick" && t) out.push(`Swap today's ${t.title.toLowerCase()} for an easy run?`);

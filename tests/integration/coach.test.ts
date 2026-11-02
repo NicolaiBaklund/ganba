@@ -88,11 +88,11 @@ describe("coach: tool loop, options, memory, consent", () => {
     const ctxText = ctxOf(ai.calls.at(-1)!);
     expect(ctxText.match(/^\[(user|coach)\]/gm)).toHaveLength(12);
     expect(ctxText).not.toContain("old message 7");
-    expect(ctxText).toContain("Health data (sleep, HRV, resting HR, Form) is switched off");
+    expect(ctxText).toContain("Health data (sleep, HRV, resting HR) is switched off");
     await setAiHealthConsent(u.id, true);
     ai.script = [() => tool("reply", { message: "ok", options: [] })];
     await runCoach(u.id, { text: "hi again" }, { ai });
-    expect(ctxOf(ai.calls.at(-1)!)).toContain("Form today:");
+    expect(ctxOf(ai.calls.at(-1)!)).toContain("No morning note yet today.");
   });
 
   it("one reply at a time per conversation", async () => {
