@@ -50,6 +50,15 @@ try {
   must(await admin.from("stamps").insert({ user_id: uid, kind: "country", key: "SGP", earned_on: day(-400) }));
   // A 15 km run in Tokyo last week: country, distance and volume stamps when the page loads.
   must(await admin.from("activities").insert({ user_id: uid, source: "manual", local_date: day(-5), start_time: `${day(-5)}T07:00:00Z`, type_key: "running", distance_m: 15200, duration_s: 5400, moving_s: 5400, raw: { startLatitude: 35.69, startLongitude: 139.7 } }));
+  // Easy runs at 145 bpm: 6:00/km six to twelve weeks ago, 5:48 the last six weeks (Progress: easy pace at heart rate).
+  must(
+    await admin.from("activities").insert(
+      [50, 55, 60, 65, 70, 8, 15, 22, 29, 36].map((n) => {
+        const pace = n > 42 ? 360 : 348;
+        return { user_id: uid, source: "manual", local_date: day(-n), start_time: `${day(-n)}T07:00:00Z`, type_key: "running", distance_m: 8000, duration_s: 8 * pace, moving_s: 8 * pace, avg_hr: 145 };
+      }),
+    ),
+  );
   // 30 ordinary nights, then two with resting HR up and HRV under its baseline.
   must(
     await admin.from("recovery_days").insert(
@@ -80,6 +89,7 @@ try {
     await page.goto(`${BASE}/progress`);
     await page.getByRole("heading", { name: "Stamps" }).waitFor();
     results[`${scheme}: Japan stamp`] = (await page.getByText("Japan").count()) > 0;
+    results[`${scheme}: easy pace at heart rate`] = (await page.getByText("Easy at 145 bpm").count()) === 1 && (await page.getByText(/^−12 s since /).count()) === 1;
     results[`${scheme}: globe`] = (await page.getByRole("img", { name: /Globe with the 2 countries/ }).count()) === 1;
     await page.waitForTimeout(600);
     await page.screenshot({ path: `tests/smoke/out/62-health-progress-${scheme}.png`, fullPage: true, caret: "initial" });
