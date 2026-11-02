@@ -168,7 +168,7 @@ def op_fetch(b: dict[str, Any]) -> dict[str, Any]:
         "activities": activities,
         "details": details,
         "racePredictions": predictions if isinstance(predictions, dict) else None,
-        "predictionDays": _prediction_days(g, b["from"], b["to"]),
+        "predictionDays": _prediction_days(g, b.get("predictionsFrom") or b["from"], b["to"]),
         "personalRecords": _personal_records(g),
         "tokens": changed_tokens(g, tokens),
     }

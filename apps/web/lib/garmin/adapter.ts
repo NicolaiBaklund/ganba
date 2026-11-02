@@ -92,7 +92,8 @@ export type LoginResult = { ok: true; tokens: string } | { mfa: true; mfaState: 
 export interface GarminSource {
   login(email: string, password: string): Promise<LoginResult>;
   loginMfa(mfaState: unknown, code: string): Promise<{ ok: true; tokens: string }>;
-  fetch(tokens: string, from: string, to: string, knownIds: number[]): Promise<FetchResult>;
+  /** `predictionsFrom`: fetch the daily race predictions from this date instead of `from` (at most a year back). */
+  fetch(tokens: string, from: string, to: string, knownIds: number[], opts?: { predictionsFrom?: string }): Promise<FetchResult>;
   fetchRecovery(tokens: string, dates: string[]): Promise<FetchRecoveryResult>;
   /** Lactate threshold heart rates (for cycling zones); null when Garmin has none. */
   /** Threshold heart rates and the cycling FTP (null when unset or stale) with the day it was set. */
@@ -134,7 +135,7 @@ async function call<T>(body: Record<string, unknown>, timeoutMs = 110_000): Prom
 export const httpGarmin = (): GarminSource => ({
   login: (email, password) => call({ op: "login", email, password }),
   loginMfa: (mfaState, code) => call({ op: "login_mfa", mfaState, code }),
-  fetch: (tokens, from, to, knownIds) => call({ op: "fetch", tokens, from, to, knownIds }),
+  fetch: (tokens, from, to, knownIds, opts) => call({ op: "fetch", tokens, from, to, knownIds, ...(opts?.predictionsFrom ? { predictionsFrom: opts.predictionsFrom } : {}) }),
   // Extra to the sync, so it must leave room within the 120 s function limit for the rest.
   fetchRecovery: (tokens, dates) => call({ op: "fetch_recovery", tokens, dates }, 40_000),
   fetchThresholds: (tokens) => call({ op: "fetch_thresholds", tokens }, 20_000),

@@ -1,10 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { addDays, alertFor, pickRace, type RecoveryDayInput } from "@loop/core";
+import { addDays, alertFor, pickRace, planPrediction, zonedTime, type RecoveryDayInput } from "@loop/core";
 import { saveTokens } from "@/lib/garmin/accounts";
 import { syncGarmin } from "@/lib/garmin/sync";
-import { dailyNote, swapToEasy } from "@/lib/health/note";
+import { dailyNote, keepPlan, swapToEasy } from "@/lib/health/note";
+import { refreshStamps } from "@/lib/health/stamps";
 import { loadClock, loadStampLine } from "@/lib/health/view";
-import { afterGarminSync } from "@/lib/training/service";
+import { afterGarminSync, upkeepWithoutGarmin } from "@/lib/training/service";
 // @ts-expect-error — plain JS helper shared with the smoke scripts
 import { seedUser } from "../smoke/seed.mjs";
 import { admin, cleanup, createTestUser, type TestUser } from "./setup";
@@ -29,6 +30,8 @@ describe("health: race clock, stamps and the morning note (spec 2026-11-02)", ()
     ];
     garmin.history = [
       { id: 1, date: "2024-03-13", typeKey: "running", lat: 21.03, lon: 105.85, km: 8 }, // Hanoi
+      ...[3, 6, 9, 12, 15].map((d, i) => ({ id: 10 + i, date: `2024-03-${String(d).padStart(2, "0")}`, typeKey: "running", lat: 21.03, lon: 105.85, km: 9 })), // 53 km in March 2024
+      { id: 20, date: "2023-06-01", typeKey: "running", lat: 37.56, lon: 126.97, km: 6 }, // Seoul
       { id: 2, date: "2023-05-01", typeKey: "hiking", lat: 37.56, lon: 126.97, km: 9 }, // Seoul, a hike: no stamp
       { id: garmin.activities[0]!.activityId, date: addDays(today, -3), typeKey: "running", lat: 35.69, lon: 139.7, km: 15.2 },
     ];
@@ -47,15 +50,36 @@ describe("health: race clock, stamps and the morning note (spec 2026-11-02)", ()
 
     const s = await stamps();
     const keys = s.map((x) => `${x.kind}:${x.key}`).sort();
-    expect(keys).toEqual(expect.arrayContaining(["country:JPN", "country:NOR", "country:VNM", "distance:10", "distance:15", "pr:pr-5-6200"]));
-    expect(keys).not.toContain("country:KOR"); // a hike gives no country
-    expect(s.find((x) => x.key === "VNM")!.earned_on).toBe("2024-03-13");
+    expect(keys).toEqual(expect.arrayContaining(["country:JPN", "country:NOR", "country:VNM", "country:KOR", "distance:10", "distance:15", "volume:50", "pr:pr-5-6200"]));
+    // No predictions stored yet: the first sync asks for a year of them.
+    expect(garmin.fetches[0]!.predictionsFrom).toBe(addDays(today, -365));
+    expect(s.find((x) => x.key === "VNM")!.earned_on).toBe("2024-03-03");
 
     // A second sync neither fetches the history again nor adds rows.
     await admin().from("garmin_accounts").update({ sync_started_at: null }).eq("user_id", u.id);
     await sync();
     expect(garmin.historyFetches).toBe(1);
+    expect(garmin.fetches.at(-1)!.predictionsFrom).toBeUndefined();
     expect((await stamps()).length).toBe(s.length);
+  });
+
+  it("a stamp keeps its earliest date when the data behind it shrinks", async () => {
+    const { data: acct } = await admin().from("garmin_accounts").select("activity_history").eq("user_id", u.id).single();
+    await admin().from("garmin_accounts").update({ activity_history: [{ id: 30, date: "2020-01-05", typeKey: "running", lat: 35.69, lon: 139.7, km: 5 }] }).eq("user_id", u.id);
+    await refreshStamps(u.id, today);
+    await admin().from("garmin_accounts").update({ activity_history: [] }).eq("user_id", u.id);
+    await refreshStamps(u.id, today);
+    expect((await stamps()).find((x) => x.key === "JPN")!.earned_on).toBe("2020-01-05");
+    await admin().from("garmin_accounts").update({ activity_history: acct!.activity_history }).eq("user_id", u.id);
+  });
+
+  it("a sync where Garmin has no predictor or records still works", async () => {
+    garmin.predictionDays = null;
+    garmin.personalRecords = null;
+    await admin().from("garmin_accounts").update({ sync_started_at: null }).eq("user_id", u.id);
+    expect((await sync()).status).toBe("ok");
+    garmin.predictionDays = [];
+    garmin.personalRecords = [];
   });
 
   it("stamps from before today stay out of Today's stamp line", async () => {
@@ -79,6 +103,9 @@ describe("health: race clock, stamps and the morning note (spec 2026-11-02)", ()
     expect(c2!.race).toEqual({ name: "Doomsday: Half Marathon", distance: "half", date: addDays(today, 40) });
     expect(c2!.seconds).toBe(6300);
     expect(c2!.deltaS).toBe(-10);
+    // The day after race day with no race run: the clock has moved on (the plan's focus, no race day).
+    const after = await loadClock(u.id, addDays(today, 41));
+    expect(after!.race.date).toBeNull();
   });
 
   it("pickRace: a race plan's goal, a build focus, and a passed race moves on", () => {
@@ -102,6 +129,15 @@ describe("health: race clock, stamps and the morning note (spec 2026-11-02)", ()
     expect(alertFor({ days: days(99), today: "2026-11-02", easyRuns: easy, easyFastSecPerKm: 330 })?.kind).toBe("easy_fast");
   });
 
+  it("the note waits for the night: before a late enough sync it carries no alert and is not stored", async () => {
+    await admin().from("garmin_accounts").update({ last_synced_date: today, last_synced_at: zonedTime(today, "06:00", "Europe/Oslo").toISOString() }).eq("user_id", u.id);
+    const n = await dailyNote(u.id, today);
+    expect(n!.alert).toBeNull();
+    expect(n!.swap).toBeNull();
+    const { data } = await admin().from("daily_notes").select("id").eq("user_id", u.id).eq("local_date", today);
+    expect(data).toHaveLength(0);
+  });
+
   it("the note: written once from a template without AI, carries the alert; Swap turns today's intervals into an easy run, once", async () => {
     await admin().from("recovery_days").insert(
       Array.from({ length: 32 }, (_, i) => {
@@ -109,7 +145,8 @@ describe("health: race clock, stamps and the morning note (spec 2026-11-02)", ()
         return { user_id: u.id, local_date: addDays(today, -31 + i), resting_hr: off ? 57 : 50 + (i % 3), hrv_avg: off ? 44 : 60 + (i % 4), hrv_baseline_low: 52, hrv_baseline_high: 68, sleep_score: 78 };
       }),
     );
-    const n = await dailyNote(u.id, today);
+    await admin().from("garmin_accounts").update({ last_synced_at: zonedTime(today, "11:00", "Europe/Oslo").toISOString() }).eq("user_id", u.id);
+    const n = (await dailyNote(u.id, today))!;
     expect(n.alert).toBe("sick");
     expect(n.text).toContain("resting heart rate is up");
     expect(n.swap).toEqual({ title: "Intervals 6 × 1 km", km: expect.any(Number) });
@@ -120,6 +157,43 @@ describe("health: race clock, stamps and the morning note (spec 2026-11-02)", ()
     const { data: w } = await admin().from("planned_workouts").select("type, edited").eq("user_id", u.id).eq("date", today).single();
     expect(w).toEqual({ type: "easy", edited: true });
     expect(await swapToEasy(u.id, today)).toBe(false);
-    expect((await dailyNote(u.id, today)).alertDone).toBe(true);
+    expect((await dailyNote(u.id, today))!.alertDone).toBe(true);
+  });
+
+  it("Keep the plan clears the alert of a stored note", async () => {
+    await admin().from("daily_notes").update({ alert_done: false }).eq("user_id", u.id).eq("local_date", today);
+    await keepPlan(u.id, today);
+    expect((await dailyNote(u.id, today))!.alertDone).toBe(true);
+  });
+});
+
+describe("health without Garmin", () => {
+  let u: TestUser;
+  let today: string;
+  beforeAll(async () => {
+    u = await createTestUser("health-nogarmin");
+    ({ today } = await seedUser(admin(), u.id, { days: 2 }));
+  });
+  afterAll(cleanup);
+
+  it("no plan: no clock and no note", async () => {
+    expect(await loadClock(u.id, today)).toBeNull();
+    expect(await dailyNote(u.id, today)).toBeNull();
+  });
+
+  it("with a plan: the clock comes from the plan's VDOT and the note from a template", async () => {
+    const { data: plan } = await admin()
+      .from("training_plans")
+      .insert({ user_id: u.id, goal_kind: "build", distance_km: 21.0975, start_date: addDays(today, -10), generated_until: addDays(today, 60), weekdays: [1, 2, 3, 5], long_run_weekday: 5, runs_per_week: 4, vdot: 45, start_km_per_week: 30 })
+      .select("id")
+      .single();
+    await admin().from("planned_workouts").insert({ user_id: u.id, plan_id: plan!.id, date: today, type: "easy", title: "Easy run 6 km", planned_km: 6, planned_duration_s: 2100, blocks: [], phase: "build", week: 2 } as never);
+    await upkeepWithoutGarmin(u.id, today, { force: true });
+    const c = await loadClock(u.id, today);
+    expect(c!.race.distance).toBe("half");
+    expect(c!.seconds).toBe(planPrediction(45).timeHalfMarathon);
+    const n = await dailyNote(u.id, today);
+    expect(n!.alert).toBeNull();
+    expect(n!.text).toContain("Easy run 6 km");
   });
 });

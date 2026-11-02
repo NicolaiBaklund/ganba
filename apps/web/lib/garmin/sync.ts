@@ -91,11 +91,14 @@ export async function syncGarmin(userId: string, opts: SyncOptions = {}): Promis
       .eq("source", "garmin")
       .gte("local_date", addDays(from, -1))
       .not("splits", "is", null);
+    // No Garmin predictions stored yet (a new account, or one from before Health): a year of them, for the clock's line.
+    const { count: storedPredictions } = await db.from("prediction_days").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("source", "garmin");
     const res = await source.fetch(
       tokens,
       from,
       today,
       (known ?? []).map((k) => k.garmin_activity_id!),
+      storedPredictions ? {} : { predictionsFrom: addDays(today, -365) },
     );
     if (res.tokens) await updateTokens(userId, res.tokens);
 

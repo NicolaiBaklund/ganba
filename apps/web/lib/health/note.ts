@@ -3,6 +3,7 @@ import {
   addDays,
   alertFor,
   HARD_TYPES,
+  localHour,
   NOTE_PROMPT,
   noteMessage,
   NoteSchema,
@@ -56,7 +57,7 @@ function repsPace(splits: Json | null): number | null {
 
 async function factsFor(userId: string, today: ISODate) {
   const plan = await activePlan(userId);
-  const workouts = plan && plan.sport !== "ride" ? await planWorkoutsWithKm(plan) : [];
+  const workouts = plan ? await planWorkoutsWithKm(plan) : [];
   const from = addDays(today, -HISTORY_DAYS);
   const { data: rows } = plan
     ? await db().from("planned_workouts").select("date, type, title, status, activity_id").eq("plan_id", plan.id).gte("date", from).lte("date", today)
@@ -91,7 +92,8 @@ async function factsFor(userId: string, today: ISODate) {
       bestYet: reps != null && earlier.length > 0 && reps < Math.min(...earlier),
     };
   }
-  const planned = (d: ISODate) => workouts.find((w) => w.date === d && w.status === "planned" && w.sport === "run");
+  // Rides count as the day's session too (a ride plan, or a ride day in a running plan).
+  const planned = (d: ISODate) => workouts.find((w) => w.date === d && w.status === "planned");
   const t = planned(today);
   const tomorrow = planned(addDays(today, 1));
   const clock = await loadClock(userId, today).catch(() => null);
@@ -116,11 +118,26 @@ function swapTarget(alert: HealthAlertKind | null, workouts: Awaited<ReturnType<
 /** Same time as the session, at easy pace, to the nearest half km. */
 const easyKm = (durationS: number, easyMaxSecPerKm: number, easyMinSecPerKm: number) => Math.max(3, Math.round((durationS / ((easyMaxSecPerKm + easyMinSecPerKm) / 2)) * 2) / 2);
 
+/** Without a night (watch off in bed), a sync after this hour still counts as "the morning's data is in". */
+export const NOTE_WAIT_HOUR = 10;
+
+/** Last night is in: today's night row, or a sync today late enough that no night is coming. */
+async function morningIsIn(userId: string, today: ISODate): Promise<boolean> {
+  const [{ data: night }, { data: acct }, { data: profile }] = await Promise.all([
+    db().from("recovery_days").select("id").eq("user_id", userId).eq("local_date", today).maybeSingle(),
+    db().from("garmin_accounts").select("last_synced_date, last_synced_at").eq("user_id", userId).maybeSingle(),
+    db().from("profiles").select("timezone").eq("user_id", userId).single(),
+  ]);
+  if (night) return true;
+  return acct?.last_synced_date === today && !!acct.last_synced_at && localHour(profile?.timezone ?? "UTC", new Date(acct.last_synced_at)) >= NOTE_WAIT_HOUR;
+}
+
 /**
- * Today's note (spec §7): written once, stored and reused. With Garmin it waits for last night's data (a note
- * written before the sync would miss the alert); until then a template is shown and nothing is stored.
+ * Today's note (spec §7): written once, stored and reused. With Garmin it waits for the morning's data (a note
+ * written before the sync would miss the alert); until then a template without the alert is shown and nothing is
+ * stored. No plan and nothing to warn about: no note at all.
  */
-export async function dailyNote(userId: string, today: ISODate, opts: { ai?: RecoveryAi } = {}): Promise<DailyNote> {
+export async function dailyNote(userId: string, today: ISODate, opts: { ai?: RecoveryAi } = {}): Promise<DailyNote | null> {
   const { data: row } = await db().from("daily_notes").select("text, alert, alert_done").eq("user_id", userId).eq("local_date", today).maybeSingle();
   const built = await factsFor(userId, today);
   const target = swapTarget((row?.alert ?? built.facts.alert?.kind ?? null) as HealthAlertKind | null, built.workouts, today);
@@ -129,9 +146,12 @@ export async function dailyNote(userId: string, today: ISODate, opts: { ai?: Rec
 
   const { facts } = built;
   const garmin = await getGarminStatus(userId);
-  const { data: night } = garmin ? await db().from("recovery_days").select("id").eq("user_id", userId).eq("local_date", today).maybeSingle() : { data: null };
+  if (garmin && !(await morningIsIn(userId, today))) {
+    if (!built.plan) return null;
+    return { text: templateNote({ ...facts, alert: null }), alert: null, alertDone: false, swap: null };
+  }
+  if (!built.plan && !facts.alert) return null;
   const text = templateNote(facts);
-  if (garmin && !night) return { text, alert: facts.alert?.kind ?? null, alertDone: false, swap };
 
   let out = { text, source: "template" as "ai" | "template" };
   const g = await gate(userId);

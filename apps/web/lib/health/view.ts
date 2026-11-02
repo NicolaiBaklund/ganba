@@ -5,11 +5,13 @@ import {
   isRun,
   nextStamp,
   pickRace,
+  planPrediction,
   predictionSeconds,
   STAMP_DISTANCES_KM,
   STAMP_STREAK_WEEKS,
   STAMP_VOLUMES_KM,
   type ClockRace,
+  type PredictionTimes,
   type ISODate,
   type RaceDistance,
 } from "@loop/core";
@@ -55,19 +57,46 @@ export interface HealthView {
 type PredRow = { local_date: string; time_5k_s: number | null; time_10k_s: number | null; time_half_s: number | null; time_marathon_s: number | null };
 const toTimes = (r: PredRow) => ({ time5K: r.time_5k_s, time10K: r.time_10k_s, timeHalfMarathon: r.time_half_s, timeMarathon: r.time_marathon_s });
 
-/** The race clock for a date (spec §5); null without Garmin and without a plan. */
+/** A race plan whose race day was yesterday: it is completed today, but its finish time still shows (spec §5.1). */
+async function planOfYesterdaysRace(userId: string, date: ISODate) {
+  const { data } = await db().from("training_plans").select("*").eq("user_id", userId).eq("status", "completed").eq("race_date", addDays(date, -1)).limit(1).maybeSingle();
+  return data;
+}
+
+/** A run on the race's day within ±5 % of its distance: the finish time. */
+async function finishTime(userId: string, race: ClockRace): Promise<number | null> {
+  if (!race.date) return null;
+  const { data: acts } = await db().from("activities").select("type_key, distance_m, moving_s, duration_s").eq("user_id", userId).eq("local_date", race.date);
+  const run = (acts ?? []).find((a) => isRun(a.type_key) && isRaceRun(Number(a.distance_m) / 1000, race.distance));
+  return run ? Math.round(Number(run.moving_s ?? run.duration_s)) : null;
+}
+
+/**
+ * The race clock for a date (spec §5). Null without Garmin and without a plan, and when there is no prediction to
+ * show (no daily predictor, no Garmin estimate, no running plan): never a clock without a time.
+ */
 export async function loadClock(userId: string, date: ISODate): Promise<HealthClock | null> {
-  const [plan, garmin] = await Promise.all([activePlan(userId), getGarminStatus(userId)]);
+  const [active, garmin] = await Promise.all([activePlan(userId), getGarminStatus(userId)]);
+  const plan = active ?? (await planOfYesterdaysRace(userId, date));
   if (!plan && !garmin) return null;
-  const workouts = plan && plan.sport !== "ride" ? await planWorkouts(plan.id) : [];
-  const race = pickRace({
-    today: date,
-    workouts: workouts.filter((w) => w.status !== "removed").map((w) => ({ date: w.date, type: w.type, title: w.title, plannedKm: Number(w.planned_km) })),
-    goal: plan && plan.sport !== "ride" ? goalOf(plan) : null,
-  });
+  const running = plan && plan.sport !== "ride" ? plan : null;
+  const workouts = running ? await planWorkouts(running.id) : [];
+  const pick = (today: ISODate) =>
+    pickRace({
+      today,
+      workouts: workouts.filter((w) => w.status !== "removed").map((w) => ({ date: w.date, type: w.type, title: w.title, plannedKm: Number(w.planned_km) })),
+      goal: running ? goalOf(running) : null,
+    });
+  let race = pick(date);
+  // The day after race day: the finish time if it was run, else on to the next race.
+  let finish = race.date && (date === race.date || date === addDays(race.date, 1)) ? await finishTime(userId, race) : null;
+  if (race.date && race.date < date && finish == null) {
+    race = pick(addDays(date, 1));
+    finish = null;
+  }
 
   // The last 120 days, or the whole plan when it is older: a plan made today still shows where the time came from.
-  const from = plan && plan.start_date < addDays(date, -CLOCK_LINE_DAYS) ? plan.start_date : addDays(date, -CLOCK_LINE_DAYS);
+  const from = running && running.start_date < addDays(date, -CLOCK_LINE_DAYS) ? running.start_date : addDays(date, -CLOCK_LINE_DAYS);
   const { data, error } = await db()
     .from("prediction_days")
     .select("local_date, time_5k_s, time_10k_s, time_half_s, time_marathon_s")
@@ -81,32 +110,32 @@ export async function loadClock(userId: string, date: ISODate): Promise<HealthCl
     const s = predictionSeconds(toTimes(r), race.distance);
     return s ? [{ date: r.local_date, seconds: s }] : [];
   });
-  const last = rows.at(-1);
   const at = (d: ISODate) => line.find((p) => p.date === d)?.seconds ?? null;
   const now = at(date), before = at(addDays(date, -1));
 
-  let seconds = line.at(-1)?.seconds ?? null;
-  let finished = false;
-  if (race.date && (date === race.date || date === addDays(race.date, 1))) {
-    const { data: acts } = await db().from("activities").select("type_key, distance_m, moving_s, duration_s").eq("user_id", userId).eq("local_date", race.date);
-    const run = (acts ?? []).find((a) => isRun(a.type_key) && isRaceRun(Number(a.distance_m) / 1000, race.distance));
-    if (run) {
-      seconds = Math.round(Number(run.moving_s ?? run.duration_s));
-      finished = true;
-    }
+  // No daily predictions: Garmin's latest estimate, then the plan's VDOT.
+  let latest: PredictionTimes | null = rows.at(-1) ? toTimes(rows.at(-1)!) : null;
+  if (!latest && garmin) {
+    const { data: acct } = await db().from("garmin_accounts").select("race_predictions").eq("user_id", userId).maybeSingle();
+    const p = acct?.race_predictions as Partial<PredictionTimes> | null;
+    if (p) latest = { time5K: p.time5K ?? null, time10K: p.time10K ?? null, timeHalfMarathon: p.timeHalfMarathon ?? null, timeMarathon: p.timeMarathon ?? null };
   }
+  if (!latest && running) latest = planPrediction(Number(running.vdot));
+  const predicted = line.at(-1)?.seconds ?? (latest ? predictionSeconds(latest, race.distance) : null);
+  const seconds = finish ?? predicted;
+  if (seconds == null) return null;
   return {
     race,
     seconds,
-    deltaS: !finished && now != null && before != null ? now - before : null,
-    finished,
+    deltaS: finish == null && now != null && before != null ? now - before : null,
+    finished: finish != null,
     line,
     tests: workouts.filter((w) => w.type === "test" && w.status === "planned" && w.date >= date).map((w) => w.date),
     all: {
-      "5k": last ? predictionSeconds(toTimes(last), "5k") : null,
-      "10k": last ? predictionSeconds(toTimes(last), "10k") : null,
-      half: last ? predictionSeconds(toTimes(last), "half") : null,
-      marathon: last ? predictionSeconds(toTimes(last), "marathon") : null,
+      "5k": latest ? predictionSeconds(latest, "5k") : null,
+      "10k": latest ? predictionSeconds(latest, "10k") : null,
+      half: latest ? predictionSeconds(latest, "half") : null,
+      marathon: latest ? predictionSeconds(latest, "marathon") : null,
     },
   };
 }

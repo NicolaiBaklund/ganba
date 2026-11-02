@@ -6,6 +6,18 @@ import { countryName, countryOf } from "./country";
 
 const db = () => createAdminSupabase();
 const num = (v: unknown) => (v == null ? null : Number(v));
+/** The API returns at most 1000 rows per request: read long histories in pages. */
+const PAGE = 1000;
+
+async function allPages<T>(page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
+  const out: T[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await page(from, from + PAGE - 1);
+    if (error) throw error;
+    out.push(...(data ?? []));
+    if ((data ?? []).length < PAGE) return out;
+  }
+}
 
 type Move = { id: string; date: ISODate; km: number; country: string | null };
 type HistoryItem = { id: number | null; date: string; typeKey: string | null; lat: number | null; lon: number | null; km: number };
@@ -15,13 +27,15 @@ type HistoryItem = { id: number | null; date: string; typeKey: string | null; la
  * history (summary only) for what lies before the import; an activity in both counts once.
  */
 async function movesOf(userId: string, history: HistoryItem[]): Promise<{ runs: Move[]; rides: Move[] }> {
-  const { data, error } = await db()
-    .from("activities")
-    .select("id, garmin_activity_id, local_date, type_key, distance_m, lat:raw->startLatitude, lon:raw->startLongitude")
-    .eq("user_id", userId)
-    .order("local_date");
-  if (error) throw error;
-  const rows = data ?? [];
+  const rows = await allPages((from, to) =>
+    db()
+      .from("activities")
+      .select("id, garmin_activity_id, local_date, type_key, distance_m, lat:raw->startLatitude, lon:raw->startLongitude")
+      .eq("user_id", userId)
+      .order("local_date")
+      .order("id")
+      .range(from, to),
+  );
   const synced = new Set(rows.map((a) => a.garmin_activity_id).filter((x) => x != null));
   const moves = [
     ...rows.map((a) => ({ id: a.id as string | null, type: a.type_key, date: a.local_date, km: Number(a.distance_m ?? 0) / 1000, lat: num(a.lat), lon: num(a.lon) })),
@@ -32,15 +46,18 @@ async function movesOf(userId: string, history: HistoryItem[]): Promise<{ runs: 
   return { runs: moves.filter((m) => isRun(m.type)).map(toMove), rides: moves.filter((m) => isRide(m.type)).map(toMove) };
 }
 
-/** Every stamp the data supports, one row per (kind, key); fully derived, so a rerun with older history moves a stamp to its earliest date. */
+/**
+ * Every stamp the data supports, one row per (kind, key). A stamp keeps its earliest date: older history moves it
+ * earlier, but data that goes away (a disconnect, a deleted run) never moves it later.
+ */
 export async function refreshStamps(userId: string, today: ISODate): Promise<void> {
-  const [acct, workouts] = await Promise.all([
+  const [acct, rows, existing] = await Promise.all([
     db().from("garmin_accounts").select("personal_records, activity_history").eq("user_id", userId).maybeSingle(),
-    db().from("planned_workouts").select("date, type, status, activity_id, sport").eq("user_id", userId).lt("date", today),
+    allPages((from, to) => db().from("planned_workouts").select("id, date, type, status, activity_id, sport").eq("user_id", userId).lt("date", today).order("date").order("id").range(from, to)),
+    allPages((from, to) => db().from("stamps").select("kind, key, earned_on").eq("user_id", userId).order("id").range(from, to)),
   ]);
-  if (workouts.error) throw workouts.error;
+  if (acct.error) throw acct.error;
   const { runs, rides } = await movesOf(userId, (acct.data?.activity_history ?? []) as HistoryItem[]);
-  const rows = workouts.data ?? [];
 
   // Finished weeks only (the current one could still be completed).
   const thisWeek = weekStartOn(today, 1);
@@ -71,11 +88,17 @@ export async function refreshStamps(userId: string, today: ISODate): Promise<voi
     tests: done("test").map((w) => ({ date: w.date, activityId: w.activity_id! })),
     races: raceRows.map((w) => ({ date: w.date, activityId: w.activity_id!, timeS: timeOf.get(w.activity_id!) ?? 0 })),
   });
-  if (!stamps.length) return;
+  const before = new Map(existing.map((x) => [`${x.kind}:${x.key}`, x.earned_on]));
+  // Only new stamps and ones that moved earlier are written.
+  const changed = stamps.filter((s) => {
+    const was = before.get(`${s.kind}:${s.key}`);
+    return !was || s.earnedOn < was;
+  });
+  if (!changed.length) return;
   const { error } = await db()
     .from("stamps")
     .upsert(
-      stamps.map((s) => ({ user_id: userId, kind: s.kind, key: s.key, earned_on: s.earnedOn, activity_id: s.activityId || null, value: (s.value ?? null) as Json })),
+      changed.map((s) => ({ user_id: userId, kind: s.kind, key: s.key, earned_on: s.earnedOn, activity_id: s.activityId || null, value: (s.value ?? null) as Json })),
       { onConflict: "user_id,kind,key" },
     );
   if (error) throw error;

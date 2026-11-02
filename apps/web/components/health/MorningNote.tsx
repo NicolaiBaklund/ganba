@@ -10,14 +10,15 @@ import type { DailyNote } from "@/lib/health/note";
 export function MorningNote() {
   const t = useTranslations("health");
   const router = useRouter();
-  const [note, setNote] = useState<DailyNote | null>(null);
+  // undefined while loading; null when there is nothing to say (no plan, no alert).
+  const [note, setNote] = useState<DailyNote | null | undefined>(undefined);
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     const ctrl = new AbortController();
     fetch("/api/health/note", { signal: ctrl.signal })
-      .then((r) => (r.ok ? (r.json() as Promise<DailyNote>) : Promise.reject(new Error(String(r.status)))))
+      .then((r) => (r.ok ? (r.json() as Promise<DailyNote | null>) : Promise.reject(new Error(String(r.status)))))
       .then(setNote)
       .catch((e) => e?.name !== "AbortError" && setFailed(true));
     return () => ctrl.abort();
@@ -35,7 +36,7 @@ export function MorningNote() {
     }
   }
 
-  if (failed) return null;
+  if (failed || note === null) return null;
   if (!note) {
     return (
       <section className="mt-8 space-y-2" aria-busy="true">
