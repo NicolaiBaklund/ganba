@@ -73,6 +73,8 @@ export function targetFor(zone: PaceZone, paces: Paces, racePaceS?: number): Tar
 
 const paceOf = (t: Target, paces: Paces): number =>
   t.kind === "pace" ? (t.minSecPerKm + t.maxSecPerKm) / 2 : paces.easy.max;
+/** Recoveries have no target: walk, stand or jog. The estimate counts them as a walk or very slow jog. */
+const RECOVER_SLOWER_S_PER_KM = 120;
 
 const step = (kind: Step["kind"], duration: Step["duration"], target: Target): Step => ({ kind, duration, target });
 const dist = (km: number) => ({ kind: "distance" as const, m: Math.round(km * 1000) });
@@ -83,7 +85,7 @@ export function measure(blocks: Block[], paces: Paces): { km: number; s: number 
   let km = 0;
   let s = 0;
   const one = (st: Step) => {
-    const pace = paceOf(st.target, paces);
+    const pace = paceOf(st.target, paces) + (st.kind === "recover" && st.target.kind === "none" ? RECOVER_SLOWER_S_PER_KM : 0);
     if (st.duration.kind === "distance") {
       km += st.duration.m / 1000;
       s += (st.duration.m / 1000) * pace;
