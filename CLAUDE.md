@@ -7,6 +7,7 @@ Personlig trenings- + ernæringsapp (Runna + MyFitnessPal i ett). Webapp, må fu
 Systemet er **generelt/flerbruker** — aldri hardkod brukerens personlige verdier.
 
 ## Les først
+- [docs/specs/2026-11-02-health.md](docs/specs/2026-11-02-health.md) — **Health** (erstatter Form: løpsklokke fra Garmins anslag, morgenlapp, varsler med én handling, automatiske stempler; spikes før plan)
 - [docs/specs/2026-10-29-bare-trening.md](docs/specs/2026-10-29-bare-trening.md) — **Training only og plan uten Garmin** (modus uten mat/kropp, startvolum oppgitt, «Mark as done» som manuell aktivitet; plan: docs/plans/2026-10-29-bare-trening-plan.md)
 - [docs/specs/2026-10-27-coach-chat-v3.md](docs/specs/2026-10-27-coach-chat-v3.md) — **coach-chat v3** (claude.ai-aktig chat, planendringskort med bib, ingen advarselslister, korte svar som pusher tilbake, minnelinje; plan: docs/plans/2026-10-27-coach-chat-v3-plan.md)
 - [docs/specs/2026-10-26-coach-v2.md](docs/specs/2026-10-26-coach-v2.md) — **coach v2** (egen fane, coach for alt, lesverktøy, strømming, Form-detaljside; plan: docs/plans/2026-10-26-coach-v2-plan.md)
