@@ -7,6 +7,8 @@ import { RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const PULL_PX = 80;
+/** Fired on window when a sync request has finished (new data or not). */
+export const GARMIN_SYNCED = "ganba:garmin-synced";
 
 /**
  * Syncs Garmin when the app opens (the server skips it if synced < 15 min ago) and on
@@ -34,6 +36,7 @@ export function GarminSync({ enabled }: { enabled: boolean }) {
     const body = await res?.json().catch(() => null);
     busy.current = false;
     setSyncing(false);
+    window.dispatchEvent(new Event(GARMIN_SYNCED));
     if (force || body?.status === "ok") router.refresh();
   });
 

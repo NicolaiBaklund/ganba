@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import type { DailyNote } from "@/lib/health/note";
+import { GARMIN_SYNCED } from "@/components/common/GarminSync";
 
 /** The coach's morning note (spec §7): plain text, and on an alert day one action and a way to keep the plan. */
 export function MorningNote() {
@@ -17,11 +18,18 @@ export function MorningNote() {
 
   useEffect(() => {
     const ctrl = new AbortController();
-    fetch("/api/health/note", { signal: ctrl.signal })
-      .then((r) => (r.ok ? (r.json() as Promise<DailyNote | null>) : Promise.reject(new Error(String(r.status)))))
-      .then(setNote)
-      .catch((e) => e?.name !== "AbortError" && setFailed(true));
-    return () => ctrl.abort();
+    const load = () =>
+      fetch("/api/health/note", { signal: ctrl.signal })
+        .then((r) => (r.ok ? (r.json() as Promise<DailyNote | null>) : Promise.reject(new Error(String(r.status)))))
+        .then(setNote)
+        .catch((e) => e?.name !== "AbortError" && setFailed(true));
+    void load();
+    // Waiting for last night's sleep: ask again when the sync started on open has finished.
+    window.addEventListener(GARMIN_SYNCED, load);
+    return () => {
+      ctrl.abort();
+      window.removeEventListener(GARMIN_SYNCED, load);
+    };
   }, []);
 
   async function act(keep: boolean) {
@@ -45,6 +53,7 @@ export function MorningNote() {
       </section>
     );
   }
+  if (note.waiting) return <p className="mt-8 text-[13px] text-muted-foreground">{t("waiting")}</p>;
   const alert = note.alert && !note.alertDone;
   return (
     <section className="mt-8">
