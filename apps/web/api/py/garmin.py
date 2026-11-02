@@ -291,12 +291,41 @@ def op_delete_workout(b: dict[str, Any]) -> dict[str, Any]:
     return {"ok": True, "tokens": changed_tokens(g, tokens)}
 
 
+HISTORY_PAGE = 1000
+HISTORY_MAX = 5000
+
+
+def op_fetch_history(b: dict[str, Any]) -> dict[str, Any]:
+    """Every activity ever, summary only (date, type, start point, km): for country and distance stamps."""
+    tokens = b["tokens"]
+    g = session_from(tokens)
+    _profile(g)
+    out: list[dict[str, Any]] = []
+    start = 0
+    while start < HISTORY_MAX:
+        page = g.get_activities(start, HISTORY_PAGE) or []
+        for a in page:
+            out.append({
+                "id": a.get("activityId"),
+                "date": str(a.get("startTimeLocal") or "")[:10],
+                "typeKey": (a.get("activityType") or {}).get("typeKey"),
+                "lat": a.get("startLatitude"),
+                "lon": a.get("startLongitude"),
+                "km": round((a.get("distance") or 0) / 1000, 2),
+            })
+        if len(page) < HISTORY_PAGE:
+            break
+        start += len(page)
+    return {"activities": out, "tokens": changed_tokens(g, tokens)}
+
+
 OPS = {
     "login": op_login,
     "login_mfa": op_login_mfa,
     "fetch": op_fetch,
     "fetch_recovery": op_fetch_recovery,
     "fetch_thresholds": op_fetch_thresholds,
+    "fetch_history": op_fetch_history,
     "push_workout": op_push_workout,
     "delete_workout": op_delete_workout,
 }

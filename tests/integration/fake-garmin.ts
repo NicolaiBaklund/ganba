@@ -1,4 +1,4 @@
-import { GarminError, type FetchResult, type GarminActivityRaw, type GarminPredictionDay, type GarminRecord, type GarminSource } from "@/lib/garmin/adapter";
+import { GarminError, type FetchResult, type GarminActivityRaw, type GarminHistoryItem, type GarminPredictionDay, type GarminRecord, type GarminSource } from "@/lib/garmin/adapter";
 
 /** In-memory Garmin for integration tests: set days/activities, record pushes and deletes. */
 export class FakeGarmin implements GarminSource {
@@ -13,6 +13,8 @@ export class FakeGarmin implements GarminSource {
   recoveryFailWith: GarminError | null = null;
   predictionDays: GarminPredictionDay[] = [];
   personalRecords: GarminRecord[] = [];
+  history: GarminHistoryItem[] = [];
+  historyFetches = 0;
   private nextId = 1000;
 
   async login(): Promise<{ ok: true; tokens: string }> {
@@ -49,6 +51,10 @@ export class FakeGarmin implements GarminSource {
   thresholds = { lthrRunning: 180 as number | null, lthrCycling: null as number | null, ftp: null as number | null, ftpDate: null as string | null };
   async fetchThresholds(_tokens: string) {
     return { ...this.thresholds, tokens: null };
+  }
+  async fetchHistory(_tokens: string) {
+    this.historyFetches++;
+    return { activities: this.history, tokens: null };
   }
   async pushWorkout(_tokens: string, workout: unknown, date: string) {
     if (this.failWith) throw this.failWith;

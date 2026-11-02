@@ -74,6 +74,8 @@ try {
     await page.goto(`${BASE}/progress`);
     await page.getByRole("heading", { name: "Stamps" }).waitFor();
     results[`${scheme}: Japan stamp`] = (await page.getByText("Japan").count()) > 0;
+    results[`${scheme}: globe`] = (await page.getByRole("img", { name: /Globe with the 1 countries/ }).count()) === 1;
+    await page.waitForTimeout(600);
     await page.screenshot({ path: `tests/smoke/out/62-health-progress-${scheme}.png`, fullPage: true, caret: "initial" });
     await page.goto(`${BASE}/today`);
     await page.getByText("Coach, this morning").waitFor();

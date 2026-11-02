@@ -10,6 +10,8 @@ import { fmtClock } from "@/lib/training/format";
 import { RaceClock } from "@/components/health/RaceClock";
 import { StampBook } from "@/components/health/StampBook";
 import { BodyCurves } from "@/components/health/BodyCurves";
+import { Globe } from "@/components/health/Globe";
+import { globeId } from "@/lib/health/country";
 
 const DISTANCES: RaceDistance[] = ["5k", "10k", "half", "marathon"];
 
@@ -19,6 +21,8 @@ export default async function ProgressPage() {
   const t = await getTranslations("health");
   const v = await loadRecoveryView(user.id);
   const [clock, stamps] = await Promise.all([loadClock(user.id, v.today), loadStampBook(user.id)]);
+  // Newest first, so the globe opens facing the latest country.
+  const countries = stamps.filter((s) => s.kind === "country" && s.earnedOn).flatMap((s) => globeId(s.key) ?? []);
 
   return (
     <main className="flex flex-col px-[18px] pb-8 pt-5">
@@ -39,6 +43,18 @@ export default async function ProgressPage() {
             ))}
           </dl>
         </>
+      )}
+      {countries.length > 0 && (
+        <section className="mt-10">
+          <div className="flex items-baseline justify-between border-b-2 border-foreground pb-1.5">
+            <h2 className="cond text-[22px] leading-none">{t("countries")}</h2>
+            <span className="num text-[17px] font-extrabold">{countries.length}</span>
+          </div>
+          <div className="mt-5">
+            <Globe visited={countries} label={t("globeLabel", { n: countries.length })} />
+          </div>
+          <p className="mt-2 text-center text-[13px] text-muted-foreground">{t("globeHint")}</p>
+        </section>
       )}
       <StampBook stamps={stamps} />
       {v.garmin !== "none" && (

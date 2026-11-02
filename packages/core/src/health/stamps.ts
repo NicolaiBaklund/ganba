@@ -30,6 +30,8 @@ export interface StampRun {
 
 export interface StampInput {
   runs: readonly StampRun[];
+  /** Rides count for countries only. */
+  rides?: readonly StampRun[];
   records: readonly { typeId: number; value: number; date: ISODate | null }[];
   /** Finished plan weeks: planned and done sessions. */
   weeks: readonly { start: ISODate; planned: number; done: number }[];
@@ -42,7 +44,7 @@ export function earnedStamps(input: StampInput): Stamp[] {
   const runs = [...input.runs].sort((a, b) => a.date.localeCompare(b.date));
 
   const countries = new Set<string>();
-  for (const r of runs) {
+  for (const r of [...runs, ...(input.rides ?? [])].sort((a, b) => a.date.localeCompare(b.date))) {
     if (!r.country || countries.has(r.country)) continue;
     countries.add(r.country);
     out.push({ kind: "country", key: r.country, earnedOn: r.date, activityId: r.id });

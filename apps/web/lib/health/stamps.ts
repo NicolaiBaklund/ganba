@@ -1,5 +1,5 @@
 import "server-only";
-import { earnedStamps, isRun, PR_TYPES, weekStartOn, type ISODate, type Stamp, type StampKind } from "@loop/core";
+import { earnedStamps, isRide, isRun, PR_TYPES, weekStartOn, type ISODate, type Stamp, type StampKind } from "@loop/core";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import type { Json } from "@/lib/db/types";
 import { countryName, countryOf } from "./country";
@@ -7,27 +7,39 @@ import { countryName, countryOf } from "./country";
 const db = () => createAdminSupabase();
 const num = (v: unknown) => (v == null ? null : Number(v));
 
-/** Runs as stamps see them: km and the country they started in. */
-async function runsOf(userId: string) {
+type Move = { id: string; date: ISODate; km: number; country: string | null };
+type HistoryItem = { id: number | null; date: string; typeKey: string | null; lat: number | null; lon: number | null; km: number };
+
+/**
+ * Runs and rides as stamps see them: km and the country they started in. Synced activities, plus the whole Garmin
+ * history (summary only) for what lies before the import; an activity in both counts once.
+ */
+async function movesOf(userId: string, history: HistoryItem[]): Promise<{ runs: Move[]; rides: Move[] }> {
   const { data, error } = await db()
     .from("activities")
-    .select("id, local_date, type_key, distance_m, lat:raw->startLatitude, lon:raw->startLongitude")
+    .select("id, garmin_activity_id, local_date, type_key, distance_m, lat:raw->startLatitude, lon:raw->startLongitude")
     .eq("user_id", userId)
     .order("local_date");
   if (error) throw error;
-  return (data ?? [])
-    .filter((a) => isRun(a.type_key) && Number(a.distance_m) > 0)
-    .map((a) => ({ id: a.id, date: a.local_date, km: Number(a.distance_m) / 1000, country: countryOf(num(a.lat), num(a.lon)) }));
+  const rows = data ?? [];
+  const synced = new Set(rows.map((a) => a.garmin_activity_id).filter((x) => x != null));
+  const moves = [
+    ...rows.map((a) => ({ id: a.id as string | null, type: a.type_key, date: a.local_date, km: Number(a.distance_m ?? 0) / 1000, lat: num(a.lat), lon: num(a.lon) })),
+    ...history.filter((h) => h.date && h.typeKey && !(h.id != null && synced.has(h.id))).map((h) => ({ id: null, type: h.typeKey!, date: h.date, km: Number(h.km ?? 0), lat: h.lat, lon: h.lon })),
+  ].filter((m) => m.km > 0);
+  // Stamps link to stored activities only; history runs have none.
+  const toMove = (m: (typeof moves)[number]): Move => ({ id: m.id ?? "", date: m.date, km: m.km, country: countryOf(m.lat, m.lon) });
+  return { runs: moves.filter((m) => isRun(m.type)).map(toMove), rides: moves.filter((m) => isRide(m.type)).map(toMove) };
 }
 
-/** Every stamp the data supports, stored once: a later sync never adds the same (kind, key) again. */
+/** Every stamp the data supports, one row per (kind, key); fully derived, so a rerun with older history moves a stamp to its earliest date. */
 export async function refreshStamps(userId: string, today: ISODate): Promise<void> {
-  const [runs, acct, workouts] = await Promise.all([
-    runsOf(userId),
-    db().from("garmin_accounts").select("personal_records").eq("user_id", userId).maybeSingle(),
+  const [acct, workouts] = await Promise.all([
+    db().from("garmin_accounts").select("personal_records, activity_history").eq("user_id", userId).maybeSingle(),
     db().from("planned_workouts").select("date, type, status, activity_id, sport").eq("user_id", userId).lt("date", today),
   ]);
   if (workouts.error) throw workouts.error;
+  const { runs, rides } = await movesOf(userId, (acct.data?.activity_history ?? []) as HistoryItem[]);
   const rows = workouts.data ?? [];
 
   // Finished weeks only (the current one could still be completed).
@@ -53,6 +65,7 @@ export async function refreshStamps(userId: string, today: ISODate): Promise<voi
   const records = ((acct.data?.personal_records ?? []) as { typeId: number; value: number; date: string | null }[]).filter((r) => r && typeof r.typeId === "number");
   const stamps = earnedStamps({
     runs,
+    rides,
     records,
     weeks: [...weeks].map(([start, w]) => ({ start, ...w })),
     tests: done("test").map((w) => ({ date: w.date, activityId: w.activity_id! })),
@@ -62,8 +75,8 @@ export async function refreshStamps(userId: string, today: ISODate): Promise<voi
   const { error } = await db()
     .from("stamps")
     .upsert(
-      stamps.map((s) => ({ user_id: userId, kind: s.kind, key: s.key, earned_on: s.earnedOn, activity_id: s.activityId ?? null, value: (s.value ?? null) as Json })),
-      { onConflict: "user_id,kind,key", ignoreDuplicates: true },
+      stamps.map((s) => ({ user_id: userId, kind: s.kind, key: s.key, earned_on: s.earnedOn, activity_id: s.activityId || null, value: (s.value ?? null) as Json })),
+      { onConflict: "user_id,kind,key" },
     );
   if (error) throw error;
 }

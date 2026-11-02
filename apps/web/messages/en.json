@@ -867,6 +867,9 @@
       "10k": "10K",
       "half": "Half",
       "marathon": "Marathon"
-    }
+    },
+    "countries": "Countries",
+    "globeLabel": "Globe with the {n} countries you have run or ridden in",
+    "globeHint": "Drag to spin"
   }
 }

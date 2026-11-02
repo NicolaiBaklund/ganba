@@ -609,6 +609,7 @@ export type Database = {
       }
       garmin_accounts: {
         Row: {
+          activity_history: Json | null
           auth_tag: string
           ciphertext: string
           connected_at: string
@@ -616,6 +617,7 @@ export type Database = {
           ftp_cycling: number | null
           ftp_cycling_at: string | null
           history_imported_at: string | null
+          history_scanned_at: string | null
           iv: string
           last_synced_at: string | null
           last_synced_date: string | null
@@ -636,6 +638,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          activity_history?: Json | null
           auth_tag: string
           ciphertext: string
           connected_at?: string
@@ -643,6 +646,7 @@ export type Database = {
           ftp_cycling?: number | null
           ftp_cycling_at?: string | null
           history_imported_at?: string | null
+          history_scanned_at?: string | null
           iv: string
           last_synced_at?: string | null
           last_synced_date?: string | null
@@ -663,6 +667,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          activity_history?: Json | null
           auth_tag?: string
           ciphertext?: string
           connected_at?: string
@@ -670,6 +675,7 @@ export type Database = {
           ftp_cycling?: number | null
           ftp_cycling_at?: string | null
           history_imported_at?: string | null
+          history_scanned_at?: string | null
           iv?: string
           last_synced_at?: string | null
           last_synced_date?: string | null

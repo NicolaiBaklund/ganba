@@ -11,3 +11,8 @@ export function countryOf(lat: number | null | undefined, lon: number | null | u
 export function countryName(iso3: string): string {
   return feature(iso3)?.properties.nameEn ?? iso3;
 }
+
+/** For the globe: the ISO numeric id world-atlas uses (JPN → "392"). */
+export function globeId(iso3: string): string | null {
+  return feature(iso3)?.properties.iso1N3 ?? null;
+}

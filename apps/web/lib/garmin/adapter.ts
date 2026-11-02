@@ -64,6 +64,16 @@ export interface GarminRecord {
   activityId: number | null;
 }
 
+/** One activity from the whole history, summary only (for stamps). */
+export interface GarminHistoryItem {
+  id: number | null;
+  date: string;
+  typeKey: string | null;
+  lat: number | null;
+  lon: number | null;
+  km: number;
+}
+
 /** One requested morning: Garmin's sleep and HRV payloads, null when Garmin had nothing. */
 export interface GarminNightRaw {
   date: string;
@@ -87,6 +97,8 @@ export interface GarminSource {
   /** Lactate threshold heart rates (for cycling zones); null when Garmin has none. */
   /** Threshold heart rates and the cycling FTP (null when unset or stale) with the day it was set. */
   fetchThresholds(tokens: string): Promise<{ lthrRunning: number | null; lthrCycling: number | null; ftp: number | null; ftpDate: string | null; tokens: string | null }>;
+  /** Every activity ever (summary only), once per account for country and distance stamps. */
+  fetchHistory(tokens: string): Promise<{ activities: GarminHistoryItem[]; tokens: string | null }>;
   pushWorkout(tokens: string, workout: unknown, date: string): Promise<{ workoutId: number; scheduleId: number | null; tokens: string | null }>;
   deleteWorkout(tokens: string, workoutId: number, scheduleId: number | null): Promise<{ tokens: string | null }>;
 }
@@ -126,6 +138,7 @@ export const httpGarmin = (): GarminSource => ({
   // Extra to the sync, so it must leave room within the 120 s function limit for the rest.
   fetchRecovery: (tokens, dates) => call({ op: "fetch_recovery", tokens, dates }, 40_000),
   fetchThresholds: (tokens) => call({ op: "fetch_thresholds", tokens }, 20_000),
+  fetchHistory: (tokens) => call({ op: "fetch_history", tokens }, 30_000),
   pushWorkout: (tokens, workout, date) => call({ op: "push_workout", tokens, workout, date }),
   deleteWorkout: (tokens, workoutId, scheduleId) => call({ op: "delete_workout", tokens, workoutId, scheduleId }),
 });

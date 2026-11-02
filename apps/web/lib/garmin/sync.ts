@@ -181,6 +181,19 @@ export async function syncGarmin(userId: string, opts: SyncOptions = {}): Promis
       console.error("garmin recovery fetch failed", userId, e instanceof Error ? e.message : e);
     }
 
+    // The whole history (summary only) once per account, for country and distance stamps. Never fails the sync.
+    try {
+      const { data: acct } = await db.from("garmin_accounts").select("history_scanned_at").eq("user_id", userId).single();
+      if (!acct?.history_scanned_at) {
+        const h = await source.fetchHistory(res.tokens ?? tokens);
+        if (h.tokens) await updateTokens(userId, h.tokens);
+        await db.from("garmin_accounts").update({ activity_history: h.activities as unknown as Json, history_scanned_at: new Date().toISOString() }).eq("user_id", userId);
+      }
+    } catch (e) {
+      if (e instanceof GarminError && e.kind === "auth") throw e;
+      console.error("garmin history fetch failed", userId, e instanceof Error ? e.message : e);
+    }
+
     if (opts.afterSync) await opts.afterSync(userId, today);
     return { status: "ok", from, to: today, days: dayRows.length, activities: actRows.length, nights, firstSync };
   } catch (e) {
