@@ -11,6 +11,8 @@ import { WeekCard } from "@/components/today/WeekCard";
 import { ManualDone } from "@/components/training/ManualDone";
 import { buttonVariants } from "@/components/ui/button";
 import { canLogByHand } from "@/lib/training/format";
+import { HealthTop } from "@/components/health/HealthTop";
+import { loadHealthView } from "@/lib/health/view";
 import { cn } from "@/lib/utils";
 
 /**
@@ -22,7 +24,7 @@ export async function TrainingToday({ supabase, userId, date }: { supabase: DB; 
   // Plan upkeep without Garmin (done, missed, proposals) happens while loading the view.
   const v = await loadTrainingView(userId);
   const day: ISODate = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : v.today;
-  const [week, session] = await Promise.all([loadWeekStrip(supabase, userId, day), todaysWorkout(userId, day)]);
+  const [week, session, health] = await Promise.all([loadWeekStrip(supabase, userId, day), todaysWorkout(userId, day), loadHealthView(userId, day)]);
   const next = session.plan && !session.workout ? await nextWorkout(userId, day) : null;
   const w = session.workout;
   const canLog = !!w && canLogByHand(w, v.today, !!v.garmin);
@@ -30,6 +32,7 @@ export async function TrainingToday({ supabase, userId, date }: { supabase: DB; 
   return (
     <main className="flex flex-col px-[18px] pb-4">
       <WeekStrip days={week} date={day} today={v.today} basePath="/today" profileLink />
+      {v.plan && <HealthTop view={health} date={day} today={v.today} />}
       {!v.plan ? (
         <div className="mt-6 rounded-md bg-card p-5">
           <h2 className="cond text-2xl leading-tight">{t("noPlanTitle")}</h2>
