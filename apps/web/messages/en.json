@@ -837,5 +837,39 @@
     "moreWeeks": "{n, plural, one {# more week changes too} other {# more weeks change too}}",
     "notNow": "Not now",
     "notUsed": "Not used"
+  },
+  "health": {
+    "ifToday": "{race}, if it were today",
+    "finished": "{race}, your time",
+    "daysLeft": "in {days} days",
+    "lineLabel": "Predicted {race} time over time, with tests and race day ahead",
+    "open": "Open progress",
+    "now": "Now",
+    "coach": "Coach, this morning",
+    "swap": "Swap to easy {km} km",
+    "keep": "Keep the plan",
+    "gotIt": "Got it",
+    "swapped": "Swapped to an easy run",
+    "error": "Couldn’t update. Try again.",
+    "onPlanToday": "on plan you get it today",
+    "onPlanDay": "on plan you get it {day}",
+    "title": "Progress",
+    "back": "Today",
+    "stamps": "Stamps",
+    "noStamps": "Your first run gives your first stamp.",
+    "earnedRun": "Earned {date}, on your {km} km run.",
+    "earned": "Earned {date}.",
+    "notYet": "Not earned yet. It comes on its own when you get there.",
+    "body": "Body",
+    "fetching": "Fetching sleep data: {days} of 90 days",
+    "distance": {
+      "5k": "5K",
+      "10k": "10K",
+      "half": "Half",
+      "marathon": "Marathon"
+    },
+    "countries": "Countries",
+    "globeLabel": "Globe with the {n} countries you have run or ridden in",
+    "globeHint": "Drag to spin"
   }
 }

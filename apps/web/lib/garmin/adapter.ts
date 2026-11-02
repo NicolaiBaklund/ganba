@@ -41,8 +41,37 @@ export interface FetchResult {
   details: Record<string, { splits: unknown; hrZones: unknown } | null>;
   /** Garmin's race predictor (seconds), when available. */
   racePredictions?: { time5K?: number | null; time10K?: number | null; timeHalfMarathon?: number | null; timeMarathon?: number | null } | null;
+  /** The predictor per day over the fetched range (at most a year back); absent from older adapters. */
+  predictionDays?: GarminPredictionDay[] | null;
+  /** Running records: typeId 1 km, 2 mile, 3 5K, 4 10K, 5 half, 6 marathon (seconds), 7 longest run (metres). */
+  personalRecords?: GarminRecord[] | null;
   /** Present only when Garmin refreshed them. */
   tokens: string | null;
+}
+
+export interface GarminPredictionDay {
+  calendarDate: string;
+  time5K: number | null;
+  time10K: number | null;
+  timeHalfMarathon: number | null;
+  timeMarathon: number | null;
+}
+
+export interface GarminRecord {
+  typeId: number;
+  value: number;
+  date: string | null;
+  activityId: number | null;
+}
+
+/** One activity from the whole history, summary only (for stamps). */
+export interface GarminHistoryItem {
+  id: number | null;
+  date: string;
+  typeKey: string | null;
+  lat: number | null;
+  lon: number | null;
+  km: number;
 }
 
 /** One requested morning: Garmin's sleep and HRV payloads, null when Garmin had nothing. */
@@ -63,11 +92,14 @@ export type LoginResult = { ok: true; tokens: string } | { mfa: true; mfaState: 
 export interface GarminSource {
   login(email: string, password: string): Promise<LoginResult>;
   loginMfa(mfaState: unknown, code: string): Promise<{ ok: true; tokens: string }>;
-  fetch(tokens: string, from: string, to: string, knownIds: number[]): Promise<FetchResult>;
+  /** `predictionsFrom`: fetch the daily race predictions from this date instead of `from` (at most a year back). */
+  fetch(tokens: string, from: string, to: string, knownIds: number[], opts?: { predictionsFrom?: string }): Promise<FetchResult>;
   fetchRecovery(tokens: string, dates: string[]): Promise<FetchRecoveryResult>;
   /** Lactate threshold heart rates (for cycling zones); null when Garmin has none. */
   /** Threshold heart rates and the cycling FTP (null when unset or stale) with the day it was set. */
   fetchThresholds(tokens: string): Promise<{ lthrRunning: number | null; lthrCycling: number | null; ftp: number | null; ftpDate: string | null; tokens: string | null }>;
+  /** Every activity ever (summary only), once per account for country and distance stamps. */
+  fetchHistory(tokens: string): Promise<{ activities: GarminHistoryItem[]; tokens: string | null }>;
   pushWorkout(tokens: string, workout: unknown, date: string): Promise<{ workoutId: number; scheduleId: number | null; tokens: string | null }>;
   deleteWorkout(tokens: string, workoutId: number, scheduleId: number | null): Promise<{ tokens: string | null }>;
 }
@@ -103,10 +135,11 @@ async function call<T>(body: Record<string, unknown>, timeoutMs = 110_000): Prom
 export const httpGarmin = (): GarminSource => ({
   login: (email, password) => call({ op: "login", email, password }),
   loginMfa: (mfaState, code) => call({ op: "login_mfa", mfaState, code }),
-  fetch: (tokens, from, to, knownIds) => call({ op: "fetch", tokens, from, to, knownIds }),
+  fetch: (tokens, from, to, knownIds, opts) => call({ op: "fetch", tokens, from, to, knownIds, ...(opts?.predictionsFrom ? { predictionsFrom: opts.predictionsFrom } : {}) }),
   // Extra to the sync, so it must leave room within the 120 s function limit for the rest.
   fetchRecovery: (tokens, dates) => call({ op: "fetch_recovery", tokens, dates }, 40_000),
   fetchThresholds: (tokens) => call({ op: "fetch_thresholds", tokens }, 20_000),
+  fetchHistory: (tokens) => call({ op: "fetch_history", tokens }, 30_000),
   pushWorkout: (tokens, workout, date) => call({ op: "push_workout", tokens, workout, date }),
   deleteWorkout: (tokens, workoutId, scheduleId) => call({ op: "delete_workout", tokens, workoutId, scheduleId }),
 });

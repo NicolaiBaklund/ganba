@@ -10,7 +10,7 @@ A training plan, nutrition, recovery and weight tracking in one mobile web app, 
 ![Supabase](https://img.shields.io/badge/Supabase-3ecf8e?logo=supabase&logoColor=fff)
 ![Vercel](https://img.shields.io/badge/Vercel-000?logo=vercel)
 
-![Ganba: Today, Training, Coach and Form](docs/screenshots/hero.png)
+![Ganba: Today, Training, Coach and Progress](docs/screenshots/hero.png)
 
 </div>
 
@@ -21,14 +21,16 @@ A training plan, nutrition, recovery and weight tracking in one mobile web app, 
 ### Today
 - Today's session as a race bib, with what to eat before and after.
 - Calories left, macros, and how much today's activity added to your target.
-- Form, a daily 0–100 readiness number from your sleep, HRV, resting heart rate, training load and food. Tap it to see what drives it.
+- A race clock: your predicted time for the race you train for (from Garmin), how it moved since yesterday, and the road to race day.
+- A short note from the coach every morning about yesterday and today. When resting heart rate and HRV have been off for days it says so, with one tap to swap a hard session for an easy one.
+- Stamps that come on their own: countries you have run or ridden in (on a globe you can spin), distances, personal bests, big months and weeks on plan.
 - The week at a glance: which days you logged food and which sessions you did.
 
 ### Coach
 - One ongoing conversation about anything: training, food, recovery and your body.
 - It looks things up itself instead of asking: your food log, a session's laps and heart rate, sleep and HRV, weight, the plan.
 - "I have 700 kcal left, what should I eat?" gets an answer that takes tomorrow's session into account, starting with a direction ("a teishoku with a full bowl of rice") and getting as concrete as you want.
-- "I gave up after one interval" gets talked through: what came before (food, sleep, Form), what the laps show, what to change next time.
+- "I gave up after one interval" gets talked through: what came before (food, sleep, resting heart rate), what the laps show, what to change next time.
 - It changes the plan when you ask: moves, rewrites or adds sessions, checks the load first, and says plainly when something is unwise.
 - The answer streams in while the coach works, with a line showing what it is looking at.
 
@@ -51,9 +53,9 @@ A training plan, nutrition, recovery and weight tracking in one mobile web app, 
 
 ## Screenshots
 
-| Today | Training | Session | Coach | Form | Log food | Body | New plan |
+| Today | Training | Session | Coach | Progress | Log food | Body | New plan |
 |:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| <img src="docs/screenshots/today.png" width="140"> | <img src="docs/screenshots/training.png" width="140"> | <img src="docs/screenshots/workout.png" width="140"> | <img src="docs/screenshots/coach.png" width="140"> | <img src="docs/screenshots/form.png" width="140"> | <img src="docs/screenshots/food-ai.png" width="140"> | <img src="docs/screenshots/body.png" width="140"> | <img src="docs/screenshots/wizard.png" width="140"> |
+| <img src="docs/screenshots/today.png" width="140"> | <img src="docs/screenshots/training.png" width="140"> | <img src="docs/screenshots/workout.png" width="140"> | <img src="docs/screenshots/coach.png" width="140"> | <img src="docs/screenshots/progress.png" width="140"> | <img src="docs/screenshots/food-ai.png" width="140"> | <img src="docs/screenshots/body.png" width="140"> | <img src="docs/screenshots/wizard.png" width="140"> |
 
 Screenshots are made with `node scripts/screenshots.mjs` against a running app and a seeded demo user. With `ANTHROPIC_API_KEY` set, the coach screenshot is a real answer.
 
@@ -64,7 +66,7 @@ Screenshots are made with `node scripts/screenshots.mjs` against a running app a
 | 1 | Nutrition, food logging from photos, weight trend, weekly check-in | Done |
 | 2 | Garmin sync, activity-based daily target, training plan on the watch | Testing |
 | 2 | New design ("Tasuki"), new logo, light and dark mode | Done |
-| 2 | Form: daily readiness from your own data | Done |
+| 2 | Health: race clock, morning note, alerts with one action, stamps and a globe (replaced the daily Form score) | Done |
 | 2 | Plan variety, build-fitness plans, fitness tests, hills | Done |
 | 2 | Cycling plans with heart rate or power, combined running and cycling | Done |
 | 2 | Coach v2: its own tab, food help, looks up your data, streaming answers | Done |

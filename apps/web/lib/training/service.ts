@@ -46,7 +46,7 @@ import type { Database, Json } from "@/lib/db/types";
 import { httpGarmin, type GarminSource } from "@/lib/garmin/adapter";
 import { loadTokens, updateTokens } from "@/lib/garmin/accounts";
 import { toGarminWorkout } from "@/lib/garmin/workout-json";
-import { computeRecovery } from "@/lib/recovery/compute";
+import { computeHealth } from "@/lib/health/compute";
 import { qualityResultsBetween } from "./quality";
 
 type Tables = Database["public"]["Tables"];
@@ -934,11 +934,11 @@ export async function afterGarminSync(userId: string, today: ISODate, source?: G
   await reconcilePlan(userId, today);
   await refreshProposals(userId, today);
   await pushToGarmin(userId, today, source);
-  // Recovery never blocks training upkeep.
+  // Health (stamps, predictions) never blocks training upkeep.
   try {
-    await computeRecovery(userId, today);
+    await computeHealth(userId, today);
   } catch (e) {
-    console.error("recovery compute failed", userId, e instanceof Error ? e.message : e);
+    console.error("health compute failed", userId, e instanceof Error ? e.message : e);
   }
 }
 
@@ -956,6 +956,11 @@ export async function upkeepWithoutGarmin(userId: string, today: ISODate, opts: 
   }
   await reconcilePlan(userId, today);
   await refreshProposals(userId, today);
+  try {
+    await computeHealth(userId, today);
+  } catch (e) {
+    console.error("health compute failed", userId, e instanceof Error ? e.message : e);
+  }
 }
 
 export type ManualRunError = "not_found" | "not_open" | "not_manual";

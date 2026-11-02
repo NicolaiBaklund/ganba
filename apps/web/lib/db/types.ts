@@ -396,6 +396,45 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_notes: {
+        Row: {
+          alert: string | null
+          alert_done: boolean
+          created_at: string
+          facts: Json
+          id: string
+          local_date: string
+          source: string
+          text: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          alert?: string | null
+          alert_done?: boolean
+          created_at?: string
+          facts?: Json
+          id?: string
+          local_date: string
+          source: string
+          text: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          alert?: string | null
+          alert_done?: boolean
+          created_at?: string
+          facts?: Json
+          id?: string
+          local_date?: string
+          source?: string
+          text?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       energy_plans: {
         Row: {
           base_expenditure_kcal: number
@@ -570,6 +609,7 @@ export type Database = {
       }
       garmin_accounts: {
         Row: {
+          activity_history: Json | null
           auth_tag: string
           ciphertext: string
           connected_at: string
@@ -577,11 +617,14 @@ export type Database = {
           ftp_cycling: number | null
           ftp_cycling_at: string | null
           history_imported_at: string | null
+          history_scanned_at: string | null
           iv: string
           last_synced_at: string | null
           last_synced_date: string | null
           lthr_cycling: number | null
           lthr_running: number | null
+          personal_records: Json | null
+          personal_records_at: string | null
           race_predictions: Json | null
           race_predictions_at: string | null
           recovery_backfilled_until: string | null
@@ -595,6 +638,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          activity_history?: Json | null
           auth_tag: string
           ciphertext: string
           connected_at?: string
@@ -602,11 +646,14 @@ export type Database = {
           ftp_cycling?: number | null
           ftp_cycling_at?: string | null
           history_imported_at?: string | null
+          history_scanned_at?: string | null
           iv: string
           last_synced_at?: string | null
           last_synced_date?: string | null
           lthr_cycling?: number | null
           lthr_running?: number | null
+          personal_records?: Json | null
+          personal_records_at?: string | null
           race_predictions?: Json | null
           race_predictions_at?: string | null
           recovery_backfilled_until?: string | null
@@ -620,6 +667,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          activity_history?: Json | null
           auth_tag?: string
           ciphertext?: string
           connected_at?: string
@@ -627,11 +675,14 @@ export type Database = {
           ftp_cycling?: number | null
           ftp_cycling_at?: string | null
           history_imported_at?: string | null
+          history_scanned_at?: string | null
           iv?: string
           last_synced_at?: string | null
           last_synced_date?: string | null
           lthr_cycling?: number | null
           lthr_running?: number | null
+          personal_records?: Json | null
+          personal_records_at?: string | null
           race_predictions?: Json | null
           race_predictions_at?: string | null
           recovery_backfilled_until?: string | null
@@ -938,6 +989,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      prediction_days: {
+        Row: {
+          created_at: string
+          id: string
+          local_date: string
+          source: string
+          time_10k_s: number | null
+          time_5k_s: number | null
+          time_half_s: number | null
+          time_marathon_s: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          local_date: string
+          source: string
+          time_10k_s?: number | null
+          time_5k_s?: number | null
+          time_half_s?: number | null
+          time_marathon_s?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          local_date?: string
+          source?: string
+          time_10k_s?: number | null
+          time_5k_s?: number | null
+          time_half_s?: number | null
+          time_marathon_s?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -1267,6 +1357,47 @@ export type Database = {
           week_start?: string
         }
         Relationships: []
+      }
+      stamps: {
+        Row: {
+          activity_id: string | null
+          created_at: string
+          earned_on: string
+          id: string
+          key: string
+          kind: string
+          user_id: string
+          value: Json | null
+        }
+        Insert: {
+          activity_id?: string | null
+          created_at?: string
+          earned_on: string
+          id?: string
+          key: string
+          kind: string
+          user_id: string
+          value?: Json | null
+        }
+        Update: {
+          activity_id?: string | null
+          created_at?: string
+          earned_on?: string
+          id?: string
+          key?: string
+          kind?: string
+          user_id?: string
+          value?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stamps_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       training_plans: {
         Row: {

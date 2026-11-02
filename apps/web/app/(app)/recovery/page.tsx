@@ -1,40 +1,6 @@
-import Link from "next/link";
-import { getTranslations } from "next-intl/server";
-import { requireUser } from "@/lib/supabase/server";
-import { loadRecoveryView } from "@/lib/recovery/view";
-import { RECOVERY_HISTORY_DAYS } from "@/lib/recovery/fetch";
-import { RecoveryScreen } from "@/components/recovery/RecoveryScreen";
-import { AiOff } from "@/components/recovery/AiOff";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { ChevronLeft } from "lucide-react";
+import { redirect } from "next/navigation";
 
-export default async function RecoveryPage() {
-  const { user } = await requireUser();
-  const t = await getTranslations("recovery");
-  const v = await loadRecoveryView(user.id);
-
-  if (v.garmin === "none") {
-    return (
-      <main className="flex flex-col px-[18px] pt-5">
-        <h1 className="cond text-[34px] leading-none">{t("title")}</h1>
-        <p className="mt-6 text-[15px]">{t("noGarmin")}</p>
-        <Link href="/profile#garmin" className={cn(buttonVariants(), "mt-4 h-12 self-start px-5")}>
-          {t("connect")}
-        </Link>
-      </main>
-    );
-  }
-  return (
-    <main className="flex flex-col px-[18px] pb-4 pt-5">
-      <Link href="/today" className="-ml-1 flex items-center gap-1 self-start text-sm text-muted-foreground">
-        <ChevronLeft className="size-4" />
-        {t("back")}
-      </Link>
-      <h1 className="cond mt-2 text-[34px] leading-none">{t("formTitle")}</h1>
-      {v.historyDays < RECOVERY_HISTORY_DAYS && <p className="mt-2 text-[13px] text-muted-foreground">{t("fetching", { days: v.historyDays })}</p>}
-      {!v.consent && <AiOff />}
-      <RecoveryScreen view={v} ai={v.consent} />
-    </main>
-  );
+/** Recovery became Progress (spec docs/specs/2026-11-02-health.md §9); old links land there. */
+export default function RecoveryPage() {
+  redirect("/progress");
 }

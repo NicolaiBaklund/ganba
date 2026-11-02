@@ -1,4 +1,4 @@
-// README screenshots (dark mode): seeds a realistic demo user (meals, weight trend, Garmin runs, Form, a 10K plan),
+// README screenshots (dark mode): seeds a realistic demo user (meals, weight trend, Garmin runs, race predictions, stamps, a 10K plan),
 // captures the main screens at phone size and composes a hero image. The demo user is deleted afterwards.
 // With ANTHROPIC_API_KEY set, the coach answers for real (one paid call, a few cents); otherwise a fixed answer.
 // Usage: [ANTHROPIC_API_KEY=...] node scripts/screenshots.mjs [baseUrl]   (default http://localhost:3100, app must be running)
@@ -99,29 +99,17 @@ try {
       sleep_score: 70 + ((i * 7) % 13), hrv_avg: 54 + ((i * 5) % 9) - (i % 6 === 2 ? 5 : 0), resting_hr: 46 + ((i * 3) % 5), hrv_baseline_low: 50, hrv_baseline_high: 62,
     })),
   ));
-  const grp = (n, mean, bound) => ({ n, mean, bound, values: Array.from({ length: n }, (_, i) => Math.round((mean + ((i * 37) % 11) - 5) * 10) / 10) });
-  const found = (question_id, factor, outcome, lag, kind, groups, effect_sd, rank, reason = null) =>
-    ({ user_id: uid, computed_at: new Date().toISOString(), question_id, factor, outcome, lag, kind, reason, groups, effect_sd, q_value: kind === "finding" ? 0.03 : null, control_ok: kind === "finding" ? true : null, rank });
-  must(await admin.from("recovery_findings").insert([
-    found("deficit-hrv", "deficit", "hrv", 1, "finding", { high: grp(24, -4.2, 820), low: grp(23, 1.9, 240), needed: 9 }, -0.9, 1),
-    found("alcohol-sleep", "alcohol", "sleepScore", 1, "finding", { high: grp(9, -6.4, null), low: grp(58, 0.8, null), needed: 8 }, -0.8, 2),
-    found("sleep-run", "sleepScore", "runForm", 0, "finding", { high: grp(11, 0.4, 82), low: grp(10, -0.3, 72), needed: 8 }, 0.7, 3),
-    found("steps-sleep", "steps", "sleepScore", 1, "no_effect", { high: grp(26, 0.3, 12400), low: grp(25, 0.1, 7100), needed: 8 }, 0.05, null),
-    found("rest-run", "daysSinceHard", "runForm", 0, "needs_data", { high: grp(5, 0.2, 3), low: grp(6, -0.1, 1), needed: 8 }, null, null, "few_days"),
+  // Garmin's race predictor per day (synced on each sync, stubbed below): the race clock's line on Today.
+  must(await admin.from("prediction_days").insert(
+    Array.from({ length: 60 }, (_, i) => ({ user_id: uid, local_date: day(-59 + i), time_5k_s: 1390 - i, time_10k_s: 2900 - Math.round(i * 2.1), time_half_s: 6480 - i * 5, time_marathon_s: 13900 - i * 10, source: "garmin" })),
+  ));
+  must(await admin.from("stamps").insert([
+    { user_id: uid, kind: "country", key: "NOR", earned_on: day(-400) },
+    { user_id: uid, kind: "country", key: "JPN", earned_on: day(-50) },
+    { user_id: uid, kind: "distance", key: "10", earned_on: day(-300) },
+    { user_id: uid, kind: "distance", key: "15", earned_on: day(-200) },
+    { user_id: uid, kind: "volume", key: "50", earned_on: day(-35) },
   ]));
-
-  // Form today, as the engine stores it (the engine itself runs on sync, which is stubbed below).
-  must(await admin.from("form_days").insert({
-    user_id: uid, local_date: today, score: 72, band: "ready",
-    parts: [
-      { id: "hrv", points: 6, status: "ok", learned: false, values: { hrv: 61, low: 50, high: 62 } },
-      { id: "sleep", points: 4, status: "ok", learned: false, values: { score: 82, hours: 7.6 } },
-      { id: "rhr", points: 3, status: "ok", learned: false, values: { rhr: 45, normal: 47 } },
-      { id: "sleepDebt", points: -2, status: "ok", learned: false, values: { hours: -1.2, nights: 7 } },
-      { id: "lastHard", points: -3, status: "ok", learned: false, values: { days: 2, load: 160, typical: 180 } },
-      { id: "energy", points: 2, status: "ok", learned: true, values: { carbsPerKg: 4.2 } },
-    ],
-  }));
   must(await admin.from("profiles").update({ ai_health_consent: true, ai_health_consent_at: new Date().toISOString() }).eq("user_id", uid));
   // The person's Anthropic key, encrypted like the app does (food estimates are still mocked below).
   const realAi = !!process.env.ANTHROPIC_API_KEY;
@@ -176,6 +164,7 @@ try {
 
   await page.goto(`${BASE}/today`);
   await page.getByText(/^\+\d+ activity$/).first().waitFor();
+  await page.getByText("Coach, this morning").waitFor();
   await shot("today");
 
   await page.goto(`${BASE}/training`);
@@ -190,12 +179,11 @@ try {
   await page.waitForTimeout(800);
   await shot("body");
 
-  // Form detail page, opened from the Form card on Today.
-  if (!realAi) await page.route("**/api/recovery/**", (route) => route.fulfill({ status: 402, json: { error: "no_key" } }));
-  await page.goto(`${BASE}/recovery`);
-  await page.getByRole("heading", { name: "Form" }).waitFor();
-  await page.waitForTimeout(realAi ? 8000 : 800); // the AI sentence under the ring, when there is a key
-  await shot("form");
+  // Progress, opened from the race clock on Today: the clock, the globe and the stamp book.
+  await page.goto(`${BASE}/progress`);
+  await page.getByRole("heading", { name: "Progress" }).waitFor();
+  await page.waitForTimeout(1200); // the globe loads its map
+  await shot("progress");
 
   // The coach: a real answer with a key (it looks up the food log and tomorrow's session itself).
   const QUESTION = "Can I do the intervals tomorrow instead of today? Long day at work.";
@@ -256,11 +244,11 @@ try {
     .phone img{width:100%;height:100%;border-radius:34px;object-fit:cover;object-position:top}
     .phone:nth-child(2),.phone:nth-child(3){margin-top:-24px}
   </style></head><body><h1>${APP_NAME}</h1><p>Training plan, nutrition, recovery and a coach that knows your data.</p>
-  <div class="row">${["today", "training", "coach", "form"].map((n) => `<div class="phone"><img src="${img(n)}"/></div>`).join("")}</div></body></html>`);
+  <div class="row">${["today", "training", "coach", "progress"].map((n) => `<div class="phone"><img src="${img(n)}"/></div>`).join("")}</div></body></html>`);
   await hp.evaluate(() => document.fonts.ready);
   await hp.screenshot({ path: `${OUT}/hero.png` });
   await hero.close();
-  rmSync(`${OUT}/recovery.png`, { force: true }); // the Recovery tab became the Form page
+  for (const old of ["recovery", "form"]) rmSync(`${OUT}/${old}.png`, { force: true }); // Recovery became Form, then Progress
   console.log(`screenshots written to ${OUT}/ (coach: ${realAi ? "real AI answer" : "fixed answer"})`);
 } finally {
   await admin.auth.admin.deleteUser(uid).catch(() => {});

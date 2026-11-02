@@ -1,4 +1,4 @@
-import { GarminError, type FetchResult, type GarminActivityRaw, type GarminSource } from "@/lib/garmin/adapter";
+import { GarminError, type FetchResult, type GarminActivityRaw, type GarminHistoryItem, type GarminPredictionDay, type GarminRecord, type GarminSource } from "@/lib/garmin/adapter";
 
 /** In-memory Garmin for integration tests: set days/activities, record pushes and deletes. */
 export class FakeGarmin implements GarminSource {
@@ -7,10 +7,15 @@ export class FakeGarmin implements GarminSource {
   failWith: GarminError | null = null;
   pushed: { workout: unknown; date: string; workoutId: number }[] = [];
   deleted: number[] = [];
-  fetches: { from: string; to: string; knownIds: number[] }[] = [];
+  fetches: { from: string; to: string; knownIds: number[]; predictionsFrom?: string }[] = [];
   nights: Record<string, { sleep: unknown; hrv: unknown }> = {};
   recoveryFetches: string[][] = [];
   recoveryFailWith: GarminError | null = null;
+  /** null: an adapter or account without the predictor / records. */
+  predictionDays: GarminPredictionDay[] | null = [];
+  personalRecords: GarminRecord[] | null = [];
+  history: GarminHistoryItem[] = [];
+  historyFetches = 0;
   private nextId = 1000;
 
   async login(): Promise<{ ok: true; tokens: string }> {
@@ -19,9 +24,10 @@ export class FakeGarmin implements GarminSource {
   async loginMfa(): Promise<{ ok: true; tokens: string }> {
     return this.login();
   }
-  async fetch(_tokens: string, from: string, to: string, knownIds: number[]): Promise<FetchResult> {
+  async fetch(_tokens: string, from: string, to: string, knownIds: number[], opts: { predictionsFrom?: string } = {}): Promise<FetchResult> {
     if (this.failWith) throw this.failWith;
-    this.fetches.push({ from, to, knownIds });
+    this.fetches.push({ from, to, knownIds, ...opts });
+    const pFrom = opts.predictionsFrom ?? from;
     return {
       days: this.days.filter((d) => d.calendarDate >= from && d.calendarDate <= to),
       activities: this.activities.filter((a) => a.startTimeLocal.slice(0, 10) >= from && a.startTimeLocal.slice(0, 10) <= to),
@@ -30,6 +36,8 @@ export class FakeGarmin implements GarminSource {
           .filter((a) => a.activityType?.typeKey?.includes("run") && !knownIds.includes(a.activityId))
           .map((a) => [String(a.activityId), { splits: { lapDTOs: [{ distance: 1000, duration: 300, averageSpeed: 3.33, averageHR: 150 }] }, hrZones: [] }]),
       ),
+      predictionDays: this.predictionDays?.filter((p) => p.calendarDate >= pFrom && p.calendarDate <= to) ?? null,
+      personalRecords: this.personalRecords,
       tokens: null,
     };
   }
@@ -45,6 +53,10 @@ export class FakeGarmin implements GarminSource {
   thresholds = { lthrRunning: 180 as number | null, lthrCycling: null as number | null, ftp: null as number | null, ftpDate: null as string | null };
   async fetchThresholds(_tokens: string) {
     return { ...this.thresholds, tokens: null };
+  }
+  async fetchHistory(_tokens: string) {
+    this.historyFetches++;
+    return { activities: this.history, tokens: null };
   }
   async pushWorkout(_tokens: string, workout: unknown, date: string) {
     if (this.failWith) throw this.failWith;

@@ -4,9 +4,6 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { addDays, daysBetween, describeBlocks, fmtRideDuration, formatPace, isRide, trendSeries, weekday, type ISODate } from "@loop/core";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { getDaySnapshot } from "@/lib/db/today";
-import { knownParts } from "@/lib/recovery/view";
-import { loadFindings, type FindingRow } from "@/lib/recovery/findings";
-import { findingParams } from "@/lib/recovery/text";
 import { planWorkouts, toPlanWorkout } from "@/lib/training/service";
 import type { CoachContext } from "./context";
 
@@ -19,7 +16,6 @@ const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD");
 const Range = z.object({ from: isoDate, to: isoDate });
 const SessionInput = z.object({ ref: z.string().optional().describe("Session ref from the plan, e.g. s3"), date: isoDate.optional() });
-const Empty = z.object({});
 const schema = (s: z.ZodType) => z.toJSONSchema(s) as Anthropic.Tool["input_schema"];
 const r0 = (n: number | null | undefined) => (n == null ? "–" : String(Math.round(Number(n))));
 const r1 = (n: number) => Math.round(n * 10) / 10;
@@ -31,20 +27,18 @@ export const TOOL_LABELS: Record<string, string> = {
   session: "Checking the session…",
   activities: "Looking at your activities…",
   recovery: "Looking at your sleep and recovery…",
-  findings: "Checking what your data shows…",
   weight: "Looking at your weight…",
   plan: "Reading your plan…",
   check_plan_changes: "Trying the plan change…",
   update_notes: "Updating my notes…",
 };
 
-const HEALTH = new Set(["recovery", "findings"]);
+const HEALTH = new Set(["recovery"]);
 const DEFS: { name: string; description: string; input: z.ZodType; needsPlan?: boolean }[] = [
   { name: "food_log", description: "Meals (time, dishes, kcal, protein/carbs/fat) per day in a date range, with day totals and today's targets.", input: Range },
   { name: "session", description: "A planned session (by ref, or by date) with its steps and targets, and the activity it was matched to: laps (time, km, pace or power, heart rate) and totals. Without a plan, the activities of that date.", input: SessionInput },
   { name: "activities", description: "All activities (every sport) in a date range: type, duration, distance, heart rate, kcal, training effect.", input: Range },
-  { name: "recovery", description: "Per night/day in a range: sleep (duration, need, score, bed and wake time), HRV vs baseline, resting HR, Form score and its parts.", input: Range },
-  { name: "findings", description: "Links found in this person's own data (e.g. short sleep → lower HRV next day): strength and how many days they rest on, and what still needs more data.", input: Empty },
+  { name: "recovery", description: "Per night/day in a range: sleep (duration, need, score, bed and wake time), HRV vs baseline, resting HR, and the morning note's alert (if any).", input: Range },
   { name: "weight", description: "Weight and trend weight per day in a range, with the goal (target, rate) and the current trend.", input: Range },
   { name: "plan", description: "Planned sessions in a date range with steps and status.", input: Range, needsPlan: true },
 ];
@@ -164,40 +158,22 @@ async function activities(cc: CoachContext, from: ISODate, to: ISODate): Promise
 
 async function recovery(cc: CoachContext, from: ISODate, to: ISODate): Promise<string> {
   const tz = await timezone(cc.userId);
-  const [{ data: nights }, { data: form }] = await Promise.all([
+  const [{ data: nights }, { data: notes }] = await Promise.all([
     db().from("recovery_days").select("local_date, sleep_s, sleep_need_s, sleep_score, sleep_start, sleep_end, hrv_avg, hrv_baseline_low, hrv_baseline_high, resting_hr").eq("user_id", cc.userId).gte("local_date", from).lte("local_date", to).order("local_date"),
-    db().from("form_days").select("local_date, score, parts").eq("user_id", cc.userId).gte("local_date", from).lte("local_date", to),
+    db().from("daily_notes").select("local_date, alert, alert_done").eq("user_id", cc.userId).gte("local_date", from).lte("local_date", to),
   ]);
-  const formOf = new Map((form ?? []).map((f) => [f.local_date, f]));
+  const alertOf = new Map((notes ?? []).filter((n) => n.alert).map((n) => [n.local_date, n]));
   const out: string[] = [];
   for (let d = from; d <= to; d = addDays(d, 1)) {
     const n = (nights ?? []).find((x) => x.local_date === d);
-    const f = formOf.get(d);
+    const a = alertOf.get(d);
     const h = (s: number | null) => (s == null ? "–" : `${r1(s / 3600)} h`);
     const sleep = n
       ? `sleep ${h(n.sleep_s)} (need ${h(n.sleep_need_s)}, score ${r0(n.sleep_score)}, ${clock(n.sleep_start, tz)}–${clock(n.sleep_end, tz)}), HRV ${r0(n.hrv_avg)} (baseline ${r0(n.hrv_baseline_low)}–${r0(n.hrv_baseline_high)}), resting HR ${r0(n.resting_hr)}`
       : "no sleep data";
-    const parts = f ? knownParts(f.parts).filter((p) => p.status === "ok").map((p) => `${p.id} ${p.points > 0 ? "+" : ""}${p.points}`).join(", ") : "";
-    out.push(`${d} ${DAY[weekday(d)]}: ${sleep}${f?.score != null ? `; Form ${f.score} (${parts})` : ""}`);
+    out.push(`${d} ${DAY[weekday(d)]}: ${sleep}${a ? `; alert ${a.alert}${a.alert_done ? " (dealt with)" : ""}` : ""}`);
   }
   return out.join("\n");
-}
-
-async function findings(cc: CoachContext): Promise<string> {
-  const f = await loadFindings(cc.userId, cc.consent);
-  const line = (x: FindingRow) => {
-    const p = findingParams(x);
-    const lag = x.lag ? ` (${x.lag} day later)` : "";
-    // Tertile factors have bounds (high group ≥, low group ≤); yes/no factors have none.
-    const groups = p.high && p.low ? `${x.factor} ≥ ${p.high} vs ≤ ${p.low}` : `${x.factor} yes vs no`;
-    return `- ${groups} → ${x.outcome}${lag}: ${p.diff} (${p.better ? "better" : "worse"}), over ${p.nHigh} + ${p.nLow} days`;
-  };
-  return [
-    f.findings.length ? "Found in their own data (strongest first):" : "Nothing verified in their data yet (it usually takes a couple of months of steady logging).",
-    ...f.findings.map(line),
-    ...(f.noEffect.length ? ["Checked, no clear link:", ...f.noEffect.map((x) => `- ${x.factor} → ${x.outcome}`)] : []),
-    ...(f.needsData.length ? ["Needs more data:", ...f.needsData.slice(0, 6).map((x) => `- ${x.factor} → ${x.outcome}: ${findingParams(x).have} of ${x.needed} days`)] : []),
-  ].join("\n");
 }
 
 async function weight(cc: CoachContext, from: ISODate, to: ISODate): Promise<string> {
@@ -236,7 +212,6 @@ export async function runReadTool(cc: CoachContext, name: string, input: unknown
   if (!p.success) return `Invalid input: ${p.error.issues.map((i) => `${i.path.join(".")} ${i.message}`).join("; ")}`;
   try {
     if (name === "session") return await session(cc, p.data as z.infer<typeof SessionInput>);
-    if (name === "findings") return await findings(cc);
     const r = p.data as z.infer<typeof Range>;
     const { from, to, note } = clampRange(r.from, r.to);
     const body =
