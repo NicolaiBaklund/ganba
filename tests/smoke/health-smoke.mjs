@@ -1,6 +1,6 @@
 // Health (spec 2026-11-02): seeded user with a plan, a race session, predicted times and nights where resting HR
-// is up and HRV low two mornings running. Today shows the race clock, the morning note with "Swap to easy" and
-// the bib; swapping turns today's intervals into an easy run. Progress shows the clock and the stamp book.
+// is up and HRV low two mornings running. Training shows the race clock and the morning note with "Swap to easy" at the top;
+// swapping turns today's intervals into an easy run. Progress shows the clock and the stamp book.
 import { config } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import { chromium } from "playwright";
@@ -62,25 +62,33 @@ try {
   const anon = createClient(U, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, { auth: { persistSession: false } });
   const { data: s } = await anon.auth.signInWithPassword({ email, password });
   const browser = await chromium.launch();
+  let todayHasClock = true;
   const errors = [];
   for (const scheme of ["dark", "light"]) {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, timezoneId: "Europe/Oslo", colorScheme: scheme });
     await ctx.addCookies([{ name: `sb-${ref}-auth-token`, value: "base64-" + Buffer.from(JSON.stringify(s.session)).toString("base64url"), domain: "localhost", path: "/" }]);
     const page = await ctx.newPage();
     page.on("console", (m) => m.type() === "error" && errors.push(m.text().slice(0, 300)));
-    await page.goto(`${BASE}/today`);
+    await page.goto(`${BASE}/training`);
     await page.getByText("Half marathon, if it were today").waitFor();
     await page.getByText("Coach, this morning").waitFor();
     results[`${scheme}: swap offered`] = (await page.getByRole("button", { name: /Swap to easy/ }).count()) === 1;
-    await page.screenshot({ path: `tests/smoke/out/60-health-today-${scheme}.png`, fullPage: true, caret: "initial" });
+    await page.screenshot({ path: `tests/smoke/out/60-health-training-${scheme}.png`, fullPage: true, caret: "initial" });
     await page.goto(`${BASE}/progress`);
     await page.getByRole("heading", { name: "Stamps" }).waitFor();
     results[`${scheme}: Japan stamp`] = (await page.getByText("Japan").count()) > 0;
     results[`${scheme}: globe`] = (await page.getByRole("img", { name: /Globe with the 2 countries/ }).count()) === 1;
     await page.waitForTimeout(600);
     await page.screenshot({ path: `tests/smoke/out/62-health-progress-${scheme}.png`, fullPage: true, caret: "initial" });
-    await page.goto(`${BASE}/today`);
+    await page.goto(`${BASE}/training`);
     await page.getByText("Coach, this morning").waitFor();
+    if (scheme === "dark") {
+      await page.goto(`${BASE}/today`);
+      await page.getByText("kcal left today").waitFor();
+      todayHasClock = (await page.getByText(/if it were today/).count()) > 0;
+      await page.goto(`${BASE}/training`);
+      await page.getByText("Coach, this morning").waitFor();
+    }
     if (scheme === "light") {
       await page.getByRole("button", { name: /Swap to easy/ }).click();
       await page.getByText("Swapped to an easy run").waitFor();
@@ -98,6 +106,7 @@ try {
     "note stored with sick alert": note?.alert === "sick",
     "alert handled": note?.alert_done === true,
     "today is easy now": todays?.[0]?.type === "easy" && todays?.[0]?.edited === true,
+    "Today has no race clock": !todayHasClock,
     "no console errors": errors.length === 0,
   });
   console.log({ note, todays, errors });
