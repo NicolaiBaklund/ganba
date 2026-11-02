@@ -9,6 +9,7 @@ from __future__ import annotations
 import hmac
 import json
 import os
+from datetime import date, timedelta
 from http.server import BaseHTTPRequestHandler
 from typing import Any
 
@@ -167,8 +168,42 @@ def op_fetch(b: dict[str, Any]) -> dict[str, Any]:
         "activities": activities,
         "details": details,
         "racePredictions": predictions if isinstance(predictions, dict) else None,
+        "predictionDays": _prediction_days(g, b["from"], b["to"]),
+        "personalRecords": _personal_records(g),
         "tokens": changed_tokens(g, tokens),
     }
+
+
+PREDICTION_MAX_DAYS = 365
+RECORD_TYPES = range(1, 8)  # 1 km, mile, 5K, 10K, half, marathon, longest run (metres)
+
+
+def _prediction_days(g: Garmin, start: str, end: str) -> list[dict[str, Any]] | None:
+    """Garmin's race predictor for each day in the range (at most a year back). Optional: None on any failure."""
+    first = max(date.fromisoformat(start), date.fromisoformat(end) - timedelta(days=PREDICTION_MAX_DAYS))
+    try:
+        rows = g.get_race_predictions(first.isoformat(), end, "daily")
+    except Exception:  # noqa: BLE001
+        return None
+    keys = ("calendarDate", "time5K", "time10K", "timeHalfMarathon", "timeMarathon")
+    return [{k: r.get(k) for k in keys} for r in rows if isinstance(r, dict)] if isinstance(rows, list) else None
+
+
+def _personal_records(g: Garmin) -> list[dict[str, Any]] | None:
+    """Running records only; the date is the activity's local date when Garmin gives one."""
+    try:
+        rows = g.get_personal_record()
+    except Exception:  # noqa: BLE001
+        return None
+    if not isinstance(rows, list):
+        return None
+    out = []
+    for r in rows:
+        if not isinstance(r, dict) or r.get("typeId") not in RECORD_TYPES or r.get("value") is None:
+            continue
+        when = r.get("activityStartDateTimeLocalFormatted") or r.get("prStartTimeGmtFormatted") or ""
+        out.append({"typeId": r["typeId"], "value": r["value"], "date": when[:10] or None, "activityId": r.get("activityId")})
+    return out
 
 
 MAX_RECOVERY_DATES = 24

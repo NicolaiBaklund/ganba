@@ -41,8 +41,27 @@ export interface FetchResult {
   details: Record<string, { splits: unknown; hrZones: unknown } | null>;
   /** Garmin's race predictor (seconds), when available. */
   racePredictions?: { time5K?: number | null; time10K?: number | null; timeHalfMarathon?: number | null; timeMarathon?: number | null } | null;
+  /** The predictor per day over the fetched range (at most a year back); absent from older adapters. */
+  predictionDays?: GarminPredictionDay[] | null;
+  /** Running records: typeId 1 km, 2 mile, 3 5K, 4 10K, 5 half, 6 marathon (seconds), 7 longest run (metres). */
+  personalRecords?: GarminRecord[] | null;
   /** Present only when Garmin refreshed them. */
   tokens: string | null;
+}
+
+export interface GarminPredictionDay {
+  calendarDate: string;
+  time5K: number | null;
+  time10K: number | null;
+  timeHalfMarathon: number | null;
+  timeMarathon: number | null;
+}
+
+export interface GarminRecord {
+  typeId: number;
+  value: number;
+  date: string | null;
+  activityId: number | null;
 }
 
 /** One requested morning: Garmin's sleep and HRV payloads, null when Garmin had nothing. */

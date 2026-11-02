@@ -141,12 +141,30 @@ export async function syncGarmin(userId: string, opts: SyncOptions = {}): Promis
     const gone = (stored ?? []).filter((s) => !ids.has(s.garmin_activity_id!)).map((s) => s.id);
     if (gone.length) await db.from("activities").delete().in("id", gone);
 
+    const predictions = (res.predictionDays ?? []).filter((p) => p.calendarDate && (p.time5K || p.time10K || p.timeHalfMarathon || p.timeMarathon));
+    if (predictions.length) {
+      const { error } = await db.from("prediction_days").upsert(
+        predictions.map((p) => ({
+          user_id: userId,
+          local_date: p.calendarDate,
+          time_5k_s: p.time5K,
+          time_10k_s: p.time10K,
+          time_half_s: p.timeHalfMarathon,
+          time_marathon_s: p.timeMarathon,
+          source: "garmin",
+        })),
+        { onConflict: "user_id,local_date" },
+      );
+      if (error) throw error;
+    }
+
     await db
       .from("garmin_accounts")
       .update({
         last_synced_at: new Date().toISOString(),
         last_synced_date: today,
         ...(res.racePredictions?.time10K ? { race_predictions: res.racePredictions as unknown as Json, race_predictions_at: new Date().toISOString() } : {}),
+        ...(res.personalRecords?.length ? { personal_records: res.personalRecords as unknown as Json, personal_records_at: new Date().toISOString() } : {}),
         ...(firstSync ? { history_imported_at: new Date().toISOString() } : {}),
       })
       .eq("user_id", userId);
