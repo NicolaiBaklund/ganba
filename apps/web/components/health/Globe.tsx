@@ -17,7 +17,7 @@ type Topology = Parameters<typeof feature>[0];
  * A globe to spin by dragging, with the countries the person has run or ridden in filled in. Starts facing the
  * most recent one. Countries come from world-atlas (ISO numeric ids), loaded only when the globe is shown.
  */
-export function Globe({ visited, label }: { visited: string[]; label: string }) {
+export function Globe({ visited, label }: { visited: { id: string; at: [number, number] }[]; label: string }) {
   const [world, setWorld] = useState<Countries | null>(null);
   const [rot, setRot] = useState<[number, number]>([-20, -30]);
   const drag = useRef<{ x: number; y: number; vx: number; vy: number } | null>(null);
@@ -31,11 +31,9 @@ export function Globe({ visited, label }: { visited: string[]; label: string }) 
       if (!live) return;
       setWorld(w);
       // Face the first (latest) country, tilted a little so its hemisphere shows.
-      const first = w.features.find((f) => String(f.id) === visited[0]);
-      if (first) {
-        const [lon, lat] = geoCentroid(first);
-        setRot([-lon, -lat * 0.6]);
-      }
+      const first = w.features.find((f) => String(f.id) === visited[0]?.id);
+      const [lon, lat] = first ? geoCentroid(first) : (visited[0]?.at ?? [20, 30]);
+      setRot([-lon, -lat * 0.6]);
     });
     return () => {
       live = false;
@@ -45,7 +43,9 @@ export function Globe({ visited, label }: { visited: string[]; label: string }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const seen = useMemo(() => new Set(visited), [visited]);
+  const seen = useMemo(() => new Set(visited.map((v) => v.id)), [visited]);
+  // Countries too small for the 110m map (Singapore, Malta …) show as a dot where they are.
+  const dots = useMemo(() => (world ? visited.filter((v) => !world.features.some((f) => String(f.id) === v.id)) : []), [visited, world]);
   const projection = useMemo(() => geoOrthographic().scale(SIZE / 2 - 2).translate([SIZE / 2, SIZE / 2]).rotate([rot[0], rot[1], 0]).clipAngle(90), [rot]);
   const path = useMemo(() => geoPath(projection), [projection]);
 
@@ -81,7 +81,7 @@ export function Globe({ visited, label }: { visited: string[]; label: string }) 
   return (
     <svg
       viewBox={`0 0 ${SIZE} ${SIZE}`}
-      className="mx-auto block w-full max-w-[320px] cursor-grab touch-none select-none active:cursor-grabbing"
+      className="mx-auto block w-full max-w-[320px] cursor-grab touch-pan-y select-none active:cursor-grabbing"
       role="img"
       aria-label={label}
       onPointerDown={onDown}
@@ -99,6 +99,11 @@ export function Globe({ visited, label }: { visited: string[]; label: string }) 
           strokeWidth={0.5}
         />
       ))}
+      {dots.map((d) => {
+        // Null when the point is on the far side of the globe.
+        const p = path.pointRadius(4)({ type: "Point", coordinates: d.at });
+        return p ? <path key={d.id} d={p} className="fill-primary stroke-background" strokeWidth={1} /> : null;
+      })}
     </svg>
   );
 }

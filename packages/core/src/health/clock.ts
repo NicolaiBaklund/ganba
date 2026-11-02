@@ -30,6 +30,17 @@ const NAMES: Record<RaceDistance, string> = { "5k": "5K", "10k": "10K", half: "H
 const nearest = (km: number): RaceDistance =>
   DISTANCES.reduce((a, b) => (Math.abs(RACE_KM[b] - km) < Math.abs(RACE_KM[a] - km) ? b : a));
 
+/** The race's distance: its km, else what its title says ("Half", "Marathon", "10K", "5K"), else a half marathon. */
+function raceDistance(w: ClockWorkout): RaceDistance {
+  if (w.plannedKm && w.plannedKm > 0) return nearest(w.plannedKm);
+  const t = w.title.toLowerCase();
+  if (/half|halv/.test(t)) return "half";
+  if (/marathon|maraton/.test(t)) return "marathon";
+  if (/\b10\s?k\b/.test(t)) return "10k";
+  if (/\b5\s?k\b/.test(t)) return "5k";
+  return "half";
+}
+
 /**
  * A race session in the plan (also one the user added), then a race plan's goal, then a build plan's focus,
  * else 10K. A race stays the day after, so its finish time can show.
@@ -37,7 +48,7 @@ const nearest = (km: number): RaceDistance =>
 export function pickRace(input: { today: ISODate; workouts: readonly ClockWorkout[]; goal: Goal | null }): ClockRace {
   const from = addDays(input.today, -1);
   const race = input.workouts.filter((w) => w.type === "race" && w.date >= from).sort((a, b) => a.date.localeCompare(b.date))[0];
-  if (race) return { name: race.title, distance: nearest(race.plannedKm ?? RACE_KM.half), date: race.date };
+  if (race) return { name: race.title, distance: raceDistance(race), date: race.date };
   const g = input.goal;
   if (g?.kind === "race" && g.raceDate >= from) return { name: NAMES[g.distance], distance: g.distance, date: g.raceDate };
   if (g?.kind === "build" && g.focus) return { name: NAMES[g.focus], distance: g.focus, date: null };

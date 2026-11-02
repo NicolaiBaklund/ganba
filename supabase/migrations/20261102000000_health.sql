@@ -38,7 +38,7 @@ create trigger daily_notes_updated before update on daily_notes for each row exe
 alter table daily_notes enable row level security;
 create policy own_rows_read on daily_notes for select to authenticated using (user_id = (select auth.uid()));
 
--- Stamps: earned once per (kind, key); the first earned_on stands.
+-- Stamps: one row per (kind, key); earned_on is the earliest date the data supports and never moves later.
 create table stamps (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users on delete cascade,

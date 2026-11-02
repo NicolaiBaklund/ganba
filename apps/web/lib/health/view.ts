@@ -84,7 +84,7 @@ export async function loadClock(userId: string, date: ISODate): Promise<HealthCl
   const pick = (today: ISODate) =>
     pickRace({
       today,
-      workouts: workouts.filter((w) => w.status !== "removed").map((w) => ({ date: w.date, type: w.type, title: w.title, plannedKm: Number(w.planned_km) })),
+      workouts: workouts.filter((w) => w.status !== "removed").map((w) => ({ date: w.date, type: w.type, title: w.title, plannedKm: w.planned_km == null ? null : Number(w.planned_km) })),
       goal: running ? goalOf(running) : null,
     });
   let race = pick(date);

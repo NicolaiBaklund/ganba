@@ -12,7 +12,16 @@ export function countryName(iso3: string): string {
   return feature(iso3)?.properties.nameEn ?? iso3;
 }
 
-/** For the globe: the ISO numeric id world-atlas uses (JPN → "392"). */
-export function globeId(iso3: string): string | null {
-  return feature(iso3)?.properties.iso1N3 ?? null;
+/** For the globe: the ISO numeric id world-atlas uses (JPN → "392") and roughly where it is [lon, lat]. */
+export function globeCountry(iso3: string): { id: string; at: [number, number] } | null {
+  const f = feature(iso3);
+  if (!f?.properties.iso1N3) return null;
+  const pts: number[][] = [];
+  const walk = (x: unknown): void => {
+    if (Array.isArray(x) && typeof x[0] === "number") pts.push(x as number[]);
+    else if (Array.isArray(x)) x.forEach(walk);
+  };
+  walk((f.geometry as { coordinates?: unknown } | null)?.coordinates);
+  const mean = (i: number) => (pts.length ? pts.reduce((s, p) => s + p[i]!, 0) / pts.length : 0);
+  return { id: f.properties.iso1N3, at: [mean(0), mean(1)] };
 }

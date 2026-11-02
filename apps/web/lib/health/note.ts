@@ -55,9 +55,16 @@ function repsPace(splits: Json | null): number | null {
   return m > 0 ? t / (m / 1000) : null;
 }
 
-async function factsFor(userId: string, today: ISODate) {
+/** The plan side only: enough to find a session to swap, without building the whole note. */
+async function planPart(userId: string) {
   const plan = await activePlan(userId);
   const workouts = plan ? await planWorkoutsWithKm(plan) : [];
+  const paces = plan && plan.sport !== "ride" ? pacesFor(Number(plan.vdot)) : null;
+  return { plan, workouts, paces };
+}
+
+async function factsFor(userId: string, today: ISODate) {
+  const { plan, workouts, paces } = await planPart(userId);
   const from = addDays(today, -HISTORY_DAYS);
   const { data: rows } = plan
     ? await db().from("planned_workouts").select("date, type, title, status, activity_id").eq("plan_id", plan.id).gte("date", from).lte("date", today)
@@ -68,7 +75,6 @@ async function factsFor(userId: string, today: ISODate) {
     : { data: [] as Act[] };
   const actOf = new Map((acts ?? []).map((a) => [a.id, a as Act]));
 
-  const paces = plan && plan.sport !== "ride" ? pacesFor(Number(plan.vdot)) : null;
   const easyRuns = doneRows.filter((w) => w.type === "easy").flatMap((w) => {
     const p = paceOf(actOf.get(w.activity_id!) ?? ({} as Act));
     return p ? [{ date: w.date, secPerKm: p }] : [];
@@ -101,7 +107,7 @@ async function factsFor(userId: string, today: ISODate) {
     alert,
     yesterday,
     today: t ? { type: t.type, title: t.title, km: t.plannedKm, hrMax: null } : null,
-    tomorrow: tomorrow && HARD_TYPES.has(tomorrow.type as WorkoutType) ? { title: tomorrow.title } : null,
+    tomorrow: tomorrow && HARD_TYPES.has(tomorrow.type as WorkoutType) ? { type: tomorrow.type, title: tomorrow.title } : null,
     clockDeltaS: clock?.deltaS ?? null,
     raceName: clock?.race.name ?? null,
   };
@@ -109,7 +115,7 @@ async function factsFor(userId: string, today: ISODate) {
 }
 
 /** The hard session an alert can swap: today's, or tomorrow's for the sleep alert. */
-function swapTarget(alert: HealthAlertKind | null, workouts: Awaited<ReturnType<typeof factsFor>>["workouts"], today: ISODate) {
+function swapTarget(alert: HealthAlertKind | null, workouts: Awaited<ReturnType<typeof planPart>>["workouts"], today: ISODate) {
   if (alert !== "sick" && alert !== "sleep") return null;
   const days = alert === "sick" ? [today, addDays(today, 1)] : [addDays(today, 1)];
   return workouts.find((w) => days.includes(w.date) && w.status === "planned" && w.sport === "run" && SWAPPABLE.has(w.type)) ?? null;
@@ -138,12 +144,11 @@ async function morningIsIn(userId: string, today: ISODate): Promise<boolean> {
  * stored. No plan and nothing to warn about: no note at all.
  */
 export async function dailyNote(userId: string, today: ISODate, opts: { ai?: RecoveryAi } = {}): Promise<DailyNote | null> {
-  const { data: row } = await db().from("daily_notes").select("text, alert, alert_done").eq("user_id", userId).eq("local_date", today).maybeSingle();
-  const built = await factsFor(userId, today);
-  const target = swapTarget((row?.alert ?? built.facts.alert?.kind ?? null) as HealthAlertKind | null, built.workouts, today);
-  const swap = target && built.paces ? { title: target.title, km: easyKm(target.plannedDurationS, built.paces.easy.max, built.paces.easy.min) } : null;
-  if (row) return { text: row.text, alert: row.alert as HealthAlertKind | null, alertDone: row.alert_done, swap: row.alert_done ? null : swap };
+  const stored = await storedNote(userId, today);
+  if (stored) return stored;
 
+  const built = await factsFor(userId, today);
+  const swap = swapOffer(built.facts.alert?.kind ?? null, built, today);
   const { facts } = built;
   const garmin = await getGarminStatus(userId);
   if (garmin && !(await morningIsIn(userId, today))) {
@@ -153,29 +158,56 @@ export async function dailyNote(userId: string, today: ISODate, opts: { ai?: Rec
   if (!built.plan && !facts.alert) return null;
   const text = templateNote(facts);
 
-  let out = { text, source: "template" as "ai" | "template" };
+  // Claim the day with the template first: two tabs opened at once never both pay for an AI note.
+  const { data: claimed } = await db()
+    .from("daily_notes")
+    .upsert({ user_id: userId, local_date: today, text, alert: facts.alert?.kind ?? null, facts: facts as unknown as Json, source: "template" }, { onConflict: "user_id,local_date", ignoreDuplicates: true })
+    .select("id");
+  if (!claimed?.length) return (await storedNote(userId, today)) ?? { text, alert: facts.alert?.kind ?? null, alertDone: false, swap };
+
+  let out = text;
   const g = await gate(userId);
   if (g.ok) {
     const res = await (opts.ai ?? anthropicRecoveryAi).ask(g.apiKey, NOTE_PROMPT, noteMessage(facts, g.language), NoteSchema);
-    if (res.ok) out = { text: res.value.text.trim(), source: "ai" };
+    if (res.ok) {
+      out = res.value.text.trim();
+      await db().from("daily_notes").update({ text: out, source: "ai" }).eq("id", claimed[0]!.id);
+    }
   }
-  await db()
-    .from("daily_notes")
-    .upsert({ user_id: userId, local_date: today, text: out.text, alert: facts.alert?.kind ?? null, facts: facts as unknown as Json, source: out.source }, { onConflict: "user_id,local_date", ignoreDuplicates: true });
-  return { text: out.text, alert: facts.alert?.kind ?? null, alertDone: false, swap };
+  return { text: out, alert: facts.alert?.kind ?? null, alertDone: false, swap };
+}
+
+/** A stored note; the plan is only read when its alert still offers a swap. */
+async function storedNote(userId: string, today: ISODate): Promise<DailyNote | null> {
+  const { data: row } = await db().from("daily_notes").select("text, alert, alert_done").eq("user_id", userId).eq("local_date", today).maybeSingle();
+  if (!row) return null;
+  const alert = row.alert as HealthAlertKind | null;
+  const swap = alert && !row.alert_done ? swapOffer(alert, await planPart(userId), today) : null;
+  return { text: row.text, alert, alertDone: row.alert_done, swap };
+}
+
+function swapOffer(alert: HealthAlertKind | null, p: Awaited<ReturnType<typeof planPart>>, today: ISODate): DailyNote["swap"] {
+  const target = swapTarget(alert, p.workouts, today);
+  return target && p.paces ? { title: target.title, km: easyKm(target.plannedDurationS, p.paces.easy.max, p.paces.easy.min) } : null;
 }
 
 /** "Swap to easy N km": the alert's hard session becomes an easy run of the same time. Once per alert. */
 export async function swapToEasy(userId: string, today: ISODate): Promise<boolean> {
   const { data: row } = await db().from("daily_notes").select("alert, alert_done").eq("user_id", userId).eq("local_date", today).maybeSingle();
   if (!row || row.alert_done) return false;
-  const { plan, workouts, paces } = await factsFor(userId, today);
+  const { plan, workouts, paces } = await planPart(userId);
   const target = swapTarget(row.alert as HealthAlertKind | null, workouts, today);
   if (!plan || !paces || !target) return false;
   // Claim the alert first so two taps never swap twice.
   const { data: claimed } = await db().from("daily_notes").update({ alert_done: true }).eq("user_id", userId).eq("local_date", today).eq("alert_done", false).select("id");
   if (!claimed?.length) return false;
-  await savePlanChanges(userId, plan, [{ op: "replace", workoutId: target.id, type: "easy", km: easyKm(target.plannedDurationS, paces.easy.max, paces.easy.min) }], today);
+  try {
+    await savePlanChanges(userId, plan, [{ op: "replace", workoutId: target.id, type: "easy", km: easyKm(target.plannedDurationS, paces.easy.max, paces.easy.min) }], today);
+  } catch (e) {
+    // The plan did not change: give the buttons back so the person can try again.
+    await db().from("daily_notes").update({ alert_done: false }).eq("user_id", userId).eq("local_date", today);
+    throw e;
+  }
   return true;
 }
 
