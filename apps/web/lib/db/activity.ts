@@ -1,5 +1,5 @@
 import "server-only";
-import { activityKcal, addDays, isRun, runKcal, type ActivityLike, type ISODate } from "@loop/core";
+import { activityKcal, addDays, isRun, isStepActivity, runKcal, type ActivityBaseline, type ActivityLike, type ISODate } from "@loop/core";
 import type { DB } from "./current";
 
 export const FALLBACK_WINDOW_DAYS = 14;
@@ -39,6 +39,21 @@ async function loadDays(db: DB, userId: string, from: ISODate, to: ISODate): Pro
 
 /** A day "has data" when the watch logged steps or any activity. */
 const hasData = (d: DayData | undefined): d is DayData => !!d && ((d.steps ?? 0) > 0 || d.activities.length > 0);
+
+/** Steps, running and other training from the last four weeks of watch data, so onboarding doesn't ask; null without data. */
+export async function garminBaseline(db: DB, userId: string, today: ISODate): Promise<ActivityBaseline | null> {
+  const days = [...(await loadDays(db, userId, addDays(today, -28), addDays(today, -1))).values()].filter(hasData);
+  if (!days.length) return null;
+  const acts = days.flatMap((d) => d.activities);
+  const stepDays = days.filter((d) => (d.steps ?? 0) > 0);
+  const weeks = 4;
+  return {
+    stepsPerDay: stepDays.length ? Math.round(stepDays.reduce((s, d) => s + d.steps!, 0) / stepDays.length) : 0,
+    runKmPerWeek: Math.round(acts.filter((a) => isRun(a.typeKey)).reduce((s, a) => s + (a.distanceM ?? 0), 0) / 1000 / weeks),
+    otherTrainingHoursPerWeek:
+      Math.round((acts.filter((a) => !isRun(a.typeKey) && !isStepActivity(a.typeKey)).reduce((s, a) => s + (a.durationS ?? 0), 0) / 3600 / weeks) * 2) / 2,
+  };
+}
 
 /** Mean activity kcal over days with data in [from, to]; null when there are none. */
 export async function averageActivityKcal(db: DB, userId: string, from: ISODate, to: ISODate, kg: number): Promise<number | null> {

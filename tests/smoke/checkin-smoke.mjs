@@ -29,7 +29,7 @@ try {
   await page.screenshot({ path: "tests/smoke/out/20-checkin.png", fullPage: true, caret: "initial" });
   const before = await page.locator(".num").nth(0).textContent();
   await page.getByRole("button", { name: "Accept" }).click();
-  await page.getByText("New target set").waitFor();
+  await page.getByText("Resting calories updated").waitFor();
   await page.reload();
   await page.waitForTimeout(500);
   const cardGone = (await page.getByText("Weekly check-in").count()) === 0;
