@@ -3,6 +3,11 @@
 import { z } from "zod";
 import { ageOn, clampRate, DEFAULT_FAT_PCT, defaultProteinGPerKg, localDate, startEstimate } from "@loop/core";
 import { requireUser } from "@/lib/supabase/server";
+import { createAdminSupabase } from "@/lib/supabase/admin";
+import { garminBaseline } from "@/lib/db/activity";
+import type { DB } from "@/lib/db/current";
+import { getGarminStatus } from "@/lib/garmin/accounts";
+import { makeBasePassive } from "@/lib/garmin/connect";
 
 const Input = z.object({
   sex: z.enum(["male", "female"]),
@@ -79,7 +84,16 @@ export async function completeOnboarding(raw: OnboardingInput) {
     .update({ onboarded_at: new Date().toISOString(), mode: "full" })
     .eq("user_id", uid);
   if (error) return { ok: false as const, error: error.message };
+  // Garmin already connected (Training only adding food): steps come from the watch each day, so not in the base.
+  if (await getGarminStatus(uid)) await makeBasePassive(uid);
   return { ok: true as const };
+}
+
+/** Activity from the watch when Garmin is already connected, so onboarding can skip asking; null otherwise. */
+export async function garminActivity(raw: { timezone: string }) {
+  const { user } = await requireUser({ allowUnonboarded: true });
+  if (!(await getGarminStatus(user.id))) return null;
+  return garminBaseline(createAdminSupabase() as DB, user.id, localDate(raw.timezone));
 }
 
 /** Training only: no body or food data, straight to a plan (spec 2026-10-29). */

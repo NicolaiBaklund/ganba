@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useMemo, useState, useTransition } from "react";
+import { use, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { ArrowLeft, Footprints, Utensils } from "lucide-react";
@@ -18,7 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/common/Chip";
 import { NumberField, parseNum } from "@/components/common/NumberField";
-import { completeOnboarding, startTrainingOnly } from "./actions";
+import { completeOnboarding, garminActivity, startTrainingOnly } from "./actions";
 
 const RATES = [-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5];
 const STEPS = 4;
@@ -41,8 +41,24 @@ export default function OnboardingPage({ searchParams }: PageProps<"/onboarding"
   const [otherHours, setOtherHours] = useState("0");
   const [target, setTarget] = useState("");
   const [rate, setRate] = useState(-0.5);
+  // Garmin already connected: activity comes from the watch and the activity step is skipped.
+  const [fromGarmin, setFromGarmin] = useState(false);
 
   const timezone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
+
+  useEffect(() => {
+    if (!chosen) return;
+    garminActivity({ timezone })
+      .then((a) => {
+        if (!a) return;
+        setSteps(String(a.stepsPerDay));
+        setRunKm(String(a.runKmPerWeek));
+        setOtherHours(String(a.otherTrainingHoursPerWeek));
+        setFromGarmin(true);
+      })
+      .catch(() => null);
+  }, [chosen, timezone]);
+  const skip = (s: number) => (fromGarmin && s === 1 ? (s > step ? 2 : 0) : s);
   const weightKg = parseNum(weight);
   const limits = weightKg ? rateLimits(weightKg) : null;
 
@@ -117,7 +133,7 @@ export default function OnboardingPage({ searchParams }: PageProps<"/onboarding"
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-8 pt-6">
       <div className="mb-8 flex items-center gap-3">
         {step > 0 ? (
-          <button onClick={() => setStep(step - 1)} aria-label={t("back")} className="-ml-1 p-1">
+          <button onClick={() => setStep(skip(step - 1))} aria-label={t("back")} className="-ml-1 p-1">
             <ArrowLeft className="size-5" />
           </button>
         ) : (
@@ -222,7 +238,7 @@ export default function OnboardingPage({ searchParams }: PageProps<"/onboarding"
           size="lg"
           className="h-14 w-full text-base"
           disabled={!canNext || pending}
-          onClick={() => (step < STEPS - 1 ? setStep(step + 1) : finish())}
+          onClick={() => (step < STEPS - 1 ? setStep(skip(step + 1)) : finish())}
         >
           {step < STEPS - 1 ? t("next") : t("start")}
         </Button>

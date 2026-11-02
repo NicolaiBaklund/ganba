@@ -13,9 +13,9 @@ export type CheckinView =
       status: "pending";
       kgPerWeek: number;
       goalRate: number;
-      expenditure: number;
-      newTarget: number;
-      delta: number;
+      /** Resting calories now and the suggested new value (training and steps come on top each day). */
+      currentKcal: number;
+      proposedKcal: number;
       loggedDays: number;
     }
   | { id: string; status: "insufficient_data"; reason: string };
@@ -50,23 +50,16 @@ export function CheckinCard({ view }: { view: CheckinView }) {
       </div>
       {view.status === "pending" ? (
         <>
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <p className="text-muted-foreground">{t("trend")}</p>
-              <p className="num text-lg font-extrabold">
-                {sign(view.kgPerWeek)} <span className="text-xs text-muted-foreground">{t("perWeek", { goal: sign(view.goalRate) })}</span>
-              </p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">{t("burn")}</p>
-              <p className="num text-lg font-extrabold">{view.expenditure} kcal</p>
-            </div>
-          </div>
-          <p className="mt-4 text-sm text-muted-foreground">{t("newTarget")}</p>
-          <p className="num text-[40px] font-black leading-none [font-stretch:62%]">
-            {view.newTarget}{" "}
-            <span className={`text-base ${view.delta >= 0 ? "text-success" : "text-warning"}`}>({sign(view.delta)})</span>
+          <p className="text-sm text-muted-foreground">{t("trend")}</p>
+          <p className="num text-lg font-extrabold">
+            {sign(view.kgPerWeek)} <span className="text-xs text-muted-foreground">{t("perWeek", { goal: sign(view.goalRate) })}</span>
           </p>
+          <p className="mt-4 text-sm text-muted-foreground">{t("resting")}</p>
+          <p className="num text-[40px] font-black leading-none [font-stretch:62%]">
+            <span className="text-muted-foreground">{view.currentKcal} →</span> {view.proposedKcal}{" "}
+            <span className={`text-base ${view.proposedKcal >= view.currentKcal ? "text-success" : "text-warning"}`}>({sign(view.proposedKcal - view.currentKcal)})</span>
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">{t("restingNote")}</p>
           <p className="mt-1 text-xs text-muted-foreground">{t("basedOn", { days: view.loggedDays })}</p>
           <div className="mt-4 flex gap-2">
             <Button className="h-11 flex-1 rounded-full" disabled={busy} onClick={() => act("accept")}>

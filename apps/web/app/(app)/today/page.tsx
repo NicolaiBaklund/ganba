@@ -1,11 +1,11 @@
-import { dailyTarget, KCAL_PER_KG, type FormBand } from "@loop/core";
+import { KCAL_PER_KG, type FormBand } from "@loop/core";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { requireUser } from "@/lib/supabase/server";
 import { getDaySnapshot } from "@/lib/db/today";
 import { loadWeekStrip } from "@/lib/db/week";
 import { ensureWeeklyCheckin, type CheckinRow } from "@/lib/db/checkin";
-import { currentRow, getProfile, toEnergyPlan, type DB } from "@/lib/db/current";
+import { currentRow, type DB } from "@/lib/db/current";
 import { nextWorkout, todaysWorkout } from "@/lib/training/view";
 import { WeekStrip } from "@/components/today/WeekStrip";
 import { FormRing } from "@/components/recovery/FormRing";
@@ -100,27 +100,16 @@ async function toCheckinView(
   if (c.status === "insufficient_data") return { id: c.id, status: "insufficient_data", reason: c.reason ?? "too_early" };
   if (c.status !== "pending" || c.proposed_base_kcal == null) return null;
 
-  const [profile, plan] = await Promise.all([
-    getProfile(supabase, userId),
-    currentRow(supabase, "energy_plans", userId, snap.today),
-  ]);
-  if (!plan || !profile.sex) return null;
-  const training = snap.trainingKcal;
-  const newTarget = dailyTarget({
-    plan: { ...toEnergyPlan(plan), baseExpenditureKcal: Number(c.proposed_base_kcal), manualKcalOverride: null },
-    trainingKcal: training,
-    rateKgPerWeek: snap.goal.rateKgPerWeek,
-    sex: profile.sex,
-  }).kcal;
+  const plan = await currentRow(supabase, "energy_plans", userId, snap.today);
+  if (!plan) return null;
   const days = c.window_start && c.window_end ? Math.max(1, (Date.parse(c.window_end) - Date.parse(c.window_start)) / 86_400_000) : 20;
   return {
     id: c.id,
     status: "pending",
     kgPerWeek: Math.round((Number(c.trend_change_kg ?? 0) / days) * 7 * 10) / 10,
     goalRate: snap.goal.rateKgPerWeek,
-    expenditure: Number(c.computed_base_kcal ?? 0) + Number(c.avg_training_kcal ?? 0),
-    newTarget,
-    delta: newTarget - snap.target.kcal,
+    currentKcal: Number(plan.base_expenditure_kcal),
+    proposedKcal: Number(c.proposed_base_kcal),
     loggedDays: c.logged_days ?? 0,
   };
 }
