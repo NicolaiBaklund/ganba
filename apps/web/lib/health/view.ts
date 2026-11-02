@@ -6,6 +6,9 @@ import {
   nextStamp,
   pickRace,
   predictionSeconds,
+  STAMP_DISTANCES_KM,
+  STAMP_STREAK_WEEKS,
+  STAMP_VOLUMES_KM,
   type ClockRace,
   type ISODate,
   type RaceDistance,
@@ -132,4 +135,37 @@ export async function loadStampLine(userId: string, date: ISODate): Promise<Stam
 export async function loadHealthView(userId: string, date: ISODate): Promise<HealthView> {
   const [clock, stampLine] = await Promise.all([loadClock(userId, date), loadStampLine(userId, date)]);
   return { clock, stampLine };
+}
+
+export interface BookStamp {
+  kind: string;
+  key: string;
+  mark: string;
+  label: string;
+  /** Null for the next one to earn in its group (drawn dashed). */
+  earnedOn: ISODate | null;
+  /** The run that earned it, for the sheet. */
+  run: { date: ISODate; km: number } | null;
+}
+
+const NEXT_GROUPS = [
+  { kind: "distance", keys: STAMP_DISTANCES_KM.map(String) },
+  { kind: "volume", keys: STAMP_VOLUMES_KM.map(String) },
+  { kind: "streak", keys: STAMP_STREAK_WEEKS.map(String) },
+] as const;
+
+/** Every earned stamp (newest first), plus the next one in each group that can be counted towards. */
+export async function loadStampBook(userId: string): Promise<BookStamp[]> {
+  const { data, error } = await db().from("stamps").select("kind, key, value, earned_on, activity_id").eq("user_id", userId).order("earned_on", { ascending: false });
+  if (error) throw error;
+  const rows = data ?? [];
+  const ids = rows.flatMap((r) => (r.activity_id ? [r.activity_id] : []));
+  const { data: acts } = ids.length ? await db().from("activities").select("id, local_date, distance_m").in("id", ids) : { data: [] };
+  const runOf = new Map((acts ?? []).map((a) => [a.id, { date: a.local_date, km: Math.round(Number(a.distance_m ?? 0) / 100) / 10 }]));
+  const earned: BookStamp[] = rows.map((r) => ({ kind: r.kind, key: r.key, ...stampText({ kind: r.kind as never, key: r.key, value: r.value as never }), earnedOn: r.earned_on, run: r.activity_id ? (runOf.get(r.activity_id) ?? null) : null }));
+  const next: BookStamp[] = NEXT_GROUPS.flatMap((g) => {
+    const key = g.keys.find((k) => !rows.some((r) => r.kind === g.kind && r.key === k));
+    return key ? [{ kind: g.kind, key, ...stampText({ kind: g.kind, key, value: undefined }), earnedOn: null, run: null }] : [];
+  });
+  return [...earned, ...next];
 }

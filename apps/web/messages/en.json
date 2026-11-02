@@ -852,6 +852,21 @@
     "swapped": "Swapped to an easy run",
     "error": "Couldn’t update. Try again.",
     "onPlanToday": "on plan you get it today",
-    "onPlanDay": "on plan you get it {day}"
+    "onPlanDay": "on plan you get it {day}",
+    "title": "Progress",
+    "back": "Today",
+    "stamps": "Stamps",
+    "noStamps": "Your first run gives your first stamp.",
+    "earnedRun": "Earned {date}, on your {km} km run.",
+    "earned": "Earned {date}.",
+    "notYet": "Not earned yet. It comes on its own when you get there.",
+    "body": "Body",
+    "fetching": "Fetching sleep data: {days} of 90 days",
+    "distance": {
+      "5k": "5K",
+      "10k": "10K",
+      "half": "Half",
+      "marathon": "Marathon"
+    }
   }
 }
