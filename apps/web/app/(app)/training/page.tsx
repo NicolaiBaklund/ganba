@@ -14,6 +14,8 @@ import { SectionHead } from "@/components/tasuki/SectionHead";
 import { StatRow } from "@/components/tasuki/StatRow";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { HealthTop } from "@/components/health/HealthTop";
+import { loadHealthView } from "@/lib/health/view";
 
 /** Big bib-style label for the race distance; long names get their km instead. */
 const BIG_DISTANCE = { "5k": "5K", "10k": "10K", half: "21.1K", marathon: "42.2K" } as const;
@@ -23,12 +25,15 @@ export default async function TrainingPage() {
   const format = await getFormatter();
   const { user } = await requireUser();
   const v = await loadTrainingView(user.id);
+  // Race clock, the coach's morning note and the stamp line sit at the top of Training (spec 2026-11-02 §4).
+  const health = await loadHealthView(user.id, v.today);
 
   // No Garmin needed: without it the runner logs what was done (spec 2026-10-29).
   if (!v.plan) {
     return (
       <main className="flex flex-col px-[18px] pt-5">
         <h1 className="cond text-[34px] leading-none">{t("title")}</h1>
+        <HealthTop view={health} date={v.today} today={v.today} />
         <h2 className="cond mt-8 text-2xl leading-tight">{t("noPlan")}</h2>
         <Link href="/training/new" className={cn(buttonVariants(), "mt-4 h-12 self-start px-5")}>
           <Plus className="size-4" />
@@ -74,8 +79,9 @@ export default async function TrainingPage() {
   return (
     <main className="flex flex-col px-[18px] pb-4 pt-5">
       <h1 className="cond text-[34px] leading-none">{t("title")}</h1>
+      <HealthTop view={health} date={v.today} today={v.today} />
 
-      <div className="mb-4 mt-4 flex items-end gap-3">
+      <div className="mb-4 mt-10 flex items-end gap-3">
         <p className="num text-[84px] font-black leading-[.82] [font-stretch:62%]">{bigLabel}</p>
         <p className="pb-1 text-sm leading-tight">
           {raceDate ? (

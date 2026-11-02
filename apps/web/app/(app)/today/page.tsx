@@ -8,8 +8,6 @@ import { ensureWeeklyCheckin, type CheckinRow } from "@/lib/db/checkin";
 import { currentRow, type DB } from "@/lib/db/current";
 import { nextWorkout, todaysWorkout } from "@/lib/training/view";
 import { WeekStrip } from "@/components/today/WeekStrip";
-import { HealthTop } from "@/components/health/HealthTop";
-import { loadHealthView } from "@/lib/health/view";
 import { TodayBib } from "@/components/today/TodayBib";
 import { KcalBlock } from "@/components/today/KcalBlock";
 import { MealsList } from "@/components/today/MealsList";
@@ -28,14 +26,13 @@ export default async function TodayPage({ searchParams }: PageProps<"/today">) {
   const snap = await getDaySnapshot(supabase, user.id, typeof date === "string" ? date : undefined);
   // Without Garmin no sync keeps the plan up to date.
   if (!snap.garmin) await upkeepWithoutGarmin(user.id, snap.today);
-  const [checkinView, session, week, t, health] = await Promise.all([
+  const [checkinView, session, week, t] = await Promise.all([
     snap.date === snap.today
       ? ensureWeeklyCheckin(supabase, user.id).then((c) => (c ? toCheckinView(supabase, user.id, c, snap) : null))
       : null,
     todaysWorkout(user.id, snap.date),
     loadWeekStrip(supabase, user.id, snap.date),
     getTranslations("today"),
-    loadHealthView(user.id, snap.date),
   ]);
   const next = session.plan && !session.workout ? await nextWorkout(user.id, snap.date) : null;
   const activity = snap.activity && !snap.target.floored ? snap.activity.total : null;
@@ -57,9 +54,8 @@ export default async function TodayPage({ searchParams }: PageProps<"/today">) {
           <span className="shrink-0 font-semibold text-warning">{t("garminReauthCta")}</span>
         </Link>
       )}
-      <HealthTop view={health} date={snap.date} today={snap.today} />
       {session.plan && (
-        <div className="mt-6">
+        <div className="mt-4">
           <TodayBib workout={session.workout} kg={snap.latestTrendKg ?? 70} next={next} />
           {session.workout && canLogByHand(session.workout, snap.today, !!snap.garmin) && (
             <ManualDone key={session.workout.id} workoutId={session.workout.id} plannedKm={session.workout.plannedKm} done={session.workout.status === "done"} manual={!!session.workout.manual} />
