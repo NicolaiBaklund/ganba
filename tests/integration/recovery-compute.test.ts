@@ -2,7 +2,6 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { addDays, zonedTime } from "@loop/core";
 import { saveTokens } from "@/lib/garmin/accounts";
 import { syncGarmin } from "@/lib/garmin/sync";
-import { computeRecovery } from "@/lib/recovery/compute";
 import { loadRecoveryDays } from "@/lib/recovery/load";
 import { afterGarminSync } from "@/lib/training/service";
 // @ts-expect-error — plain JS helper shared with the smoke scripts
@@ -18,7 +17,7 @@ const noise = (i: number, salt: number) => {
   return x - Math.floor(x);
 };
 
-describe("recovery: load days, compute after sync, store results", () => {
+describe("recovery: load days from Garmin and food", () => {
   let u: TestUser;
   let today: string;
   const garmin = new FakeGarmin();
@@ -104,34 +103,6 @@ describe("recovery: load days, compute after sync, store results", () => {
     expect(at(addDays(today, -2)).long).toBe(true);
     expect(at(d).easyMetersPerBeat).toBeCloseTo(6000 / 35 / 150, 3);
     expect(at(d).hard).toBe(false);
-  });
-
-  it("computes and stores results: the deficit→HRV link is found, alcohol stays hidden", async () => {
-    expect(await computeRecovery(u.id, today, { force: true })).toBe("computed");
-    const { data: rows } = await admin().from("recovery_findings").select("*").eq("user_id", u.id);
-    expect(rows!.some((r) => r.factor === "alcohol")).toBe(false); // the one drink day is outside the 90-day window
-    expect(rows).toHaveLength(18);
-    const f = rows!.find((r) => r.question_id === "deficit-hrv")!;
-    expect(f.kind).toBe("finding");
-    expect(Number(f.effect_sd)).toBeLessThan(-0.4);
-    expect(f.rank).not.toBeNull();
-    const { data: own } = await u.client.from("recovery_findings").select("question_id");
-    expect(own).toHaveLength(18);
-  });
-
-  it("recomputes only when there is something new (or it is over 6 h old)", async () => {
-    expect(await computeRecovery(u.id, today)).toBe("fresh");
-    await admin().from("recovery_days").insert({ user_id: u.id, local_date: addDays(today, -103), sleep_s: 27000, sleep_score: 70, hrv_avg: 60, resting_hr: 50 });
-    expect(await computeRecovery(u.id, today)).toBe("computed");
-    await admin().from("garmin_accounts").update({ recovery_computed_at: new Date(Date.now() - 7 * 3600_000).toISOString() }).eq("user_id", u.id);
-    expect(await computeRecovery(u.id, today)).toBe("computed");
-  });
-
-  it("a Garmin sync runs it through afterGarminSync", async () => {
-    await admin().from("garmin_accounts").update({ recovery_computed_at: null, sync_started_at: null }).eq("user_id", u.id);
-    await syncGarmin(u.id, { source: garmin, afterSync: (id, t) => afterGarminSync(id, t, garmin) });
-    const { data: acct } = await admin().from("garmin_accounts").select("recovery_computed_at").eq("user_id", u.id).single();
-    expect(acct!.recovery_computed_at).not.toBeNull();
   });
 });
 

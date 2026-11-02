@@ -1,9 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { addDays, zonedTime } from "@loop/core";
 import { saveTokens } from "@/lib/garmin/accounts";
-import { computeRecovery } from "@/lib/recovery/compute";
 import { loadRecoveryDay } from "@/lib/recovery/day";
-import { loadFindings } from "@/lib/recovery/findings";
 import { loadRecoveryView } from "@/lib/recovery/view";
 import { loadRecoveryDays } from "@/lib/recovery/load";
 import { getAiHealthConsent, setAiHealthConsent } from "@/lib/recovery/consent";
@@ -70,7 +68,7 @@ describe("recovery: tab and day sheet data", () => {
     expect(v.curves.hrv).toEqual([]);
   });
 
-  it("with nights and food: curves with a normal band; findings (for the coach) keep only engine questions in waiting", async () => {
+  it("with nights and food: curves with a normal band and the day sheet", async () => {
     await saveTokens(u.id, JSON.stringify({ di_token: "fake" }));
     await admin().from("garmin_accounts").update({ recovery_backfilled_until: addDays(today, -39) }).eq("user_id", u.id);
     const nights = Array.from({ length: 60 }, (_, i) => ({
@@ -95,15 +93,12 @@ describe("recovery: tab and day sheet data", () => {
       ])
       .select("id");
     await admin().from("food_items").insert(es!.map((e, i) => ({ user_id: u.id, food_entry_id: e.id, name: i ? "Wine" : "Pasta", kcal: i ? 250 : 900, carbs_g: i ? 5 : 120, protein_g: 30, alcohol_g: i ? 24 : 0 })));
-    await computeRecovery(u.id, today, { force: true });
 
     const v = await loadRecoveryView(u.id);
     expect(v.garmin).toBe("active");
     expect(v.historyDays).toBe(40);
     expect(v.curves.hrv).toHaveLength(30);
     expect(v.curves.hrv.at(-1)!.low).not.toBeNull();
-    const f = await loadFindings(u.id, false);
-    expect(f.needsData.every((x) => x.kind === "needs_data" && x.source === "engine")).toBe(true);
 
     expect(await loadRecoveryDays(u.id, today, 30)).toHaveLength(30); // the tab and sheet load only what they show
 

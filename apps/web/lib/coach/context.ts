@@ -18,7 +18,6 @@ import { createAdminSupabase } from "@/lib/supabase/admin";
 import { getDaySnapshot } from "@/lib/db/today";
 import { getAiHealthConsent } from "@/lib/recovery/consent";
 import { modeOf } from "@/lib/db/mode";
-import { knownParts } from "@/lib/recovery/view";
 import { activePlan, goalOf, planContext, planWorkoutsWithKm, recentRides, recentRuns, todayFor, type PlanRow } from "@/lib/training/service";
 import { listNotes, recentMessages } from "./store";
 
@@ -54,7 +53,7 @@ const sessionLine = (w: PlanWorkout) =>
 
 /**
  * The short block the coach always sees: the sessions around today with the app's fueling numbers, and what is
- * left of today's food targets (and Form, with consent). Food advice and session talk then never miss the training.
+ * left of today's food targets (and the morning note, with consent). Food advice and session talk then never miss the training.
  */
 async function dayBlock(userId: string, today: ISODate, workouts: PlanWorkout[], consent: boolean, training: boolean): Promise<string> {
   // The food side can be missing (onboarding not finished, a failed query): the coach still answers.
@@ -87,15 +86,10 @@ async function dayBlock(userId: string, today: ISODate, workouts: PlanWorkout[],
         : "Today's intake: not available right now (food targets could not be read).",
   ];
   if (consent) {
-    const { data } = await createAdminSupabase().from("form_days").select("score, parts").eq("user_id", userId).eq("local_date", today).maybeSingle();
-    if (data?.score != null) {
-      const parts = knownParts(data.parts)
-        .filter((p) => p.status === "ok" && Math.abs(p.points) >= 1)
-        .sort((a, b) => Math.abs(b.points) - Math.abs(a.points))
-        .map((p) => `${p.id} ${p.points > 0 ? "+" : ""}${p.points}`);
-      lines.push(`Form today: ${data.score}/100 (${parts.join(", ") || "no strong drivers"}).`);
-    } else lines.push("Form today: not computed yet.");
-  } else lines.push("Health data (sleep, HRV, resting HR, Form) is switched off for AI.");
+    const { data } = await createAdminSupabase().from("daily_notes").select("text, alert, alert_done").eq("user_id", userId).eq("local_date", today).maybeSingle();
+    if (data) lines.push(`This morning's note to them: "${data.text}"${data.alert ? ` (alert ${data.alert}${data.alert_done ? ", dealt with" : ", not dealt with yet"})` : ""}.`);
+    else lines.push("No morning note yet today.");
+  } else lines.push("Health data (sleep, HRV, resting HR) is switched off for AI.");
   return lines.join("\n");
 }
 

@@ -197,28 +197,4 @@ describe("coach v2: robustness", () => {
     expect(r.ok && r.message.text).toBe("Happy to help.");
     expect(ctxOf(ai.calls.at(-1)!)).toContain("Today's intake: not available right now");
   });
-
-  it("findings: the strongest first, AI questions that haven't passed stay out", async () => {
-    const u = await createTestUser("coach2-findings");
-    const { today } = await seedUser(admin(), u.id, { days: 3 });
-    await admin().from("profiles").update({ ai_health_consent: true, ai_health_consent_at: new Date().toISOString() }).eq("user_id", u.id);
-    const g = (n: number, mean: number, bound: number | null) => ({ n, mean, bound });
-    const row = (question_id: string, factor: string, outcome: string, kind: string, source: string, effect_sd: number | null) => ({
-      user_id: u.id, computed_at: new Date().toISOString(), question_id, factor, outcome, lag: 1, kind, source, effect_sd,
-      groups: { high: g(20, kind === "finding" ? -4 : 0, 800), low: g(20, 2, 250), needed: 8 },
-    });
-    await admin().from("recovery_findings").insert([
-      row("deficit-hrv", "deficit", "hrv", "finding", "engine", -0.6),
-      row("alcohol-sleep", "alcohol", "sleepScore", "finding", "engine", -0.9),
-      row("ai-steps", "steps", "hrv", "needs_data", "ai", null),
-      row("rest-run", "daysSinceHard", "runForm", "needs_data", "engine", null),
-    ]);
-    const cc = await buildCoachContext(u.id, (await activeThread(u.id)).id, { message: "hi" });
-    const out = await runReadTool(cc, "findings", {});
-    expect(out.indexOf("alcohol ≥")).toBeLessThan(out.indexOf("deficit ≥"));
-    expect(out).toContain("deficit ≥ 800 kcal vs ≤ 250 kcal → hrv");
-    expect(out).toContain("daysSinceHard → runForm");
-    expect(out).not.toContain("steps → hrv");
-    expect(today).toBeTruthy();
-  });
 });

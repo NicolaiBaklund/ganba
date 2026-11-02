@@ -18,7 +18,7 @@ import type { Json } from "@/lib/db/types";
 import { anthropicRecoveryAi, type RecoveryAi } from "@/lib/ai/recovery";
 import { getGarminStatus } from "@/lib/garmin/accounts";
 import { loadRecoveryDays } from "@/lib/recovery/load";
-import { gate } from "@/lib/recovery/insights";
+import { gate } from "./ai";
 import { activePlan, planWorkoutsWithKm, savePlanChanges, type WorkoutRow } from "@/lib/training/service";
 import { loadClock } from "./view";
 
