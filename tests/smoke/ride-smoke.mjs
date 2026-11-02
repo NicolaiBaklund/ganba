@@ -60,6 +60,9 @@ try {
     await page.goto(`${BASE}/training`);
     await page.getByText("Heart rate zones").waitFor();
     await shot("4-training");
+    await page.goto(`${BASE}/training/plan`);
+    await page.getByText("150K").first().waitFor();
+    await shot("4-plan");
     checks[`${scheme}: 150K event header`] = (await page.getByText("150K").count()) > 0;
     checks[`${scheme}: indoor switch on`] = (await page.getByRole("switch", { name: "Riding indoors" }).getAttribute("aria-checked")) === "true";
     checks[`${scheme}: week bars in hours`] = (await page.getByText(/^\d+(\.\d)? h$/).count()) > 0;

@@ -47,23 +47,18 @@ export function MorningNote() {
   if (failed || note === null) return null;
   if (!note) {
     return (
-      <section className="mt-8 space-y-2" aria-busy="true">
+      <section className="mt-7 space-y-2" aria-busy="true">
         <div className="h-5 w-full rounded bg-muted" />
         <div className="h-5 w-4/5 rounded bg-muted" />
       </section>
     );
   }
-  if (note.waiting) return <p className="mt-8 text-[13px] text-muted-foreground">{t("waiting")}</p>;
+  if (note.waiting) return <p className="mt-7 text-[13px] text-muted-foreground">{t("waiting")}</p>;
   const alert = note.alert && !note.alertDone;
   return (
-    <section className="mt-8">
-      <p className="text-[19px] font-[450] leading-[1.4] [font-stretch:100%]">{note.text}</p>
-      <div className="mt-3 flex items-center gap-2.5">
-        <span aria-hidden="true" className={`grid h-4 w-[22px] place-items-center rounded-[2px] text-[11px] font-black ${alert ? "bg-warning text-black" : "bg-foreground text-background"}`}>
-          G
-        </span>
-        <span className="text-[13px] text-muted-foreground">{t("coach")}</span>
-      </div>
+    <section className="mt-7">
+      <p className="text-[17px] font-[450] leading-[1.4] [font-stretch:100%]">{note.text}</p>
+      <p className={`mt-2 text-[13px] ${alert ? "font-semibold text-warning" : "text-muted-foreground"}`}>{t("coach")}</p>
       {alert && (
         <div className="mt-4 flex items-center gap-5">
           {note.swap && (

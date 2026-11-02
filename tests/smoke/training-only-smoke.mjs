@@ -47,7 +47,10 @@ try {
       checks["preview starts from the stated volume"] = (await page.getByText("Based on the volume you entered").count()) === 1;
       await page.getByRole("button", { name: "Create plan" }).click({ timeout: 60_000 });
       await page.waitForURL(/\/training$/, { timeout: 60_000 });
+      await page.goto(`${BASE}/training/plan`);
+      await page.getByRole("button", { name: "End plan" }).waitFor({ timeout: 30_000 }).catch(() => null);
       checks["Training shows the plan without Garmin"] = (await page.getByRole("button", { name: "End plan" }).count()) === 1;
+      await page.goto(`${BASE}/training`);
 
       // A session today, so it can be marked done.
       const { data: plan } = await admin.from("training_plans").select("id").eq("user_id", uid).eq("status", "active").single();
@@ -87,7 +90,7 @@ try {
     checks[`${scheme}: food sends to Today`] = /\/today/.test(page.url());
 
     await page.goto(`${BASE}/training`);
-    await page.getByRole("button", { name: "End plan" }).waitFor({ timeout: 30_000 }).catch(() => null);
+    await page.getByRole("heading", { name: "Paces" }).waitFor({ timeout: 30_000 }).catch(() => null);
     checks[`${scheme}: no calories on Training`] = await noCalories(page);
     await shot("5-training");
     await page.locator('a[href^="/training/workout/"]').first().click();

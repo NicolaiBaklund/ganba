@@ -49,11 +49,6 @@ export interface StampLine {
   date: ISODate;
 }
 
-export interface HealthView {
-  clock: HealthClock | null;
-  stampLine: StampLine | null;
-}
-
 type PredRow = { local_date: string; time_5k_s: number | null; time_10k_s: number | null; time_half_s: number | null; time_marathon_s: number | null };
 const toTimes = (r: PredRow) => ({ time5K: r.time_5k_s, time10K: r.time_10k_s, timeHalfMarathon: r.time_half_s, timeMarathon: r.time_marathon_s });
 
@@ -160,11 +155,6 @@ export async function loadStampLine(userId: string, date: ISODate): Promise<Stam
     plannedRuns: planned.filter((w) => w.status === "planned" && w.sport === "run").map((w) => ({ date: w.date, km: Number(w.planned_km) })),
   });
   return next ? { label: next.label, earned: false, date: next.date } : null;
-}
-
-export async function loadHealthView(userId: string, date: ISODate): Promise<HealthView> {
-  const [clock, stampLine] = await Promise.all([loadClock(userId, date), loadStampLine(userId, date)]);
-  return { clock, stampLine };
 }
 
 export interface BookStamp {

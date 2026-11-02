@@ -1,5 +1,6 @@
 // Health (spec 2026-11-02): seeded user with a plan, a race session, predicted times and nights where resting HR
-// is up and HRV low two mornings running. Training shows the race clock and the morning note with "Swap to easy" at the top;
+// is up and HRV low two mornings running. Training shows the race, the morning note with "Swap to easy", this week and the
+// paces; "Plan" opens the whole plan;
 // swapping turns today's intervals into an easy run. Progress shows the clock and the stamp book.
 import { config } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
@@ -70,8 +71,10 @@ try {
     const page = await ctx.newPage();
     page.on("console", (m) => m.type() === "error" && errors.push(m.text().slice(0, 300)));
     await page.goto(`${BASE}/training`);
-    await page.getByText("Half marathon, if it were today").waitFor();
+    await page.getByRole("img", { name: /^Predicted .* time over time/ }).waitFor();
     await page.getByText("Coach, this morning").waitFor();
+    results[`${scheme}: paces`] = (await page.getByRole("heading", { name: "Paces" }).count()) === 1;
+    results[`${scheme}: this week`] = (await page.getByRole("heading", { name: "This week" }).count()) === 1;
     results[`${scheme}: swap offered`] = (await page.getByRole("button", { name: /Swap to easy/ }).count()) === 1;
     await page.screenshot({ path: `tests/smoke/out/60-health-training-${scheme}.png`, fullPage: true, caret: "initial" });
     await page.goto(`${BASE}/progress`);
@@ -85,7 +88,13 @@ try {
     if (scheme === "dark") {
       await page.goto(`${BASE}/today`);
       await page.getByText("kcal left today").waitFor();
-      todayHasClock = (await page.getByText(/if it were today/).count()) > 0;
+      todayHasClock = (await page.getByRole("img", { name: /^Predicted .* time over time/ }).count()) > 0;
+      await page.goto(`${BASE}/training`);
+      await page.getByText("Coach, this morning").waitFor();
+      await page.getByRole("link", { name: "Plan", exact: true }).click();
+      await page.getByRole("heading", { name: "Plan", exact: true }).waitFor();
+      results["plan page opens"] = (await page.getByText("Coming weeks").count()) + (await page.getByText("End plan").count()) > 0;
+      await page.screenshot({ path: "tests/smoke/out/63-health-plan.png", fullPage: true, caret: "initial" });
       await page.goto(`${BASE}/training`);
       await page.getByText("Coach, this morning").waitFor();
     }

@@ -6,12 +6,12 @@ import type { CurvePoint, ISODate } from "@loop/core";
 import { SectionHead } from "@/components/tasuki/SectionHead";
 import { ScrubCurve } from "./ScrubCurve";
 
-type Key = "sleepScore" | "hrv" | "restingHr" | "runForm";
+type Key = "sleepScore" | "hrv" | "restingHr";
 
 export function RecoveryCurves({ curves, onPick }: { curves: Record<Key, CurvePoint[]>; onPick: (date: ISODate) => void }) {
   const t = useTranslations("recovery");
   const format = useFormatter();
-  const keys: Key[] = ["sleepScore", "hrv", "restingHr", "runForm"];
+  const keys: Key[] = ["sleepScore", "hrv", "restingHr"];
   // The last 7 mornings with data as buttons: the day sheet without needing to hit a chart point.
   const recent = [...new Set(keys.flatMap((k) => curves[k].map((p) => p.date)))].sort().slice(-7);
   if (!recent.length) return null;
@@ -45,7 +45,7 @@ function MetricCurve({ k, points, onPick }: { k: Key; points: CurvePoint[]; onPi
         onPick={onPick}
         height={64}
         title={<p className="font-bold">{t(`metric.${k}`)}</p>}
-        format={(v) => (k === "runForm" ? v.toFixed(1) : String(Math.round(v)))}
+        format={(v) => String(Math.round(v))}
       />
     </div>
   );

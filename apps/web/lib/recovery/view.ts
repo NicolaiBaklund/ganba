@@ -1,5 +1,5 @@
 import "server-only";
-import { addDays, localDate, nightSeries, recoveryCurve, recoveryRunForm, type CurvePoint, type ISODate } from "@loop/core";
+import { addDays, localDate, nightSeries, recoveryCurve, type CurvePoint, type ISODate } from "@loop/core";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { getApiKeyStatus } from "@/lib/ai/keys";
 import { getGarminStatus } from "@/lib/garmin/accounts";
@@ -14,7 +14,7 @@ export interface RecoveryView {
   consent: boolean;
   hasKey: boolean;
   historyDays: number;
-  curves: Record<"sleepScore" | "hrv" | "restingHr" | "runForm", CurvePoint[]>;
+  curves: Record<"sleepScore" | "hrv" | "restingHr", CurvePoint[]>;
   today: ISODate;
 }
 
@@ -27,7 +27,7 @@ export async function loadRecoveryView(userId: string): Promise<RecoveryView> {
     getApiKeyStatus(userId),
   ]);
   const today = localDate(profile?.timezone ?? "UTC");
-  const empty = { sleepScore: [], hrv: [], restingHr: [], runForm: [] };
+  const empty = { sleepScore: [], hrv: [], restingHr: [] };
   if (!garmin) return { garmin: "none", consent, hasKey: !!key, historyDays: 0, curves: empty, today };
 
   const [{ data: acct }, days] = await Promise.all([
@@ -45,7 +45,6 @@ export async function loadRecoveryView(userId: string): Promise<RecoveryView> {
       sleepScore: recoveryCurve(nightSeries(days, "sleepScore"), from, today),
       hrv: recoveryCurve(nightSeries(days, "hrv"), from, today),
       restingHr: recoveryCurve(nightSeries(days, "restingHr"), from, today),
-      runForm: recoveryCurve(recoveryRunForm(days), from, today, 30, 5),
     },
     today,
   };

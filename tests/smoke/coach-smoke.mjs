@@ -1,5 +1,5 @@
 // Coach tab: five-item menu, a message whose answer streams in (status line, then growing text; the AI route is
-// stubbed with an NDJSON stream so no model is called), the answer after a reload, "End plan" on Training,
+// stubbed with an NDJSON stream so no model is called), the answer after a reload, "End plan" on the plan page,
 // light and dark.
 import { config } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
@@ -98,7 +98,7 @@ try {
       checks["dropped stream: answer shows once stored"] = (await page.locator("b", { hasText: "dropped" }).count()) > 0;
       checks["bad session link is not sent"] = sentAbout === null;
 
-      // A plan, so Training has "End plan" at the bottom.
+      // A plan, so the plan page has "End plan" at the bottom.
       await page.goto(`${BASE}/training/new`);
       await page.getByRole("button", { name: "Build fitness" }).click();
       await page.getByRole("button", { name: "Next", exact: true }).click();
@@ -174,9 +174,11 @@ try {
     checks[`${scheme}: Use this folds to one line`] = (await page.locator("div.rounded-xl", { hasText: `Easy run a day later (${scheme})` }).getByText("Applied").count()) > 0;
 
     await page.goto(`${BASE}/training`);
-    await page.getByRole("button", { name: "End plan" }).waitFor({ timeout: 30_000 }).catch(() => null);
+    await page.getByRole("heading", { name: "Paces" }).waitFor({ timeout: 30_000 }).catch(() => null);
     checks[`${scheme}: no Coach button on Training`] = (await page.locator("main").getByRole("button", { name: "Coach", exact: true }).count()) === 0;
-    checks[`${scheme}: End plan on Training`] = (await page.getByRole("button", { name: "End plan" }).count()) === 1;
+    await page.goto(`${BASE}/training/plan`);
+    await page.getByRole("button", { name: "End plan" }).waitFor({ timeout: 30_000 }).catch(() => null);
+    checks[`${scheme}: End plan on the plan page`] = (await page.getByRole("button", { name: "End plan" }).count()) === 1;
     await shot("3-training");
     await ctx.close();
   }

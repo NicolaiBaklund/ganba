@@ -8,9 +8,9 @@ import { DaySheet } from "@/components/recovery/DaySheet";
 import { RecoveryCurves } from "@/components/recovery/RecoveryCurves";
 import { TonightRow } from "@/components/recovery/TonightRow";
 
-type Curves = Record<"sleepScore" | "hrv" | "restingHr" | "runForm", CurvePoint[]>;
+type Curves = Record<"sleepScore" | "hrv" | "restingHr", CurvePoint[]>;
 
-/** Last night and the 30-day curves for sleep, HRV, resting HR and run form; tap a day for its sheet. */
+/** Last night and the 30-day curves for sleep, HRV and resting HR; tap a day for its sheet. */
 export function BodyCurves({ curves, today, ai }: { curves: Curves; today: ISODate; ai: boolean }) {
   const tc = useTranslations("coach");
   const t = useTranslations("health");

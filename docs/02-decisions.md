@@ -136,6 +136,8 @@ Format: dato — beslutning — begrunnelse.
 | 2026-11-02 | **Morgenlappen venter på dagens søvn:** med Garmin vises ingen lapp før dagens søvn er synket (en linje sier at den kommer), og den hentes på nytt når synken ved åpning er ferdig. Uten søvn kommer den etter en synk etter kl. 14 | Brukeren: «note should wait for sleep data for today»; før kunne lappen bli laget før synken var ferdig og mangle varselet |
 | 2026-11-02 | **Løpsklokka og morgenlappen ligger øverst på Training, ikke på I dag** | Brukeren: «I did not realise it was going to be on front page, i dont like that»; valgte toppen av Training |
 | 2026-11-02 | **Pauser i km-estimatet:** pauser uten mål (gå, stå eller jogg) regnes som gange/svært rolig jogg (rolig tempo + 2 min/km), ikke som rolig jogg | 6 × 1 km ble estimert til 12.1 km fordi pausene ble regnet som rolig jogg; brukeren: «vil ikke at pausen regnes som så rask jogg» |
+| 2026-11-02 | **Training ryddet («Tidy road»):** løpet med tid og tynn linje, morgenlappen, denne uka, lenken «Plan» og tempoene nederst; hele planen på /training/plan; ingen stempellinje på Training | Brukeren: «to much happening, dont know where to look, i dont want to take away from the plan page»; valgte «Tidy road», lenken skal bare hete «Plan», tempoene nederst |
+| 2026-11-02 | **Run form-kurven fjernet fra Progress** | Brukeren: «Mby just remove it»; endringer i tempo ved lik puls kommer i morgenlappen i stedet |
 
 ## Åpne spørsmål
 - (Teknisk fase) Garmin-tilgang. Offisielt program er kun for bedrifter og muligens pauset (se research-notes). Sannsynlig vei: uoffisielt bibliotek i personlig fase, bak adapter-lag; offisielt når/om appen blir produkt.
