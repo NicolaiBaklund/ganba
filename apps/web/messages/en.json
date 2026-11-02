@@ -479,7 +479,9 @@
     "addCrossRides": "+ Add easy rides on other days",
     "addCrossRuns": "+ Add easy runs on other days",
     "crossSave": "Save days",
-    "crossError": "Couldn't save the days. Try again."
+    "crossError": "Couldn't save the days. Try again.",
+    "plan": "Plan",
+    "weekKm": "<b>{done}</b> of {planned} km"
   },
   "proposal": {
     "title": {
@@ -871,6 +873,8 @@
     "countries": "Countries",
     "globeLabel": "Globe with the {n} countries you have run or ridden in",
     "globeHint": "Drag to spin",
-    "waiting": "Your note from the coach comes once last night's sleep has synced."
+    "waiting": "Your note from the coach comes once last night's sleep has synced.",
+    "days": "{days} days",
+    "raceOn": "{race}, {date}"
   }
 }

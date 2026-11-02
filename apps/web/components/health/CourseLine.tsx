@@ -2,17 +2,16 @@ import { daysBetween, type ISODate } from "@loop/core";
 import type { ClockPoint } from "@/lib/health/view";
 
 const W = 350;
-const H = 74;
-const BASE = 64;
-const TOP = 8;
 const PAD = 6;
 
 /**
  * The road to the race in one line: solid and falling as the predicted time drops, a red dot for today, dashed on
- * to fitness tests (rings) and race day (a chequered flag). Without a race day the line ends at today.
+ * to fitness tests (rings) and race day (a chequered flag). Without a race day the line ends at today. Compact: a thin
+ * line for the top of Training.
  */
-export function CourseLine({ line, today, raceDate, tests, label }: { line: ClockPoint[]; today: ISODate; raceDate: ISODate | null; tests: ISODate[]; label: string }) {
+export function CourseLine({ line, today, raceDate, tests, label, compact = false }: { line: ClockPoint[]; today: ISODate; raceDate: ISODate | null; tests: ISODate[]; label: string; compact?: boolean }) {
   if (line.length < 2) return null;
+  const [H, BASE, TOP] = compact ? [44, 38, 4] : [74, 64, 8];
   const start = line[0]!.date;
   const end = raceDate && raceDate > today ? raceDate : today;
   const span = Math.max(1, daysBetween(start, end));
@@ -27,7 +26,7 @@ export function CourseLine({ line, today, raceDate, tests, label }: { line: Cloc
   const flagX = raceDate && raceDate > today ? x(raceDate) : null;
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="mt-5 block h-auto w-full overflow-visible" role="img" aria-label={label}>
+    <svg viewBox={`0 0 ${W} ${H}`} className={`${compact ? "mt-4" : "mt-5"} block h-auto w-full overflow-visible`} role="img" aria-label={label}>
       <polyline points={pts} fill="none" className="stroke-foreground" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
       {flagX != null && <line x1={nowX} y1={nowY} x2={flagX} y2={nowY} className="stroke-muted-foreground" strokeWidth={2} strokeDasharray="3 5" strokeLinecap="round" />}
       {tests

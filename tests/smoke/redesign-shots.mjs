@@ -181,6 +181,8 @@ for (const scheme of ["light", "dark"]) {
   await go("/training");
   await shot("training");
   await shot("training-full", true);
+  await go("/training/plan");
+  await shot("plan-full", true);
   const week2 = page.getByRole("button", { name: /Week 2/ });
   if (await week2.count()) {
     await week2.first().click();

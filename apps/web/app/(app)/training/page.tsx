@@ -1,39 +1,37 @@
 import Link from "next/link";
-import { getFormatter, getTranslations } from "next-intl/server";
-import { Plus } from "lucide-react";
+import { getTranslations } from "next-intl/server";
+import { ChevronRight, Plus } from "lucide-react";
 import { formatPace } from "@loop/core";
 import { requireUser } from "@/lib/supabase/server";
 import { loadTrainingView } from "@/lib/training/view";
-import { fmtClock, hrZoneLabel } from "@/lib/training/format";
-import { PlanSwitch } from "@/components/training/PlanSwitch";
-import { CrossDays } from "@/components/training/CrossDays";
-import { EndPlan } from "@/components/training/EndPlan";
+import { hrZoneLabel } from "@/lib/training/format";
+import { loadClock } from "@/lib/health/view";
+import { RaceRoad } from "@/components/health/RaceRoad";
+import { MorningNote } from "@/components/health/MorningNote";
 import { ProposalCard } from "@/components/training/ProposalCard";
-import { TrainingMap } from "@/components/training/TrainingMap";
+import { WorkoutRow } from "@/components/training/WorkoutRow";
 import { SectionHead } from "@/components/tasuki/SectionHead";
 import { StatRow } from "@/components/tasuki/StatRow";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { HealthTop } from "@/components/health/HealthTop";
-import { loadHealthView } from "@/lib/health/view";
 
-/** Big bib-style label for the race distance; long names get their km instead. */
-const BIG_DISTANCE = { "5k": "5K", "10k": "10K", half: "21.1K", marathon: "42.2K" } as const;
-
+/**
+ * Training: the race and the road there, the coach's morning note, this week, the paces, and a way into the whole
+ * plan (spec 2026-11-02 §4). The plan itself lives on /training/plan.
+ */
 export default async function TrainingPage() {
   const t = await getTranslations("training");
-  const format = await getFormatter();
   const { user } = await requireUser();
   const v = await loadTrainingView(user.id);
-  // Race clock, the coach's morning note and the stamp line sit at the top of Training (spec 2026-11-02 §4).
-  const health = await loadHealthView(user.id, v.today);
+  const clock = await loadClock(user.id, v.today);
 
   // No Garmin needed: without it the runner logs what was done (spec 2026-10-29).
   if (!v.plan) {
     return (
       <main className="flex flex-col px-[18px] pt-5">
         <h1 className="cond text-[34px] leading-none">{t("title")}</h1>
-        <HealthTop view={health} date={v.today} today={v.today} />
+        {clock && <RaceRoad clock={clock} today={v.today} />}
+        <MorningNote />
         <h2 className="cond mt-8 text-2xl leading-tight">{t("noPlan")}</h2>
         <Link href="/training/new" className={cn(buttonVariants(), "mt-4 h-12 self-start px-5")}>
           <Plus className="size-4" />
@@ -46,19 +44,7 @@ export default async function TrainingPage() {
   const p = v.plan;
   const ride = p.ride;
   const rides = p.rides;
-  const race = p.goal === "race" && (ride ? true : !!p.distance) && p.raceDate;
-  const raceDate = race ? new Date(`${p.raceDate}T00:00:00Z`) : null;
-  const stats = ride
-    ? [
-        ...(p.weeksLeft != null ? [{ value: p.weeksLeft, label: t("weeksLeftLabel") }] : []),
-        ...(ride.expectedS != null ? [{ value: fmtClock(ride.expectedS), label: t("expected") }] : []),
-        rides!.power ? { value: `${rides!.ftp} W`, label: t("ftp") } : { value: rides!.lthr, label: t("lthr") },
-      ]
-    : [
-        ...(p.weeksLeft != null ? [{ value: p.weeksLeft, label: t("weeksLeftLabel") }] : []),
-        ...(p.predictedTimeS != null ? [{ value: fmtClock(p.targetTimeS ?? p.predictedTimeS), label: p.targetTimeS ? t("target") : t("predicted") }] : []),
-        { value: p.vdot, label: t("vdot") },
-      ];
+  const week = v.thisWeek;
   // Rides: the zones the sessions use, in watts with power targets on (no watts mentioned otherwise).
   const KEY_ZONES = ["z2", "ss", "z4", "z5"];
   const zones = !rides
@@ -66,9 +52,6 @@ export default async function TrainingPage() {
     : rides.power
       ? rides.powerZones.filter((z) => KEY_ZONES.includes(z.zone)).map((z) => ({ value: `${z.minW}–${z.maxW}`, label: hrZoneLabel(z.zone) }))
       : rides.zones.filter((z) => KEY_ZONES.includes(z.zone)).map((z) => ({ value: `${z.minBpm}–${z.maxBpm}`, label: hrZoneLabel(z.zone) }));
-  const zonesTitle = rides?.power ? t("powerZones") : t("zones");
-  const crossZonesTitle = rides?.power ? t("ridePowerZones") : t("rideHrZones");
-  const bigLabel = ride ? (ride.eventKm != null ? `${Math.round(ride.eventKm)}K` : t("buildShort")) : p.distance ? BIG_DISTANCE[p.distance] : t("buildShort");
   const paces = [
     { value: `${formatPace(p.paces.easy.min)}–${formatPace(p.paces.easy.max)}`, label: t("paceZones.easy") },
     { value: formatPace(p.paces.marathon), label: t("paceZones.marathon") },
@@ -79,62 +62,45 @@ export default async function TrainingPage() {
   return (
     <main className="flex flex-col px-[18px] pb-4 pt-5">
       <h1 className="cond text-[34px] leading-none">{t("title")}</h1>
-      <HealthTop view={health} date={v.today} today={v.today} />
-
-      <div className="mb-4 mt-10 flex items-end gap-3">
-        <p className="num text-[84px] font-black leading-[.82] [font-stretch:62%]">{bigLabel}</p>
-        <p className="pb-1 text-sm leading-tight">
-          {raceDate ? (
-            <>
-              <b className="num block text-lg font-extrabold">{format.dateTime(raceDate, { day: "numeric", month: "long", timeZone: "UTC" })}</b>
-              {ride ? t("eventDay") : t("raceDay")}
-            </>
-          ) : ride ? (
-            t("rideBuild")
-          ) : (
-            t("build")
-          )}
-        </p>
-      </div>
-      <StatRow items={stats} />
-      {rides && (
-        <div className="mt-5">
-          <PlanSwitch field="indoor" on={rides.indoor} label={t("indoor")} hint={t("indoorHint")} />
-          {rides.ftp != null && <PlanSwitch field="power" on={rides.power} label={t("power")} hint={t("powerHint", { ftp: rides.ftp })} />}
-        </div>
-      )}
-      <CrossDays sport={p.sport} weekdays={p.weekdays} cross={p.crossWeekdays} />
+      {clock && <RaceRoad clock={clock} today={v.today} />}
+      <MorningNote />
 
       {v.proposals.length > 0 && (
-        <div className="mt-5 flex flex-col gap-3">
+        <div className="mt-6 flex flex-col gap-3">
           {v.proposals.map((pr) => (
             <ProposalCard key={pr.id} p={pr} />
           ))}
         </div>
       )}
 
-      <TrainingMap
-        thisWeek={v.thisWeek}
-        upcoming={v.upcoming}
-        today={v.today}
-        raceLabel={race ? bigLabel : null}
-        hours={!!ride}
-        raceDateLabel={raceDate ? format.dateTime(raceDate, { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }) : null}
-      />
+      {week && week.workouts.length > 0 && (
+        <section className="mt-2">
+          <SectionHead title={t("thisWeek")}>
+            {!ride && t.rich("weekKm", { done: Math.round(week.doneKm), planned: Math.round(week.plannedKm), b: (c) => <b className="text-foreground">{c}</b> })}
+          </SectionHead>
+          {week.workouts.map((w) => (
+            <WorkoutRow key={w.id} w={w} today={v.today} />
+          ))}
+        </section>
+      )}
 
-      <SectionHead title={ride ? zonesTitle : t("paces")} />
+      <Link href="/training/plan" className="flex items-center justify-between py-4 text-[15px] font-bold">
+        {t("plan")}
+        <ChevronRight className="size-5 text-primary" strokeWidth={2.6} />
+      </Link>
+
+      <SectionHead title={ride ? (rides?.power ? t("powerZones") : t("zones")) : t("paces")} />
       <div className="mt-2">
         <StatRow items={ride ? zones : paces} ruled={false} />
       </div>
       {!ride && rides && (
         <>
-          <SectionHead title={crossZonesTitle} />
+          <SectionHead title={rides.power ? t("ridePowerZones") : t("rideHrZones")} />
           <div className="mt-2">
             <StatRow items={zones} ruled={false} />
           </div>
         </>
       )}
-      <EndPlan />
     </main>
   );
 }

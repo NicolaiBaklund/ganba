@@ -66,10 +66,13 @@ try {
       await page.getByRole("button", { name: "Create plan" }).click();
       await page.waitForURL(/\/training$/, { timeout: 60_000 });
     }
-    await page.goto(`${BASE}/training`);
+    await page.goto(`${BASE}/training/plan`);
     await page.getByText("Easy rides on").waitFor();
-    await shot("3-training");
+    await shot("3-plan");
     checks[`${scheme}: power switch on`] = (await page.getByRole("switch", { name: "Power targets" }).getAttribute("aria-checked")) === "true";
+    await page.goto(`${BASE}/training`);
+    await page.getByText("Ride power zones (W)").waitFor();
+    await shot("3-training");
     checks[`${scheme}: ride zones in watts`] = (await page.getByText("Ride power zones (W)").count()) > 0;
     checks[`${scheme}: paces still there`] = (await page.getByText("Paces").count()) > 0;
     const rideLink = page.locator('a[href^="/training/workout/"]', { hasText: /Endurance ride/ }).first();

@@ -58,6 +58,9 @@ try {
   await shot("42-wizard-preview");
   await page.getByRole("button", { name: "Create plan" }).click();
   await page.waitForURL(/\/training$/);
+  await page.getByRole("heading", { name: "Paces" }).waitFor();
+  await shot("43-training");
+  await page.getByRole("link", { name: "Plan", exact: true }).click();
   await page.getByText("Race day").first().waitFor();
   await shot("43-training-plan");
 
