@@ -23,6 +23,8 @@ import { stampText } from "./stamps";
 const db = () => createAdminSupabase();
 /** How far back the clock line reaches at least (further for an older plan). */
 export const CLOCK_LINE_DAYS = 120;
+/** Progress lets the runner look back a year. */
+export const PROGRESS_LINE_DAYS = 365;
 
 export interface ClockPoint {
   date: ISODate;
@@ -70,7 +72,7 @@ async function finishTime(userId: string, race: ClockRace): Promise<number | nul
  * The race clock for a date (spec §5). Null without Garmin and without a plan, and when there is no prediction to
  * show (no daily predictor, no Garmin estimate, no running plan): never a clock without a time.
  */
-export async function loadClock(userId: string, date: ISODate): Promise<HealthClock | null> {
+export async function loadClock(userId: string, date: ISODate, opts: { lineDays?: number } = {}): Promise<HealthClock | null> {
   const [active, garmin] = await Promise.all([activePlan(userId), getGarminStatus(userId)]);
   const plan = active ?? (await planOfYesterdaysRace(userId, date));
   if (!plan && !garmin) return null;
@@ -90,8 +92,10 @@ export async function loadClock(userId: string, date: ISODate): Promise<HealthCl
     finish = null;
   }
 
-  // The last 120 days, or the whole plan when it is older: a plan made today still shows where the time came from.
-  const from = running && running.start_date < addDays(date, -CLOCK_LINE_DAYS) ? running.start_date : addDays(date, -CLOCK_LINE_DAYS);
+  // The last 120 days (Progress: a year), or the whole plan when it is older: a plan made today still shows where the
+  // time came from.
+  const back = addDays(date, -(opts.lineDays ?? CLOCK_LINE_DAYS));
+  const from = running && running.start_date < back ? running.start_date : back;
   const { data, error } = await db()
     .from("prediction_days")
     .select("local_date, time_5k_s, time_10k_s, time_half_s, time_marathon_s")

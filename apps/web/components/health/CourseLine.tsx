@@ -1,19 +1,45 @@
-import { daysBetween, type ISODate } from "@loop/core";
+import { addDays, daysBetween, type ISODate } from "@loop/core";
 import type { ClockPoint } from "@/lib/health/view";
 
 const W = 350;
 const PAD = 6;
 
+const endOf = (today: ISODate, raceDate: ISODate | null) => (raceDate && raceDate > today ? raceDate : today);
+
+/** The date under a point on the line, as a fraction (0–1) of its width: for scrubbing along it. */
+export function courseDateAt(line: ClockPoint[], today: ISODate, raceDate: ISODate | null, frac: number): ISODate {
+  const start = line[0]!.date;
+  const span = Math.max(1, daysBetween(start, endOf(today, raceDate)));
+  const px = frac * W;
+  return addDays(start, Math.round(((px - PAD) / (W - 2 * PAD)) * span));
+}
+
 /**
  * The road to the race in one line: solid and falling as the predicted time drops, a red dot for today, dashed on
  * to fitness tests (rings) and race day (a chequered flag). Without a race day the line ends at today. Compact: a thin
- * line for the top of Training.
+ * line for the top of Training. A cursor (a point on the line) marks the date being scrubbed.
  */
-export function CourseLine({ line, today, raceDate, tests, label, compact = false }: { line: ClockPoint[]; today: ISODate; raceDate: ISODate | null; tests: ISODate[]; label: string; compact?: boolean }) {
+export function CourseLine({
+  line,
+  today,
+  raceDate,
+  tests,
+  label,
+  compact = false,
+  cursor = null,
+}: {
+  line: ClockPoint[];
+  today: ISODate;
+  raceDate: ISODate | null;
+  tests: ISODate[];
+  label: string;
+  compact?: boolean;
+  cursor?: ClockPoint | null;
+}) {
   if (line.length < 2) return null;
   const [H, BASE, TOP] = compact ? [44, 38, 4] : [74, 64, 8];
   const start = line[0]!.date;
-  const end = raceDate && raceDate > today ? raceDate : today;
+  const end = endOf(today, raceDate);
   const span = Math.max(1, daysBetween(start, end));
   const x = (d: ISODate) => PAD + (daysBetween(start, d) / span) * (W - 2 * PAD);
   const secs = line.map((p) => p.seconds);
@@ -42,6 +68,12 @@ export function CourseLine({ line, today, raceDate, tests, label, compact = fals
         </g>
       )}
       <circle cx={nowX} cy={nowY} r={6} className="fill-primary" />
+      {cursor && (
+        <>
+          <line x1={x(cursor.date)} y1={0} x2={x(cursor.date)} y2={H} className="stroke-muted-foreground" strokeWidth={1} />
+          <circle cx={x(cursor.date)} cy={y(cursor.seconds)} r={5} className="fill-foreground stroke-background" strokeWidth={2} />
+        </>
+      )}
     </svg>
   );
 }

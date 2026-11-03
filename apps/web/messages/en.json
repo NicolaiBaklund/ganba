@@ -845,7 +845,6 @@
     "finished": "{race}, your time",
     "daysLeft": "in {days} days",
     "lineLabel": "Predicted {race} time over time, with tests and race day ahead",
-    "open": "Open progress",
     "now": "Now",
     "coach": "Coach, this morning",
     "swap": "Swap to easy {km} km",
@@ -877,6 +876,14 @@
     "days": "{days} days",
     "raceOn": "{race}, {date}",
     "easyAt": "Easy at {hr} bpm",
-    "easySince": "{delta} s since {month}"
+    "easySince": "{delta} s since {month}",
+    "sinceStart": "{delta} since {date}",
+    "rangeLabel": "How far back",
+    "range": {
+      "1m": "1M",
+      "3m": "3M",
+      "6m": "6M",
+      "1y": "1Y"
+    }
   }
 }

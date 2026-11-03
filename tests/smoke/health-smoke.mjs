@@ -89,6 +89,19 @@ try {
     await page.goto(`${BASE}/progress`);
     await page.getByRole("heading", { name: "Stamps" }).waitFor();
     results[`${scheme}: Japan stamp`] = (await page.getByText("Japan").count()) > 0;
+    // Range chips: 60 days of predictions give 1M and 3M; 1M starts the change later. Hovering the line shows that day.
+    const since = async () => (await page.getByText(/ since \d+ \w+$/).first().textContent()) ?? "";
+    const since3m = await since();
+    await page.getByRole("button", { name: "1M", exact: true }).click();
+    results[`${scheme}: ranges 1M and 3M only`] = (await page.getByRole("button", { name: "6M", exact: true }).count()) === 0;
+    results[`${scheme}: 1M changes the start`] = (await since()) !== since3m;
+    if (scheme === "dark") await page.screenshot({ path: "tests/smoke/out/62-health-progress-1m.png", caret: "initial" });
+    const chart = await page.getByRole("img", { name: /^Predicted .* time over time/ }).boundingBox();
+    await page.mouse.move(chart.x + chart.width * 0.3, chart.y + chart.height / 2);
+    results[`${scheme}: hover shows a day`] = (await page.getByText(/if it were today/).count()) === 0;
+    if (scheme === "dark") await page.screenshot({ path: "tests/smoke/out/62-health-progress-scrub.png", caret: "initial" });
+    await page.mouse.move(0, 0);
+    await page.getByRole("button", { name: "3M", exact: true }).click();
     results[`${scheme}: easy pace at heart rate`] = (await page.getByText("Easy at 145 bpm").count()) === 1 && (await page.getByText(/^−12 s since /).count()) === 1;
     results[`${scheme}: globe`] = (await page.getByRole("img", { name: /Globe with the 2 countries/ }).count()) === 1;
     await page.waitForTimeout(600);
