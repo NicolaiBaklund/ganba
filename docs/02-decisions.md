@@ -139,6 +139,7 @@ Format: dato — beslutning — begrunnelse.
 | 2026-11-02 | **Training ryddet («Tidy road»):** løpet med tid og tynn linje, morgenlappen, denne uka, lenken «Plan» og tempoene nederst; hele planen på /training/plan; ingen stempellinje på Training | Brukeren: «to much happening, dont know where to look, i dont want to take away from the plan page»; valgte «Tidy road», lenken skal bare hete «Plan», tempoene nederst |
 | 2026-11-02 | **Run form-kurven fjernet fra Progress** | Brukeren: «Mby just remove it»; endringer i tempo ved lik puls kommer i morgenlappen i stedet |
 | 2026-11-03 | **Rolig tempo ved puls på Progress, ikke i morgenlappen:** «Easy at {puls} bpm», tempo og endring mot de 6 ukene før | Brukeren likte «bpm at this pace»; valgte «bare progress» |
+| 2026-11-03 | **Løpsklokka på Progress: periode 1M/3M/6M/1Y, endring siden periodens start, dra langs linja for tiden en dag** | Brukeren: «kult å kunne panne på den tidsgrafen … typ strava ting hvor man kan velge hvor langt tilbake den går» |
 
 ## Åpne spørsmål
 - (Teknisk fase) Garmin-tilgang. Offisielt program er kun for bedrifter og muligens pauset (se research-notes). Sannsynlig vei: uoffisielt bibliotek i personlig fase, bak adapter-lag; offisielt når/om appen blir produkt.

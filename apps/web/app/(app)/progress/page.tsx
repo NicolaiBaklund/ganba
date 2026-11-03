@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { ChevronLeft } from "lucide-react";
 import { formatPace, type RaceDistance } from "@loop/core";
 import { requireUser } from "@/lib/supabase/server";
-import { loadClock, loadStampBook } from "@/lib/health/view";
+import { loadClock, loadStampBook, PROGRESS_LINE_DAYS } from "@/lib/health/view";
 import { loadEasyPace } from "@/lib/health/easyPace";
 import { loadRecoveryView } from "@/lib/recovery/view";
 import { RECOVERY_HISTORY_DAYS } from "@/lib/recovery/fetch";
@@ -21,7 +21,7 @@ export default async function ProgressPage() {
   const { user } = await requireUser();
   const t = await getTranslations("health");
   const v = await loadRecoveryView(user.id);
-  const [clock, stamps, easy] = await Promise.all([loadClock(user.id, v.today), loadStampBook(user.id), loadEasyPace(user.id, v.today)]);
+  const [clock, stamps, easy] = await Promise.all([loadClock(user.id, v.today, { lineDays: PROGRESS_LINE_DAYS }), loadStampBook(user.id), loadEasyPace(user.id, v.today)]);
   // Newest first, so the globe opens facing the latest country.
   const countries = stamps.filter((s) => s.kind === "country" && s.earnedOn).flatMap((s) => globeCountry(s.key) ?? []);
 
