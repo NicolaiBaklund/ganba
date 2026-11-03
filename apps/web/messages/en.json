@@ -159,11 +159,7 @@
     "meals": "Meals",
     "add": "Add",
     "weight": "Weight",
-    "weightDown": "Down {kg} kg a week.",
-    "weightUp": "Up {kg} kg a week.",
-    "weightSteady": "Steady.",
-    "goalEta": "Goal {kg} kg around {date}.",
-    "goalOnly": "Goal {kg} kg.",
+    "weightSteady": "Steady",
     "allMeals": "All meals",
     "form": "Form {score}, open Recovery",
     "noPlanTitle": "Let’s make your plan",
@@ -173,7 +169,10 @@
     "ridesDone": "{done} / {total} rides",
     "sessionsLeft": "{n, plural, =0 {Week done} one {# session left} other {# sessions left}}",
     "sessionsDone": "{done} of {total} sessions done",
-    "suggestions": "{n, plural, one {# suggestion for your plan} other {# suggestions for your plan}}"
+    "suggestions": "{n, plural, one {# suggestion for your plan} other {# suggestions for your plan}}",
+    "weightPerWeek": "{kg} kg a week",
+    "weightGoalEta": "goal {date}",
+    "weightGoalOnly": "goal {kg} kg"
   },
   "weight": {
     "title": "Log weight",
@@ -334,7 +333,10 @@
       "few_food_days": "Not enough food logged in the last 3 weeks to update your target.",
       "few_food_days_last_week": "Log food at least 5 days a week to get an update.",
       "few_weigh_ins": "Weigh in a few more times to get an update."
-    }
+    },
+    "row": "New resting target",
+    "rowSub": "{from} to {to} kcal",
+    "review": "Review"
   },
   "weekdays": {
     "0": "Sun",

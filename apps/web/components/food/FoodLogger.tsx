@@ -25,7 +25,7 @@ const DRAFT_KEY = "loop.foodDraft";
 const toEditable = (e: FoodEstimate): EditableItem[] =>
   e.items.map((i) => ({ ...i, key: crypto.randomUUID() }));
 
-export function FoodLogger({ hasKey, mode, date }: { hasKey: boolean; mode: "photo" | "text"; date?: string }) {
+export function FoodLogger({ hasKey, mode, date, meal: slot }: { hasKey: boolean; mode: "photo" | "text"; date?: string; meal?: MealType }) {
   const t = useTranslations("foodLog");
   const tm = useTranslations("meals");
   const router = useRouter();
@@ -38,8 +38,9 @@ export function FoodLogger({ hasKey, mode, date }: { hasKey: boolean; mode: "pho
   const [notes, setNotes] = useState("");
   const [estimateId, setEstimateId] = useState<string | null>(null);
   const [correction, setCorrection] = useState("");
-  const [meal, setMeal] = useState<MealType>("snack");
-  const mealTime = useMealTime({ backDated: !!date, onMeal: setMeal });
+  // Opened from an empty meal slot on Today: that meal, not the one the clock suggests.
+  const [meal, setMeal] = useState<MealType>(slot ?? "snack");
+  const mealTime = useMealTime({ backDated: !!date, onMeal: setMeal, picked: !!slot });
   const [error, setError] = useState<ErrorKind | null>(null);
   const [quickOpen, setQuickOpen] = useState(false);
 
@@ -60,7 +61,7 @@ export function FoodLogger({ hasKey, mode, date }: { hasKey: boolean; mode: "pho
   );
 
   useEffect(() => {
-    setMeal(mealTypeForHour(new Date().getHours()));
+    if (!slot) setMeal(mealTypeForHour(new Date().getHours()));
     try {
       // Restore the draft without overwriting anything typed before hydration finished.
       const stored = sessionStorage.getItem(DRAFT_KEY) ?? "";

@@ -23,12 +23,15 @@ export async function KcalBlock({
   floored,
   activityKcal,
   breakdown,
+  isToday = true,
 }: {
   intake: Macros;
   target: Macros;
   floored: boolean;
   activityKcal: number | null;
   breakdown: { base: number; activity: number; goal: number } | null;
+  /** Another day says "kcal left", not "kcal left today". */
+  isToday?: boolean;
 }) {
   const t = await getTranslations("today");
   const remaining = Math.round(target.kcal - intake.kcal);
@@ -52,7 +55,7 @@ export async function KcalBlock({
       <div className="flex items-end justify-between gap-3">
         <div>
           <p className={`num text-[72px] font-black leading-[.9] [font-stretch:62%] ${remaining < 0 ? "text-warning" : ""}`}>{Math.abs(remaining)}</p>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">{remaining < 0 ? t("overToday") : t("leftToday")}</p>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">{remaining < 0 ? t(isToday ? "overToday" : "over") : t(isToday ? "leftToday" : "left")}</p>
         </div>
         {breakdown ? <TargetSheet target={target.kcal} breakdown={breakdown}>{side}</TargetSheet> : side}
       </div>

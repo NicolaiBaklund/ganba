@@ -1,32 +1,39 @@
-import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { MEAL_ORDER } from "@/lib/dates";
-import { sumItems, type FoodEntryWithItems } from "@/lib/db/today";
+import { Plus } from "lucide-react";
+import { sumItems, type FoodEntryWithItems, type MealType } from "@/lib/db/today";
 import { ListRow } from "@/components/tasuki/ListRow";
-import { SectionHead } from "@/components/tasuki/SectionHead";
 
-/** The day's meals as one list: meal, what was in it, kcal. Tap opens the day on the Food tab. */
+/** The day in order: snacks before dinner (the Food tab keeps its own order). */
+const DAY_ORDER: MealType[] = ["breakfast", "lunch", "snack", "dinner", "evening"];
+/** Main meals get a slot even before they are logged; snacks show once there are some. */
+const SLOTS = new Set<MealType>(["breakfast", "lunch", "dinner"]);
+
+/**
+ * The day's meals as one list under a rule: meal, what was in it, kcal (tap opens the day on Food). A main meal not
+ * logged yet is a grey slot with a + that logs straight into it.
+ */
 export async function MealsList({ entries, date, today }: { entries: FoodEntryWithItems[]; date: string; today: string }) {
-  const t = await getTranslations("today");
   const tm = await getTranslations("meals");
-  const add = (
-    <span className="flex gap-4">
-      <Link href={`/food?date=${date}`} className="text-[13px] font-semibold text-muted-foreground">
-        {t("allMeals")}
-      </Link>
-      <Link href={`/food/log?mode=text${date === today ? "" : `&date=${date}`}`} className="text-[13px] font-semibold text-primary">
-        {t("add")}
-      </Link>
-    </span>
-  );
 
   return (
-    <section>
-      <SectionHead title={t("meals")} action={add} />
-      {!entries.length && <p className="border-b border-border py-3 text-[13px] text-muted-foreground">{t("noMeals")}</p>}
-      {MEAL_ORDER.map((meal) => {
+    <section className="mt-6 border-t-2 border-foreground">
+      {DAY_ORDER.map((meal) => {
         const list = entries.filter((e) => e.meal_type === meal);
-        if (!list.length) return null;
+        if (!list.length) {
+          if (!SLOTS.has(meal)) return null;
+          return (
+            <ListRow
+              key={meal}
+              href={`/food/log?mode=text&meal=${meal}${date === today ? "" : `&date=${date}`}`}
+              title={<span className="text-muted-foreground">{tm(meal)}</span>}
+              trailing={
+                <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full border border-border">
+                  <Plus className="size-4" />
+                </span>
+              }
+            />
+          );
+        }
         const items = list.flatMap((e) => e.items);
         return (
           <ListRow

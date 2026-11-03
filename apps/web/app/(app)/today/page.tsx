@@ -68,14 +68,19 @@ export default async function TodayPage({ searchParams }: PageProps<"/today">) {
         floored={snap.target.floored}
         activityKcal={activity}
         breakdown={activity != null ? { base: snap.baseKcal, activity, goal: goalKcal } : null}
+        isToday={snap.date === snap.today}
       />
+      {/* One list under the kcal: meals with empty slots, a new resting target when there is one, then weight. */}
       <MealsList entries={snap.entries} date={snap.date} today={snap.today} />
-      {checkinView && (
-        <div className="mt-6">
-          <CheckinCard view={checkinView} />
-        </div>
-      )}
-      <WeightRow trendKg={snap.latestTrendKg} weeklyChangeKg={snap.weeklyChangeKg} goalKg={snap.goal.targetWeightKg} etaDate={snap.forecast.etaDate} />
+      {checkinView && <CheckinCard view={checkinView} />}
+      <WeightRow
+        trendKg={snap.latestTrendKg}
+        weeklyChangeKg={snap.weeklyChangeKg}
+        goalKg={snap.goal.targetWeightKg}
+        etaDate={snap.forecast.etaDate}
+        trend={snap.trend}
+        date={snap.date}
+      />
     </main>
   );
 }
@@ -86,7 +91,7 @@ async function toCheckinView(
   c: CheckinRow,
   snap: Awaited<ReturnType<typeof getDaySnapshot>>,
 ): Promise<CheckinView | null> {
-  if (c.status === "insufficient_data") return { id: c.id, status: "insufficient_data", reason: c.reason ?? "too_early" };
+  // Only a new target to accept shows on Today; "not enough data yet" has nothing to decide.
   if (c.status !== "pending" || c.proposed_base_kcal == null) return null;
 
   const plan = await currentRow(supabase, "energy_plans", userId, snap.today);
@@ -94,7 +99,6 @@ async function toCheckinView(
   const days = c.window_start && c.window_end ? Math.max(1, (Date.parse(c.window_end) - Date.parse(c.window_start)) / 86_400_000) : 20;
   return {
     id: c.id,
-    status: "pending",
     kgPerWeek: Math.round((Number(c.trend_change_kg ?? 0) / days) * 7 * 10) / 10,
     goalRate: snap.goal.rateKgPerWeek,
     currentKcal: Number(plan.base_expenditure_kcal),

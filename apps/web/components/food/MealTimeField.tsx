@@ -12,10 +12,10 @@ const hhmm = (d: Date) => `${String(d.getHours()).padStart(2, "0")}:${String(d.g
  * changes it; only a changed time is sent (`sent`), otherwise the entry gets the exact save moment.
  * Logging for a past day it starts empty (time unknown). The meal follows a changed time until picked by hand.
  */
-export function useMealTime(opts: { backDated: boolean; onMeal: (m: MealType) => void }) {
+export function useMealTime(opts: { backDated: boolean; onMeal: (m: MealType) => void; picked?: boolean }) {
   const [time, setTime] = useState("");
   const [touched, setTouched] = useState(false);
-  const [mealPicked, setMealPicked] = useState(false);
+  const [mealPicked, setMealPicked] = useState(!!opts.picked);
   useEffect(() => {
     if (opts.backDated || touched) return;
     setTime(hhmm(new Date()));
