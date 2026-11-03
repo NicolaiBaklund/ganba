@@ -25,14 +25,18 @@ try {
   page.on("console", (m) => m.type() === "error" && errors.push(m.text().slice(0, 300)));
 
   await page.goto(`${BASE}/today`);
-  await page.getByText("Weekly check-in").waitFor();
+  // One row on Today ("New resting target"); Review opens the details and the choice in a sheet.
+  await page.getByText("New resting target").waitFor();
   await page.screenshot({ path: "tests/smoke/out/20-checkin.png", fullPage: true, caret: "initial" });
   const before = await page.locator(".num").nth(0).textContent();
+  await page.getByRole("button", { name: "Review" }).click();
+  await page.getByText("Weekly check-in").waitFor();
+  await page.screenshot({ path: "tests/smoke/out/20-checkin-sheet.png", caret: "initial" });
   await page.getByRole("button", { name: "Accept" }).click();
   await page.getByText("Resting calories updated").waitFor();
   await page.reload();
   await page.waitForTimeout(500);
-  const cardGone = (await page.getByText("Weekly check-in").count()) === 0;
+  const cardGone = (await page.getByText("New resting target").count()) === 0;
   await page.screenshot({ path: "tests/smoke/out/21-after-accept.png", fullPage: true, caret: "initial" });
   await browser.close();
 

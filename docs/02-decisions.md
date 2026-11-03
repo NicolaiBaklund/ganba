@@ -140,6 +140,7 @@ Format: dato — beslutning — begrunnelse.
 | 2026-11-02 | **Run form-kurven fjernet fra Progress** | Brukeren: «Mby just remove it»; endringer i tempo ved lik puls kommer i morgenlappen i stedet |
 | 2026-11-03 | **Rolig tempo ved puls på Progress, ikke i morgenlappen:** «Easy at {puls} bpm», tempo og endring mot de 6 ukene før | Brukeren likte «bpm at this pace»; valgte «bare progress» |
 | 2026-11-03 | **Løpsklokka på Progress: periode 1M/3M/6M/1Y, endring siden periodens start, dra langs linja for tiden en dag** | Brukeren: «kult å kunne panne på den tidsgrafen … typ strava ting hvor man kan velge hvor langt tilbake den går» |
+| 2026-11-03 | **Forsiden ryddet (forslag B):** startnummer og kcal som før; under én strek og én liste: måltidene (frokost, lunsj og middag som grå plass med + til de er logget, snacks før middag), «New resting target» som én rad med «Review» (detaljene i et ark) bare når det er et nytt mål, vekt med liten trendlinje nederst. Ingen overskrifter, ingen «All meals»/«Add», ingen «Keep logging»-kort. Andre dager sier «kcal left», ikke «kcal left today» | Brukeren ba om bedre forside i samme stil, likte toppen; UX-agentens forslag B valgt («b er bra») |
 
 ## Åpne spørsmål
 - (Teknisk fase) Garmin-tilgang. Offisielt program er kun for bedrifter og muligens pauset (se research-notes). Sannsynlig vei: uoffisielt bibliotek i personlig fase, bak adapter-lag; offisielt når/om appen blir produkt.
