@@ -127,5 +127,11 @@ export function stampText(s: Pick<Stamp, "kind" | "key" | "value">): { mark: str
       return { mark: "Test", label: "Fitness test" };
     case "race":
       return { mark: "Race", label: v.seconds ? `Race ${fmt(v.seconds)}` : "Race" };
+    case "strength_count":
+      return { mark: s.key, label: s.key === "1" ? "First strength session" : `${s.key} strength sessions` };
+    case "strength_pr": {
+      const name = (s.value as { name?: string } | null)?.name ?? "Lift";
+      return { mark: `${v.kg}`, label: `${name} ${v.kg} kg` };
+    }
   }
 }

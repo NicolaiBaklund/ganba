@@ -20,6 +20,7 @@ export * from "./training/proposals";
 export * from "./training/fueling";
 export * from "./training/ride";
 export * from "./training/cross";
+export * from "./strength";
 export * from "./recovery/types";
 export * from "./recovery/variables";
 export * from "./recovery/curves";

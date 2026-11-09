@@ -1,7 +1,7 @@
 import { addDays, type ISODate } from "../dates";
 
 /** Stamps (spec docs/specs/2026-11-02-health.md §8): milestones, all derived, each earned once. */
-export type StampKind = "country" | "distance" | "pr" | "volume" | "streak" | "test" | "race";
+export type StampKind = "country" | "distance" | "pr" | "volume" | "streak" | "test" | "race" | "strength_count" | "strength_pr";
 
 export interface Stamp {
   kind: StampKind;
