@@ -1,5 +1,5 @@
 import "server-only";
-import { activityKcal, addDays, isRun, isStepActivity, runKcal, type ActivityBaseline, type ActivityLike, type ISODate } from "@loop/core";
+import { activityKcal, addDays, isRun, isStepActivity, runKcal, sessionDurationS, type ActivityBaseline, type ActivityLike, type ISODate } from "@loop/core";
 import type { DB } from "./current";
 
 export const FALLBACK_WINDOW_DAYS = 14;
@@ -23,9 +23,11 @@ interface DayData {
 }
 
 async function loadDays(db: DB, userId: string, from: ISODate, to: ISODate): Promise<Map<ISODate, DayData>> {
-  const [days, acts] = await Promise.all([
+  const [days, acts, strength] = await Promise.all([
     db.from("garmin_days").select("local_date, steps").eq("user_id", userId).gte("local_date", from).lte("local_date", to),
     db.from("activities").select("local_date, type_key, distance_m, duration_s, steps, garmin_kcal").eq("user_id", userId).gte("local_date", from).lte("local_date", to),
+    // Strength logged in Ganba without a Garmin activity counts by its own length (a linked one is in `acts`).
+    db.from("strength_sessions").select("local_date, strength_sets(created_at)").eq("user_id", userId).is("activity_id", null).gte("local_date", from).lte("local_date", to),
   ]);
   const map = new Map<ISODate, DayData>();
   for (const d of days.data ?? []) map.set(d.local_date, { steps: d.steps, activities: [] });
@@ -33,6 +35,13 @@ async function loadDays(db: DB, userId: string, from: ISODate, to: ISODate): Pro
     const day = map.get(a.local_date) ?? { steps: null, activities: [] };
     day.activities.push({ typeKey: a.type_key, distanceM: a.distance_m == null ? null : Number(a.distance_m), durationS: a.duration_s == null ? null : Number(a.duration_s), steps: a.steps, kcal: a.garmin_kcal });
     map.set(a.local_date, day);
+  }
+  for (const st of strength.data ?? []) {
+    const sets = st.strength_sets ?? [];
+    if (!sets.length) continue;
+    const day = map.get(st.local_date) ?? { steps: null, activities: [] };
+    day.activities.push({ typeKey: "strength_training", distanceM: null, durationS: sessionDurationS(sets.map((x) => x.created_at), sets.length), steps: null });
+    map.set(st.local_date, day);
   }
   return map;
 }

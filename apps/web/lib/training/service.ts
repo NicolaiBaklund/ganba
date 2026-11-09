@@ -1,4 +1,5 @@
 import "server-only";
+import { linkStrength } from "@/lib/strength/link";
 import { withStatedStart,
   addDays,
   crossSessions,
@@ -934,7 +935,12 @@ export async function afterGarminSync(userId: string, today: ISODate, source?: G
   await reconcilePlan(userId, today);
   await refreshProposals(userId, today);
   await pushToGarmin(userId, today, source);
-  // Health (stamps, predictions) never blocks training upkeep.
+  // Health (stamps, predictions) and strength links never block training upkeep.
+  try {
+    await linkStrength(userId);
+  } catch (e) {
+    console.error("strength link failed", userId, e instanceof Error ? e.message : e);
+  }
   try {
     await computeHealth(userId, today);
   } catch (e) {

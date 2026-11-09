@@ -1,8 +1,9 @@
 import "server-only";
-import { earnedStamps, isRide, isRun, PR_TYPES, weekStartOn, type ISODate, type Stamp, type StampKind } from "@loop/core";
+import { earnedStamps, exerciseByKey, isRide, isRun, PR_TYPES, strengthStamps, weekStartOn, type ISODate, type Stamp, type StampKind } from "@loop/core";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import type { Json } from "@/lib/db/types";
 import { countryName, countryOf } from "./country";
+import { loggedSessions, stampSessions, userExercises } from "@/lib/strength/history";
 
 const db = () => createAdminSupabase();
 const num = (v: unknown) => (v == null ? null : Number(v));
@@ -88,6 +89,12 @@ export async function refreshStamps(userId: string, today: ISODate): Promise<voi
     tests: done("test").map((w) => ({ date: w.date, activityId: w.activity_id! })),
     races: raceRows.map((w) => ({ date: w.date, activityId: w.activity_id!, timeS: timeOf.get(w.activity_id!) ?? 0 })),
   });
+  // Strength (spec 2026-11-10 §9): session counts and round numbers on favourite lifts.
+  const [{ custom, favourites }, logged] = await Promise.all([userExercises(userId), loggedSessions(userId)]);
+  for (const st of strengthStamps(stampSessions(logged, custom), favourites)) {
+    const name = st.kind === "strength_pr" ? exerciseByKey(String(st.value?.exercise), custom)?.name : undefined;
+    stamps.push({ kind: st.kind, key: st.key, earnedOn: st.earnedOn, activityId: "", value: name ? { ...st.value, name } : st.value });
+  }
   const before = new Map(existing.map((x) => [`${x.kind}:${x.key}`, x.earned_on]));
   // Only new stamps and ones that moved earlier are written.
   const changed = stamps.filter((s) => {
