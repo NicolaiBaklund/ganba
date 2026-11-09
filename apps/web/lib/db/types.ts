@@ -1399,6 +1399,94 @@ export type Database = {
           },
         ]
       }
+      strength_sessions: {
+        Row: {
+          activity_id: string | null
+          created_at: string
+          finished_at: string | null
+          id: string
+          local_date: string
+          started_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_id?: string | null
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          local_date: string
+          started_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_id?: string | null
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          local_date?: string
+          started_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "strength_sessions_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: true
+            referencedRelation: "activities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      strength_sets: {
+        Row: {
+          created_at: string
+          exercise_key: string
+          id: string
+          kg: number | null
+          position: number
+          reps: number | null
+          seconds: number | null
+          session_id: string
+          set_no: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          exercise_key: string
+          id?: string
+          kg?: number | null
+          position: number
+          reps?: number | null
+          seconds?: number | null
+          session_id: string
+          set_no: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          exercise_key?: string
+          id?: string
+          kg?: number | null
+          position?: number
+          reps?: number | null
+          seconds?: number | null
+          session_id?: string
+          set_no?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "strength_sets_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "strength_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       training_plans: {
         Row: {
           created_at: string
@@ -1429,6 +1517,8 @@ export type Database = {
           start_km_per_week: number
           start_min_per_week: number | null
           status: Database["public"]["Enums"]["plan_status"]
+          strength_weekdays: number[]
+          strength_weekdays_from: string | null
           target_time_s: number | null
           updated_at: string
           upkept_on: string | null
@@ -1465,6 +1555,8 @@ export type Database = {
           start_km_per_week: number
           start_min_per_week?: number | null
           status?: Database["public"]["Enums"]["plan_status"]
+          strength_weekdays?: number[]
+          strength_weekdays_from?: string | null
           target_time_s?: number | null
           updated_at?: string
           upkept_on?: string | null
@@ -1501,12 +1593,47 @@ export type Database = {
           start_km_per_week?: number
           start_min_per_week?: number | null
           status?: Database["public"]["Enums"]["plan_status"]
+          strength_weekdays?: number[]
+          strength_weekdays_from?: string | null
           target_time_s?: number | null
           updated_at?: string
           upkept_on?: string | null
           user_id?: string
           vdot?: number
           weekdays?: number[]
+        }
+        Relationships: []
+      }
+      user_exercises: {
+        Row: {
+          created_at: string
+          favorite: boolean
+          id: string
+          key: string
+          measure: string
+          muscle_group: string
+          name: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          favorite?: boolean
+          id?: string
+          key: string
+          measure: string
+          muscle_group: string
+          name?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          favorite?: boolean
+          id?: string
+          key?: string
+          measure?: string
+          muscle_group?: string
+          name?: string | null
+          user_id?: string
         }
         Relationships: []
       }

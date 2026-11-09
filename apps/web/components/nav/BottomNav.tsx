@@ -43,13 +43,12 @@ export function BottomNav({ training = false }: { training?: boolean }) {
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card pb-[env(safe-area-inset-bottom)]">
       <div className="mx-auto flex max-w-md items-center px-2">
         {LEFT.map(item)}
-        {!training && (
-          <div className="flex flex-1 justify-center">
-            <Suspense>
-              <PlusMenu />
-            </Suspense>
-          </div>
-        )}
+        {/* Training only has no food: its + opens the day's strength session. */}
+        <div className="flex flex-1 justify-center">
+          <Suspense>
+            <PlusMenu strengthOnly={training} />
+          </Suspense>
+        </div>
         {RIGHT.filter((r) => !training || r.key !== "body").map(item)}
       </div>
     </nav>

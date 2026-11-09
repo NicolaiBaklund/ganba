@@ -1,4 +1,5 @@
 import "server-only";
+import { linkStrength } from "@/lib/strength/link";
 import { withStatedStart,
   addDays,
   crossSessions,
@@ -615,6 +616,20 @@ export async function setCrossDays(userId: string, days: number[], source: Garmi
   return true;
 }
 
+/**
+ * Strength days (spec 2026-11-10 §7a): stored on the plan and shown as planned strength on those weekdays. They
+ * are never planned_workouts rows, so nothing is rebuilt or sent to the watch.
+ */
+export async function setStrengthDays(userId: string, days: number[]): Promise<boolean> {
+  const plan = await activePlan(userId);
+  if (!plan) return false;
+  const clean = [...new Set(days)].filter((d) => d >= 0 && d <= 6).sort();
+  // The days apply from today: earlier weeks are not marked missed for days that weren't picked then.
+  const { error } = await db().from("training_plans").update({ strength_weekdays: clean, strength_weekdays_from: await todayFor(userId) }).eq("id", plan.id);
+  if (error) throw error;
+  return true;
+}
+
 /** Cancels the active plan; its sessions are removed from Garmin on the next push. */
 export async function cancelPlan(userId: string): Promise<void> {
   const d = db();
@@ -934,7 +949,12 @@ export async function afterGarminSync(userId: string, today: ISODate, source?: G
   await reconcilePlan(userId, today);
   await refreshProposals(userId, today);
   await pushToGarmin(userId, today, source);
-  // Health (stamps, predictions) never blocks training upkeep.
+  // Health (stamps, predictions) and strength links never block training upkeep.
+  try {
+    await linkStrength(userId);
+  } catch (e) {
+    console.error("strength link failed", userId, e instanceof Error ? e.message : e);
+  }
   try {
     await computeHealth(userId, today);
   } catch (e) {

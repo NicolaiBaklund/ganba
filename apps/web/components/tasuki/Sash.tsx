@@ -7,7 +7,7 @@ export function Sash({
   state = "done",
   className,
 }: {
-  type: WorkoutType | "rest" | "other";
+  type: WorkoutType | "rest" | "other" | "strength";
   state?: "done" | "planned" | "missed";
   className?: string;
 }) {

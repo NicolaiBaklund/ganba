@@ -6,6 +6,7 @@ import { loadTrainingView } from "@/lib/training/view";
 import { fmtClock } from "@/lib/training/format";
 import { PlanSwitch } from "@/components/training/PlanSwitch";
 import { CrossDays } from "@/components/training/CrossDays";
+import { StrengthDays } from "@/components/training/StrengthDays";
 import { EndPlan } from "@/components/training/EndPlan";
 import { TrainingMap } from "@/components/training/TrainingMap";
 import { StatRow } from "@/components/tasuki/StatRow";
@@ -86,6 +87,7 @@ export default async function PlanPage() {
         </div>
       )}
       <CrossDays sport={p.sport} weekdays={p.weekdays} cross={p.crossWeekdays} />
+      <StrengthDays days={p.strengthWeekdays} />
 
       <TrainingMap
         thisWeek={v.thisWeek}
@@ -93,6 +95,7 @@ export default async function PlanPage() {
         today={v.today}
         raceLabel={race ? bigLabel : null}
         hours={!!ride}
+        strength={v.strength}
         raceDateLabel={raceDate ? format.dateTime(raceDate, { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }) : null}
       />
 
