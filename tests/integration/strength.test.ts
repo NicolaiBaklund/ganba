@@ -5,6 +5,7 @@ import { refreshStamps } from "@/lib/health/stamps";
 import { linkStrength } from "@/lib/strength/link";
 import { finishSession, openSession, saveExercise, setFavourite } from "@/lib/strength/sessions";
 import { loadSession, strengthItems, strengthProgress } from "@/lib/strength/view";
+import { activePlan, setStrengthDays } from "@/lib/training/service";
 // @ts-expect-error — plain JS helper shared with the smoke scripts
 import { seedUser } from "../smoke/seed.mjs";
 import { admin, cleanup, createTestUser, type TestUser } from "./setup";
@@ -118,5 +119,23 @@ describe("strength (spec 2026-11-10)", () => {
     // An empty session is removed on Finish.
     const empty = await openSession(u.id, addDays(today, -2));
     expect(await finishSession(u.id, empty)).toBe("removed");
+  });
+
+  it("strength days in the plan: stored on the plan, no planned_workouts rows, shown as planned and done when logged", async () => {
+    const { data: plan } = await admin()
+      .from("training_plans")
+      .insert({ user_id: u.id, goal_kind: "build", distance_km: 10, start_date: addDays(today, -7), generated_until: addDays(today, 30), weekdays: [2, 4, 6], long_run_weekday: 6, runs_per_week: 3, vdot: 45, start_km_per_week: 25 } as never)
+      .select("id")
+      .single();
+    const before = (await admin().from("planned_workouts").select("id", { count: "exact", head: true }).eq("plan_id", plan!.id)).count;
+    const tomorrow = addDays(today, 1);
+    expect(await setStrengthDays(u.id, [weekday(tomorrow), weekday(tomorrow), 9])).toBe(true);
+    const p = (await activePlan(u.id))!;
+    expect(p.strength_weekdays).toEqual([weekday(tomorrow)]);
+    expect((await admin().from("planned_workouts").select("id", { count: "exact", head: true }).eq("plan_id", plan!.id)).count).toBe(before);
+    expect((await strengthItems(u.id, tomorrow, tomorrow, today, p))[0]).toMatchObject({ state: "planned", sessionId: null });
+    // Today was logged in an earlier test: done, whatever the plan says.
+    await setStrengthDays(u.id, [weekday(today)]);
+    expect((await strengthItems(u.id, today, today, today, (await activePlan(u.id))!))[0]).toMatchObject({ state: "done" });
   });
 });

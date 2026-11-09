@@ -92,6 +92,24 @@ try {
     results[`${scheme}: progress row`] = (await page.getByText(/^18 → 22 kg since /).count()) === 1;
     await shot("6-progress", true);
 
+    if (scheme === "dark") {
+      // Strength days in the plan: picked on the plan page, stored on the plan, no sessions sent anywhere.
+      must(
+        await admin
+          .from("training_plans")
+          .insert({ user_id: uid, goal_kind: "build", distance_km: 10, start_date: day(-7), generated_until: day(40), weekdays: [2, 4, 6], long_run_weekday: 6, runs_per_week: 3, vdot: 45, start_km_per_week: 25 }),
+      );
+      await page.goto(`${BASE}/training/plan`);
+      await page.getByRole("button", { name: "+ Add strength days" }).click();
+      const tomorrow = new Date(`${day(1)}T12:00:00Z`).getUTCDay();
+      await page.getByRole("button", { name: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][tomorrow], exact: true }).last().click();
+      await page.getByRole("button", { name: "Save days" }).click();
+      await page.waitForTimeout(1500);
+      const { data: plan } = await admin.from("training_plans").select("strength_weekdays").eq("user_id", uid).single();
+      results["plan: strength day saved"] = JSON.stringify(plan.strength_weekdays) === JSON.stringify([tomorrow]);
+      await shot("8-plan", true);
+    }
+
     await page.goto(`${BASE}/today`);
     await page.getByText("Shoulders, chest").first().waitFor();
     results[`${scheme}: strength bib on Today`] = true;

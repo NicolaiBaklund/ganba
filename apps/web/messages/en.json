@@ -487,7 +487,9 @@
     "crossSave": "Save days",
     "crossError": "Couldn't save the days. Try again.",
     "plan": "Plan",
-    "weekKm": "<b>{done}</b> of {planned} km"
+    "weekKm": "<b>{done}</b> of {planned} km",
+    "strengthDays": "Strength on",
+    "addStrengthDays": "+ Add strength days"
   },
   "proposal": {
     "title": {
