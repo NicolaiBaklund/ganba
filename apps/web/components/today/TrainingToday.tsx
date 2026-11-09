@@ -44,7 +44,7 @@ export async function TrainingToday({ supabase, userId, date }: { supabase: DB; 
       ) : (
         <>
           <div className="mt-4">
-            <TodayBib workout={w} kg={70} next={next} fuel={false} strength={strength} />
+            <TodayBib workout={w} kg={70} next={next} fuel={false} strength={strength} today={v.today} />
             {canLog && <ManualDone key={w!.id} workoutId={w!.id} plannedKm={w!.plannedKm} done={w!.status === "done"} manual={!!w!.manual} />}
           </div>
           {v.thisWeek && <WeekCard week={v.thisWeek} sport={v.plan.sport} today={v.today} proposals={v.proposals.length} />}

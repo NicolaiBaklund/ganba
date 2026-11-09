@@ -61,7 +61,7 @@ describe("strength (spec 2026-11-10)", () => {
     // 4 sets → the 20 min minimum: MET (net) × hours × kg.
     expect(own.otherKcal).toBe(Math.round((20 / 60) * (metFor("strength_training") - 1) * kg));
 
-    // Two Garmin strength activities that day: the one nearest the logging links, the other stays "from your watch".
+    // Two Garmin strength activities that day: the one nearest the logging links (one strength row per day).
     const far = await strengthAct(date, 1, 250);
     const near = await strengthAct(date, new Date().getUTCHours(), 300);
     await linkStrength(u.id);
@@ -137,5 +137,33 @@ describe("strength (spec 2026-11-10)", () => {
     // Today was logged in an earlier test: done, whatever the plan says.
     await setStrengthDays(u.id, [weekday(today)]);
     expect((await strengthItems(u.id, today, today, today, (await activePlan(u.id))!))[0]).toMatchObject({ state: "done" });
+  });
+
+  it("review fixes: length capped, an unlinked watch activity is not counted twice, Ganba strength on an average day, days apply from when picked", async () => {
+    const kg = 80;
+    // Saved at 07:00, another exercise added 14 h later: 6 sets → 20 min estimate, capped at 40 min.
+    const late = addDays(today, -9);
+    const s = await openSession(u.id, late);
+    await saveExercise(u.id, s, { key: "bicep-curl", position: 0, sets: sets(3, 12, 12) });
+    await admin().from("strength_sets").update({ created_at: new Date(Date.now() - 14 * 3600_000).toISOString() }).eq("session_id", s);
+    await saveExercise(u.id, s, { key: "hammer-curl", position: 1, sets: sets(3, 12, 12) });
+    expect((await strengthItems(u.id, late, late, today, null))[0]!.minutes).toBe(40);
+    // A past day without watch data: the 14-day average plus the session (40 min).
+    const avgDay = await dayActivity(admin(), u.id, late, today, kg);
+    expect(avgDay.source).toBe("average");
+    expect(avgDay.otherKcal).toBe(Math.round((40 / 60) * (metFor("strength_training") - 1) * kg));
+
+    // A watch strength activity synced but not linked yet: only the watch counts.
+    const d = addDays(today, -10);
+    const s2 = await openSession(u.id, d);
+    await saveExercise(u.id, s2, { key: "lat-pulldown", position: 0, sets: sets(3, 10, 50) });
+    await strengthAct(d, 9, 320);
+    const both = await dayActivity(admin(), u.id, d, today, kg);
+    expect(both.otherKcal).toBe(Math.round(320 - (3000 / 3600) * kg));
+
+    // Days picked today don't mark earlier weeks missed.
+    const lastWeek = addDays(today, -7);
+    await setStrengthDays(u.id, [weekday(lastWeek)]);
+    expect(await strengthItems(u.id, lastWeek, lastWeek, today, (await activePlan(u.id))!)).toEqual([]);
   });
 });

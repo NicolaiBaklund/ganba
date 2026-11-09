@@ -14,6 +14,7 @@ export async function TodayBib({
   next,
   fuel: showFuel = true,
   strength = null,
+  today,
 }: {
   workout: WorkoutListItem | null;
   kg: number;
@@ -22,6 +23,8 @@ export async function TodayBib({
   next: { date: string; type: WorkoutType; title: string; plannedKm: number; plannedDurationS: number; sport: "run" | "ride" } | null;
   /** The day's strength (logged, from the watch or planned): its own bib on a day without a run or ride. */
   strength?: StrengthItem | null;
+  /** A planned strength day after today opens nothing yet. */
+  today?: string;
 }) {
   const t = await getTranslations("workout");
   const tf = await getTranslations("fuel");
@@ -40,7 +43,7 @@ export async function TodayBib({
         title={ts("title")}
         stripe="var(--w-strength)"
         next={null}
-        href={href}
+        href={today && strength.date > today ? undefined : href}
         foot={
           strength.state === "done" ? (
             <span className="inline-flex items-center gap-1 text-paper-success">

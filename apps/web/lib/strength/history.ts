@@ -32,13 +32,15 @@ export async function loggedSessions(userId: string, opts: { from?: ISODate; to?
   if (error) throw error;
   if (!sessions?.length) return [];
   const sets: { session_id: string; exercise_key: string; position: number; set_no: number; reps: number | null; kg: number | null; seconds: number | null; created_at: string }[] = [];
-  for (let from = 0; ; from += 1000) {
-    const { data, error: e } = await db()
+  // Filtered through the session's date (a join), not a list of ids that grows with every session.
+  for (let page = 0; ; page += 1000) {
+    let sq = db()
       .from("strength_sets")
-      .select("session_id, exercise_key, position, set_no, reps, kg, seconds, created_at")
-      .in("session_id", sessions.map((s) => s.id))
-      .order("id")
-      .range(from, from + 999);
+      .select("session_id, exercise_key, position, set_no, reps, kg, seconds, created_at, strength_sessions!inner(local_date)")
+      .eq("user_id", userId);
+    if (opts.from) sq = sq.gte("strength_sessions.local_date", opts.from);
+    if (opts.to) sq = sq.lte("strength_sessions.local_date", opts.to);
+    const { data, error: e } = await sq.order("id").range(page, page + 999);
     if (e) throw e;
     sets.push(...(data ?? []));
     if ((data ?? []).length < 1000) break;

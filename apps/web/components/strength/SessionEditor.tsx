@@ -26,7 +26,12 @@ const parseNum = (s: string) => {
 function Stepper({ value, step, unit, placeholder, decimal, onChange, label }: { value: number | null; step: number; unit: string; placeholder?: string; decimal?: boolean; onChange: (v: number | null) => void; label: string }) {
   const [text, setText] = useState<string | null>(null);
   const shown = text ?? (value == null ? "" : String(value));
-  const bump = (d: number) => onChange(Math.max(0, Math.round(((value ?? 0) + d) * 100) / 100));
+  // "−" on an empty field (bodyweight) leaves it empty rather than 0.
+  const bump = (d: number) => (value == null && d < 0 ? undefined : onChange(Math.max(0, Math.round(((value ?? 0) + d) * 100) / 100)));
+  const commit = (s: string) => {
+    const v = parseNum(s);
+    return v == null ? null : Math.max(0, decimal ? v : Math.round(v));
+  };
   return (
     <span className="flex h-10 items-center justify-between rounded-[10px] bg-muted px-1">
       <button type="button" aria-label={`− ${label}`} onClick={() => bump(-step)} className="grid size-8 place-items-center text-muted-foreground">
@@ -39,9 +44,13 @@ function Stepper({ value, step, unit, placeholder, decimal, onChange, label }: {
           value={shown}
           placeholder={placeholder}
           onFocus={(e) => e.currentTarget.select()}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            setText(e.target.value);
+            // Committed while typing: a tap on ✓ may not blur the field first (iOS).
+            if (commit(e.target.value) != null) onChange(commit(e.target.value));
+          }}
           onBlur={() => {
-            if (text != null) onChange(parseNum(text) == null ? null : Math.max(0, decimal ? parseNum(text)! : Math.round(parseNum(text)!)));
+            if (text != null) onChange(commit(text));
             setText(null);
           }}
           className="num w-12 bg-transparent text-right text-lg font-extrabold outline-none placeholder:text-foreground"
@@ -76,15 +85,18 @@ export function SessionEditor({ view }: { view: SessionView }) {
     });
   }
 
-  async function save(it: Item) {
-    setBusy(it.key);
+  /** Saves one exercise; false (and it stays open) when that fails. */
+  async function save(it: Item, keepBusy = false): Promise<boolean> {
+    if (!keepBusy) setBusy(it.key);
     try {
       await post("/api/strength/session", { action: "save", sessionId: view.id, key: it.key, position: items.findIndex((x) => x.key === it.key), sets: it.sets.map(({ reps, kg, seconds }) => ({ reps, kg, seconds })) });
       update(it.key, (x) => ({ ...x, saved: true, open: false }));
+      return true;
     } catch {
       toast.error(t("saveError"));
+      return false;
     } finally {
-      setBusy(null);
+      if (!keepBusy) setBusy(null);
     }
   }
 
@@ -110,8 +122,10 @@ export function SessionEditor({ view }: { view: SessionView }) {
 
   async function finish() {
     setBusy("finish");
-    // Open exercises are saved on Finish too.
-    for (const it of items.filter((x) => !x.saved || x.open)) await save(it);
+    // Open exercises are saved on Finish too; if one fails, nothing is finished and it stays open.
+    for (const it of items.filter((x) => !x.saved || x.open)) {
+      if (!(await save(it, true))) return setBusy(null);
+    }
     try {
       await post("/api/strength/session", { action: "finish", sessionId: view.id });
       router.push("/training");

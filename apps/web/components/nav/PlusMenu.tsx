@@ -10,7 +10,7 @@ import { BottomSheet } from "@/components/common/BottomSheet";
 import { QuickAddSheet } from "@/components/food/QuickAddSheet";
 import { WeightSheet } from "@/components/body/WeightSheet";
 
-export function PlusMenu() {
+export function PlusMenu({ strengthOnly = false }: { strengthOnly?: boolean }) {
   const t = useTranslations("plus");
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -43,8 +43,8 @@ export function PlusMenu() {
   return (
     <>
       <button
-        onClick={() => setOpen(true)}
-        aria-label={t("open")}
+        onClick={() => (strengthOnly ? window.location.assign(`/training/strength/open${pastDate ? `?date=${pastDate}` : ""}`) : setOpen(true))}
+        aria-label={t(strengthOnly ? "openStrength" : "open")}
         className="-mt-5 flex size-[54px] items-center justify-center rounded-[14px] bg-[var(--plus-bg)] text-[var(--plus-fg)] transition-transform active:scale-95"
       >
         <Plus className="size-7" strokeWidth={2.5} />

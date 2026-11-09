@@ -54,12 +54,14 @@ export const STRENGTH_SET_S = 150;
 
 /**
  * Length of a session without a linked Garmin activity: the time between the first and last saved exercise, or
- * 2.5 min per set when that is longer (everything logged afterwards in one go), at least 20 min.
+ * 2.5 min per set when that is longer (everything logged afterwards in one go), at least 20 min. Capped at twice
+ * the per-set estimate: an exercise fixed in the evening, or one added a day later, must not make it hours long.
  */
 export function sessionDurationS(savedAt: readonly string[], setCount: number): number {
   const ts = savedAt.map((s) => Date.parse(s)).filter((n) => !Number.isNaN(n));
   const span = ts.length ? (Math.max(...ts) - Math.min(...ts)) / 1000 : 0;
-  return Math.round(Math.max(span, setCount * STRENGTH_SET_S, STRENGTH_MIN_S));
+  const estimate = Math.max(setCount * STRENGTH_SET_S, STRENGTH_MIN_S);
+  return Math.round(Math.min(Math.max(span, estimate), 2 * estimate));
 }
 
 export const STRENGTH_COUNTS = [1, 10, 25, 50, 100] as const;

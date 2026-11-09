@@ -21,6 +21,7 @@ import { activePlan } from "@/lib/training/service";
 
 const db = () => createAdminSupabase();
 const STRENGTH_TYPE = "strength_training";
+const HISTORY_DAYS = 182;
 
 export interface PickRow {
   key: string;
@@ -69,7 +70,8 @@ export async function loadSession(userId: string, id: string): Promise<SessionVi
   if (!s) return null;
   const [{ custom, favourites }, all, act] = await Promise.all([
     userExercises(userId),
-    loggedSessions(userId, { to: s.local_date }),
+    // Last time and the hint come from the last 6 months; older history is not read to open a session.
+    loggedSessions(userId, { from: addDays(s.local_date, -HISTORY_DAYS), to: s.local_date }),
     s.activity_id ? db().from("activities").select("duration_s, garmin_kcal").eq("id", s.activity_id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
   const before = logsByExercise(all.filter((x) => x.id !== s.id));
@@ -120,13 +122,13 @@ export async function strengthItems(
   from: ISODate,
   to: ISODate,
   today: ISODate,
-  plan: { strength_weekdays: number[]; start_date: ISODate; generated_until: ISODate } | null,
+  plan: { strength_weekdays: number[]; strength_weekdays_from: ISODate | null; start_date: ISODate; generated_until: ISODate } | null,
 ): Promise<StrengthItem[]> {
   const [{ custom }, sessions, { data: acts }, { data: linked }] = await Promise.all([
     userExercises(userId),
     loggedSessions(userId, { from, to }),
     db().from("activities").select("id, local_date, duration_s").eq("user_id", userId).eq("type_key", STRENGTH_TYPE).gte("local_date", from).lte("local_date", to),
-    db().from("strength_sessions").select("activity_id").eq("user_id", userId).not("activity_id", "is", null),
+    db().from("strength_sessions").select("activity_id").eq("user_id", userId).not("activity_id", "is", null).gte("local_date", from).lte("local_date", to),
   ]);
   const activityS = new Map((acts ?? []).map((a) => [a.id, Number(a.duration_s ?? 0)]));
   const taken = new Set((linked ?? []).map((l) => l.activity_id));
@@ -141,7 +143,8 @@ export async function strengthItems(
     out.set(a.local_date, { date: a.local_date, state: "done", sessionId: null, activityId: a.id, fromWatch: true, groups: [], minutes: Math.round(Number(a.duration_s ?? 0) / 60) });
   }
   if (plan?.strength_weekdays.length) {
-    for (let d = from < plan.start_date ? plan.start_date : from; d <= to && d <= plan.generated_until; d = addDays(d, 1)) {
+    const since = [plan.start_date, plan.strength_weekdays_from ?? plan.start_date, from].sort().at(-1)!;
+    for (let d = since; d <= to && d <= plan.generated_until; d = addDays(d, 1)) {
       if (out.has(d) || !plan.strength_weekdays.includes(weekday(d))) continue;
       out.set(d, { date: d, state: d < today ? "missed" : "planned", sessionId: null, activityId: null, fromWatch: false, groups: [], minutes: null });
     }
@@ -164,19 +167,23 @@ export interface StrengthProgressRow {
  * vs now; without favourites, the three most used exercises.
  */
 export async function strengthProgress(userId: string, today: ISODate): Promise<{ sessions: number; rows: StrengthProgressRow[] } | null> {
-  const [{ custom, favourites }, all] = await Promise.all([userExercises(userId), loggedSessions(userId)]);
-  const done = all.filter((s) => s.exercises.length);
-  if (!done.length) return null;
-  const logs = logsByExercise(done.filter((s) => s.date >= addDays(today, -182)));
+  const [{ custom, favourites }, recent, { count }] = await Promise.all([
+    userExercises(userId),
+    loggedSessions(userId, { from: addDays(today, -HISTORY_DAYS) }),
+    db().from("strength_sessions").select("id, strength_sets!inner(id)", { count: "exact", head: true }).eq("user_id", userId),
+  ]);
+  if (!count) return null;
+  const logs = logsByExercise(recent.filter((s) => s.exercises.length));
   const used = [...logs].sort((a, b) => b[1].length - a[1].length).map(([k]) => k);
-  const keys = favourites.size ? used.filter((k) => favourites.has(k)) : used.slice(0, 3);
-  const rows = keys.flatMap((key) => {
+  const rowsFor = (keys: string[]) => keys.flatMap((key) => {
     const ex = exerciseByKey(key, custom);
     const tops = (logs.get(key) ?? []).map((l) => ({ date: l.date, v: ex ? topSet(l.sets, ex.measure) : null })).filter((t): t is { date: ISODate; v: number } => t.v != null);
     if (!ex || tops.length < 2) return [];
     return [{ key, name: ex.name, unit: ex.measure === "kg" ? "kg" : ex.measure === "bw" ? "reps" : "s", from: tops[0]!.v, to: tops.at(-1)!.v, since: tops[0]!.date, points: tops.map((t) => t.v) } as StrengthProgressRow];
   });
-  return { sessions: done.length, rows };
+  // Favourites with two sessions or more; without any, the three most used.
+  const fav = rowsFor(used.filter((k) => favourites.has(k)));
+  return { sessions: count, rows: fav.length ? fav : rowsFor(used).slice(0, 3) };
 }
 
 /** Coach context: strength in the last 14 days, one line per session. */

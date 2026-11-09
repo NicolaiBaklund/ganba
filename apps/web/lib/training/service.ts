@@ -624,7 +624,8 @@ export async function setStrengthDays(userId: string, days: number[]): Promise<b
   const plan = await activePlan(userId);
   if (!plan) return false;
   const clean = [...new Set(days)].filter((d) => d >= 0 && d <= 6).sort();
-  const { error } = await db().from("training_plans").update({ strength_weekdays: clean }).eq("id", plan.id);
+  // The days apply from today: earlier weeks are not marked missed for days that weren't picked then.
+  const { error } = await db().from("training_plans").update({ strength_weekdays: clean, strength_weekdays_from: await todayFor(userId) }).eq("id", plan.id);
   if (error) throw error;
   return true;
 }

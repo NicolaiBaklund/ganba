@@ -58,7 +58,7 @@ export default async function TodayPage({ searchParams }: PageProps<"/today">) {
       )}
       {(session.plan || strength) && (
         <div className="mt-4">
-          <TodayBib workout={session.workout} kg={snap.latestTrendKg ?? 70} next={next} strength={strength} />
+          <TodayBib workout={session.workout} kg={snap.latestTrendKg ?? 70} next={next} strength={strength} today={snap.today} />
           {session.workout && canLogByHand(session.workout, snap.today, !!snap.garmin) && (
             <ManualDone key={session.workout.id} workoutId={session.workout.id} plannedKm={session.workout.plannedKm} done={session.workout.status === "done"} manual={!!session.workout.manual} />
           )}

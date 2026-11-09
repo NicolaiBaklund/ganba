@@ -1518,6 +1518,7 @@ export type Database = {
           start_min_per_week: number | null
           status: Database["public"]["Enums"]["plan_status"]
           strength_weekdays: number[]
+          strength_weekdays_from: string | null
           target_time_s: number | null
           updated_at: string
           upkept_on: string | null
@@ -1555,6 +1556,7 @@ export type Database = {
           start_min_per_week?: number | null
           status?: Database["public"]["Enums"]["plan_status"]
           strength_weekdays?: number[]
+          strength_weekdays_from?: string | null
           target_time_s?: number | null
           updated_at?: string
           upkept_on?: string | null
@@ -1592,6 +1594,7 @@ export type Database = {
           start_min_per_week?: number | null
           status?: Database["public"]["Enums"]["plan_status"]
           strength_weekdays?: number[]
+          strength_weekdays_from?: string | null
           target_time_s?: number | null
           updated_at?: string
           upkept_on?: string | null

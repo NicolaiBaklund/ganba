@@ -110,7 +110,8 @@
     "strength": {
       "title": "Strength",
       "hint": "Log your sets"
-    }
+    },
+    "openStrength": "Log strength"
   },
   "quickAdd": {
     "title": "Quick add",
