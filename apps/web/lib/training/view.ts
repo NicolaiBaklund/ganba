@@ -19,6 +19,7 @@ import {
 } from "@loop/core";
 import { getGarminStatus } from "@/lib/garmin/accounts";
 import { createAdminSupabase } from "@/lib/supabase/admin";
+import { strengthItems, type StrengthItem } from "@/lib/strength/view";
 import { activePlan, distanceOf, planWorkouts, todayFor, upkeepWithoutGarmin } from "./service";
 
 export interface WorkoutListItem {
@@ -72,6 +73,7 @@ export interface TrainingView {
     weekdays: number[];
     /** Days for easy sessions of the other sport. */
     crossWeekdays: number[];
+    strengthWeekdays: number[];
     /** Cycling plans: the event. */
     ride: null | {
       eventKm: number | null;
@@ -92,6 +94,8 @@ export interface TrainingView {
   thisWeek: WeekView | null;
   upcoming: WeekView[];
   proposals: ProposalView[];
+  /** Strength days from this week on: logged, from the watch, or planned (spec 2026-11-10). */
+  strength: StrengthItem[];
 }
 
 /**
@@ -103,12 +107,17 @@ export async function loadTrainingView(userId: string): Promise<TrainingView> {
   // Without Garmin the plan is kept up to date here (once a day), before it is read.
   if (!garmin) await upkeepWithoutGarmin(userId, today);
   const plan = await activePlan(userId);
-  if (!plan) return { today, garmin: garmin?.status ?? null, plan: null, thisWeek: null, upcoming: [], proposals: [] };
+  const monday = mondayOf(today);
+  if (!plan) {
+    const strength = await strengthItems(userId, monday, addDays(monday, 6), today, null);
+    return { today, garmin: garmin?.status ?? null, plan: null, thisWeek: null, upcoming: [], proposals: [], strength };
+  }
 
   const db = createAdminSupabase();
-  const [rows, props] = await Promise.all([
+  const [rows, props, strength] = await Promise.all([
     planWorkouts(plan.id),
     db.from("plan_proposals").select("id, kind, summary").eq("plan_id", plan.id).eq("status", "pending").order("created_at"),
+    strengthItems(userId, monday, plan.generated_until > addDays(monday, 6) ? plan.generated_until : addDays(monday, 6), today, plan),
   ]);
   const actIds = rows.map((r) => r.activity_id).filter((x): x is string => !!x);
   const { data: acts } = actIds.length ? await db.from("activities").select("id, distance_m").in("id", actIds) : { data: [] };
@@ -138,7 +147,7 @@ export async function loadTrainingView(userId: string): Promise<TrainingView> {
     w.plannedKm = Math.round((w.plannedKm + item.plannedKm) * 10) / 10;
     if (item.status === "done") w.doneKm = Math.round((w.doneKm + (item.actualKm ?? item.plannedKm)) * 10) / 10;
   }
-  const thisMonday = mondayOf(today);
+  const thisMonday = monday;
   const thisWeek = weeks.get(thisMonday) ?? null;
   const upcoming = [...weeks.values()].filter((w) => w.monday > thisMonday).sort((a, b) => (a.monday < b.monday ? -1 : 1));
 
@@ -159,6 +168,7 @@ export async function loadTrainingView(userId: string): Promise<TrainingView> {
       sport: plan.sport as Sport,
       weekdays: plan.weekdays,
       crossWeekdays: plan.cross_weekdays,
+      strengthWeekdays: plan.strength_weekdays,
       ride:
         plan.sport === "ride"
           ? {
@@ -185,6 +195,7 @@ export async function loadTrainingView(userId: string): Promise<TrainingView> {
     thisWeek,
     upcoming,
     proposals: (props.data ?? []).map((p) => ({ id: p.id, kind: p.kind, summary: p.summary })),
+    strength,
   };
 }
 

@@ -1,18 +1,21 @@
 import "server-only";
 import { addDays, isRun, mondayOf, type ISODate, type WorkoutType } from "@loop/core";
 import type { DB } from "./current";
+import { strengthItems } from "@/lib/strength/view";
+import { activePlan, todayFor } from "@/lib/training/service";
 
 export interface WeekDay {
   date: ISODate;
   logged: boolean;
-  sessions: { type: WorkoutType | "other"; state: "done" | "planned" | "missed" }[];
+  sessions: { type: WorkoutType | "other" | "strength"; state: "done" | "planned" | "missed" }[];
 }
 
 /** Mon–Sun around `date`: which days have food logged and which sessions were planned or run. */
 export async function loadWeekStrip(supabase: DB, userId: string, date: ISODate): Promise<WeekDay[]> {
   const monday = mondayOf(date);
   const sunday = addDays(monday, 6);
-  const [food, planned, acts] = await Promise.all([
+  const [today, plan] = await Promise.all([todayFor(userId), activePlan(userId)]);
+  const [food, planned, acts, strength] = await Promise.all([
     supabase.from("food_entries").select("local_date").eq("user_id", userId).gte("local_date", monday).lte("local_date", sunday),
     supabase
       .from("planned_workouts")
@@ -23,6 +26,7 @@ export async function loadWeekStrip(supabase: DB, userId: string, date: ISODate)
       .neq("status", "removed")
       .eq("plan.status", "active"),
     supabase.from("activities").select("id, local_date, type_key").eq("user_id", userId).gte("local_date", monday).lte("local_date", sunday),
+    strengthItems(userId, monday, sunday, today, plan),
   ]);
   const logged = new Set((food.data ?? []).map((r) => r.local_date));
   const linked = new Set((planned.data ?? []).map((w) => w.activity_id).filter(Boolean));
@@ -34,6 +38,7 @@ export async function loadWeekStrip(supabase: DB, userId: string, date: ISODate)
     for (const a of acts.data ?? []) {
       if (a.local_date === d && isRun(a.type_key) && !linked.has(a.id)) sessions.push({ type: "other", state: "done" });
     }
+    for (const st of strength) if (st.date === d) sessions.push({ type: "strength", state: st.state });
     return { date: d, logged: logged.has(d), sessions };
   });
 }

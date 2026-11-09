@@ -3,7 +3,10 @@
 import { Fragment, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { WeekView } from "@/lib/training/view";
+import { addDays } from "@loop/core";
 import { WorkoutRow } from "./WorkoutRow";
+import { StrengthRow } from "@/components/strength/StrengthRow";
+import type { StrengthItem } from "@/lib/strength/view";
 import { cn } from "@/lib/utils";
 
 const EASY = new Set(["recovery", "taper"]);
@@ -16,6 +19,7 @@ export function TrainingMap({
   raceLabel,
   raceDateLabel,
   hours = false,
+  strength = [],
 }: {
   thisWeek: WeekView | null;
   upcoming: WeekView[];
@@ -24,6 +28,8 @@ export function TrainingMap({
   raceDateLabel: string | null;
   /** Cycling plans: bars and numbers in hours. */
   hours?: boolean;
+  /** Strength days, shown in their week's list. */
+  strength?: StrengthItem[];
 }) {
   const t = useTranslations("training");
   const [open, setOpen] = useState<string | null>(null);
@@ -64,9 +70,12 @@ export function TrainingMap({
         {isOpen && (
           <div id={panel} className="relative ml-10 pb-2">
             <span aria-hidden className="absolute -left-[29px] bottom-0 top-0 w-2 bg-foreground" />
-            {w.workouts.map((x) => (
-              <WorkoutRow key={x.id} w={x} today={today} />
-            ))}
+            {[
+              ...w.workouts.map((x) => ({ date: x.date, n: 0, el: <WorkoutRow key={x.id} w={x} today={today} /> })),
+              ...strength.filter((s) => s.date >= w.monday && s.date <= addDays(w.monday, 6)).map((s) => ({ date: s.date, n: 1, el: <StrengthRow key={`s-${s.date}`} s={s} today={today} /> })),
+            ]
+              .sort((a, b) => (a.date === b.date ? a.n - b.n : a.date < b.date ? -1 : 1))
+              .map((r) => r.el)}
           </div>
         )}
       </Fragment>

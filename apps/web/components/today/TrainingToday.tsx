@@ -7,6 +7,7 @@ import { loadWeekStrip } from "@/lib/db/week";
 import { loadTrainingView, nextWorkout, todaysWorkout } from "@/lib/training/view";
 import { WeekStrip } from "@/components/today/WeekStrip";
 import { TodayBib } from "@/components/today/TodayBib";
+import { strengthDay } from "@/lib/strength/view";
 import { WeekCard } from "@/components/today/WeekCard";
 import { ManualDone } from "@/components/training/ManualDone";
 import { buttonVariants } from "@/components/ui/button";
@@ -23,7 +24,7 @@ export async function TrainingToday({ supabase, userId, date }: { supabase: DB; 
   // Plan upkeep without Garmin (done, missed, proposals) happens while loading the view.
   const v = await loadTrainingView(userId);
   const day: ISODate = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : v.today;
-  const [week, session] = await Promise.all([loadWeekStrip(supabase, userId, day), todaysWorkout(userId, day)]);
+  const [week, session, strength] = await Promise.all([loadWeekStrip(supabase, userId, day), todaysWorkout(userId, day), strengthDay(userId, day, v.today)]);
   const next = session.plan && !session.workout ? await nextWorkout(userId, day) : null;
   const w = session.workout;
   const canLog = !!w && canLogByHand(w, v.today, !!v.garmin);
@@ -43,7 +44,7 @@ export async function TrainingToday({ supabase, userId, date }: { supabase: DB; 
       ) : (
         <>
           <div className="mt-4">
-            <TodayBib workout={w} kg={70} next={next} fuel={false} />
+            <TodayBib workout={w} kg={70} next={next} fuel={false} strength={strength} />
             {canLog && <ManualDone key={w!.id} workoutId={w!.id} plannedKm={w!.plannedKm} done={w!.status === "done"} manual={!!w!.manual} />}
           </div>
           {v.thisWeek && <WeekCard week={v.thisWeek} sport={v.plan.sport} today={v.today} proposals={v.proposals.length} />}

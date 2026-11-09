@@ -4,6 +4,8 @@ import { fuelingFor, type WorkoutType } from "@loop/core";
 import { Bib, RestBib } from "@/components/tasuki/Bib";
 import { bibNumber, fmtMinutes, typeKey } from "@/lib/training/format";
 import type { WorkoutListItem } from "@/lib/training/view";
+import type { StrengthItem } from "@/lib/strength/view";
+import { groupsLabel } from "@/lib/strength/format";
 
 /** Today's session as a race bib, or a small rest-day bib that names the next session. */
 export async function TodayBib({
@@ -11,16 +13,47 @@ export async function TodayBib({
   kg,
   next,
   fuel: showFuel = true,
+  strength = null,
 }: {
   workout: WorkoutListItem | null;
   kg: number;
   /** Training only has no food: no fueling line. */
   fuel?: boolean;
   next: { date: string; type: WorkoutType; title: string; plannedKm: number; plannedDurationS: number; sport: "run" | "ride" } | null;
+  /** The day's strength (logged, from the watch or planned): its own bib on a day without a run or ride. */
+  strength?: StrengthItem | null;
 }) {
   const t = await getTranslations("workout");
   const tf = await getTranslations("fuel");
   const format = await getFormatter();
+
+  if (!workout && strength) {
+    const ts = await getTranslations("strength");
+    const href = strength.sessionId
+      ? `/training/strength/${strength.sessionId}`
+      : strength.activityId
+        ? `/training/strength/open?activity=${strength.activityId}`
+        : `/training/strength/open?date=${strength.date}`;
+    const groups = strength.groups.length ? groupsLabel(strength.groups, (g) => ts(`groups.${g}`)) : null;
+    return (
+      <RestBib
+        title={ts("title")}
+        stripe="var(--w-strength)"
+        next={null}
+        href={href}
+        foot={
+          strength.state === "done" ? (
+            <span className="inline-flex items-center gap-1 text-paper-success">
+              <Check className="size-4" />
+              {[groups ?? ts("fromWatch"), strength.minutes != null ? ts("minutes", { min: strength.minutes }) : null].filter(Boolean).join(". ")}
+            </span>
+          ) : (
+            <b className="font-bold">{ts("addExercise")}</b>
+          )
+        }
+      />
+    );
+  }
 
   if (!workout) {
     const weekday = next ? format.dateTime(new Date(`${next.date}T00:00:00Z`), { weekday: "long", timeZone: "UTC" }) : "";

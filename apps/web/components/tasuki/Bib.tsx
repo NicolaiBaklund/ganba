@@ -58,18 +58,42 @@ export function Bib({
   return href ? <Link href={href} className={cls}>{inner}</Link> : <section className={cls}>{inner}</section>;
 }
 
-export function RestBib({ title, nextLabel, next }: { title: string; nextLabel: string; next: { type: WorkoutType; text: string } | null }) {
-  return (
-    <section className="relative overflow-hidden rounded-md bg-paper px-[18px] py-3 text-paper-ink">
-      <span aria-hidden className="absolute -top-2.5 right-16 h-[170px] w-[30px] origin-top -rotate-[52deg]" style={{ background: "var(--w-rest)" }} />
+export function RestBib({
+  title,
+  nextLabel,
+  next,
+  stripe = "var(--w-rest)",
+  foot,
+  href,
+}: {
+  title: string;
+  nextLabel?: string;
+  next: { type: WorkoutType; text: string } | null;
+  /** Strength days use the small bib too, in their own colour, with their own last line. */
+  stripe?: string;
+  foot?: React.ReactNode;
+  href?: string;
+}) {
+  const body = (
+    <>
+      <span aria-hidden className="absolute -top-2.5 right-16 h-[170px] w-[30px] origin-top -rotate-[52deg]" style={{ background: stripe }} />
       <Pins />
       <p className="relative mt-1 text-[52px] font-black leading-[.9] [font-stretch:62%]">{title}</p>
+      {foot && <p className="relative mt-2.5 flex items-center gap-2 border-t-2 border-paper-ink pt-2 text-[13px]">{foot}</p>}
       {next && (
         <p className="relative mt-2.5 flex items-center gap-2 border-t-2 border-paper-ink pt-2 text-[13px]">
           <span aria-hidden className="size-3.5 shrink-0 -skew-x-[18deg]" style={{ background: `var(--w-${next.type})` }} />
           {nextLabel} <b className="font-bold">{next.text}</b>
         </p>
       )}
-    </section>
+    </>
+  );
+  const cls = "relative block overflow-hidden rounded-md bg-paper px-[18px] py-3 text-paper-ink";
+  return href ? (
+    <a href={href} className={cls}>
+      {body}
+    </a>
+  ) : (
+    <section className={cls}>{body}</section>
   );
 }

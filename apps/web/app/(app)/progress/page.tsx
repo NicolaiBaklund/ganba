@@ -5,6 +5,8 @@ import { formatPace, type RaceDistance } from "@loop/core";
 import { requireUser } from "@/lib/supabase/server";
 import { loadClock, loadStampBook, PROGRESS_LINE_DAYS } from "@/lib/health/view";
 import { loadEasyPace } from "@/lib/health/easyPace";
+import { strengthProgress } from "@/lib/strength/view";
+import { StrengthSection } from "@/components/strength/StrengthSection";
 import { loadRecoveryView } from "@/lib/recovery/view";
 import { RECOVERY_HISTORY_DAYS } from "@/lib/recovery/fetch";
 import { fmtClock } from "@/lib/training/format";
@@ -21,7 +23,12 @@ export default async function ProgressPage() {
   const { user } = await requireUser();
   const t = await getTranslations("health");
   const v = await loadRecoveryView(user.id);
-  const [clock, stamps, easy] = await Promise.all([loadClock(user.id, v.today, { lineDays: PROGRESS_LINE_DAYS }), loadStampBook(user.id), loadEasyPace(user.id, v.today)]);
+  const [clock, stamps, easy, strength] = await Promise.all([
+    loadClock(user.id, v.today, { lineDays: PROGRESS_LINE_DAYS }),
+    loadStampBook(user.id),
+    loadEasyPace(user.id, v.today),
+    strengthProgress(user.id, v.today),
+  ]);
   // Newest first, so the globe opens facing the latest country.
   const countries = stamps.filter((s) => s.kind === "country" && s.earnedOn).flatMap((s) => globeCountry(s.key) ?? []);
 
@@ -63,6 +70,7 @@ export default async function ProgressPage() {
           )}
         </div>
       )}
+      {strength && <StrengthSection sessions={strength.sessions} rows={strength.rows} />}
       {countries.length > 0 && (
         <section className="mt-10">
           <div className="flex items-baseline justify-between border-b-2 border-foreground pb-1.5">

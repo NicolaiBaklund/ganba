@@ -93,6 +93,7 @@ export default async function PlanPage() {
         today={v.today}
         raceLabel={race ? bigLabel : null}
         hours={!!ride}
+        strength={v.strength}
         raceDateLabel={raceDate ? format.dateTime(raceDate, { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }) : null}
       />
 

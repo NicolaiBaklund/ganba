@@ -17,6 +17,7 @@ import {
 } from "@loop/core";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { logsByExercise, loggedSessions, userExercises, type LoggedSession } from "./history";
+import { activePlan } from "@/lib/training/service";
 
 const db = () => createAdminSupabase();
 const STRENGTH_TYPE = "strength_training";
@@ -192,4 +193,9 @@ export async function strengthForCoach(userId: string, today: ISODate): Promise<
       });
       return `${s.date}: ${parts.join("; ")}`;
     });
+}
+
+/** The day's strength item for Today's bib (null when there is none). */
+export async function strengthDay(userId: string, date: ISODate, today: ISODate): Promise<StrengthItem | null> {
+  return (await strengthItems(userId, date, date, today, await activePlan(userId)))[0] ?? null;
 }

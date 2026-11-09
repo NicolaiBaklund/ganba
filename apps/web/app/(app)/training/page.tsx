@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { ChevronRight, Plus } from "lucide-react";
-import { formatPace } from "@loop/core";
+import { addDays, formatPace, mondayOf } from "@loop/core";
 import { requireUser } from "@/lib/supabase/server";
-import { loadTrainingView } from "@/lib/training/view";
+import { loadTrainingView, type TrainingView } from "@/lib/training/view";
 import { hrZoneLabel } from "@/lib/training/format";
 import { loadClock } from "@/lib/health/view";
 import { RaceRoad } from "@/components/health/RaceRoad";
 import { MorningNote } from "@/components/health/MorningNote";
 import { ProposalCard } from "@/components/training/ProposalCard";
 import { WorkoutRow } from "@/components/training/WorkoutRow";
+import { StrengthRow } from "@/components/strength/StrengthRow";
 import { SectionHead } from "@/components/tasuki/SectionHead";
 import { StatRow } from "@/components/tasuki/StatRow";
 import { buttonVariants } from "@/components/ui/button";
@@ -32,6 +33,12 @@ export default async function TrainingPage() {
         <h1 className="cond text-[34px] leading-none">{t("title")}</h1>
         {clock && <RaceRoad clock={clock} today={v.today} />}
         <MorningNote />
+        {v.strength.length > 0 && (
+          <section className="mt-2">
+            <SectionHead title={t("thisWeek")} />
+            {thisWeekRows(v).map((r) => r.el)}
+          </section>
+        )}
         <h2 className="cond mt-8 text-2xl leading-tight">{t("noPlan")}</h2>
         <Link href="/training/new" className={cn(buttonVariants(), "mt-4 h-12 self-start px-5")}>
           <Plus className="size-4" />
@@ -45,6 +52,7 @@ export default async function TrainingPage() {
   const ride = p.ride;
   const rides = p.rides;
   const week = v.thisWeek;
+  const weekRows = thisWeekRows(v);
   // Rides: the zones the sessions use, in watts with power targets on (no watts mentioned otherwise).
   const KEY_ZONES = ["z2", "ss", "z4", "z5"];
   const zones = !rides
@@ -73,14 +81,12 @@ export default async function TrainingPage() {
         </div>
       )}
 
-      {week && week.workouts.length > 0 && (
+      {weekRows.length > 0 && (
         <section className="mt-2">
           <SectionHead title={t("thisWeek")}>
-            {!ride && t.rich("weekKm", { done: Math.round(week.doneKm), planned: Math.round(week.plannedKm), b: (c) => <b className="text-foreground">{c}</b> })}
+            {week && !ride && t.rich("weekKm", { done: Math.round(week.doneKm), planned: Math.round(week.plannedKm), b: (c) => <b className="text-foreground">{c}</b> })}
           </SectionHead>
-          {week.workouts.map((w) => (
-            <WorkoutRow key={w.id} w={w} today={v.today} />
-          ))}
+          {weekRows.map((r) => r.el)}
         </section>
       )}
 
@@ -103,4 +109,13 @@ export default async function TrainingPage() {
       )}
     </main>
   );
+}
+
+/** This week's sessions and strength days in date order (strength after a run on the same day). */
+function thisWeekRows(v: TrainingView) {
+  const monday = mondayOf(v.today), sunday = addDays(monday, 6);
+  return [
+    ...(v.thisWeek?.workouts ?? []).map((w) => ({ date: w.date, n: 0, el: <WorkoutRow key={w.id} w={w} today={v.today} /> })),
+    ...v.strength.filter((s) => s.date >= monday && s.date <= sunday).map((s) => ({ date: s.date, n: 1, el: <StrengthRow key={`s-${s.date}`} s={s} today={v.today} /> })),
+  ].sort((a, b) => (a.date === b.date ? a.n - b.n : a.date < b.date ? -1 : 1));
 }

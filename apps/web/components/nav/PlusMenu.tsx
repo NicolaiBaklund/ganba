@@ -4,7 +4,8 @@ import { useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { localDateNow } from "@/lib/dates";
 import { useTranslations } from "next-intl";
-import { Camera, PenLine, Plus, Scale, Zap } from "lucide-react";
+import { Camera, Dumbbell, PenLine, Plus, Scale, Zap } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { BottomSheet } from "@/components/common/BottomSheet";
 import { QuickAddSheet } from "@/components/food/QuickAddSheet";
 import { WeightSheet } from "@/components/body/WeightSheet";
@@ -35,6 +36,8 @@ export function PlusMenu() {
     { key: "text", Icon: PenLine, onClick: go(() => router.push(`/food/log?mode=text${q}`)) },
     { key: "quick", Icon: Zap, onClick: go(() => setQuick(true)) },
     { key: "weight", Icon: Scale, onClick: go(() => setWeight(true)) },
+    // The day's strength session (made by a route handler, so a full navigation), on the day being viewed.
+    { key: "strength", Icon: Dumbbell, onClick: go(() => window.location.assign(`/training/strength/open${pastDate ? `?date=${pastDate}` : ""}`)) },
   ] as const;
 
   return (
@@ -53,7 +56,10 @@ export function PlusMenu() {
             <button
               key={key}
               onClick={onClick}
-              className="flex flex-col items-start gap-3 rounded-md bg-muted p-4 text-left transition-colors active:bg-border"
+              className={cn(
+                "flex items-start gap-3 rounded-md bg-muted p-4 text-left transition-colors active:bg-border",
+                key === "strength" ? "col-span-2 flex-row items-center" : "flex-col",
+              )}
             >
               <span className="flex size-10 items-center justify-center rounded-md bg-card text-foreground">
                 <Icon className="size-5" />

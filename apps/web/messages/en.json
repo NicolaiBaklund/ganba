@@ -106,6 +106,10 @@
     "weight": {
       "title": "Weight",
       "hint": "Weigh-in + photo"
+    },
+    "strength": {
+      "title": "Strength",
+      "hint": "Log your sets"
     }
   },
   "quickAdd": {
@@ -887,5 +891,56 @@
       "6m": "6M",
       "1y": "1Y"
     }
+  },
+  "strength": {
+    "title": "Strength",
+    "addExercise": "Add exercise",
+    "search": "Search",
+    "favourites": "Favourites",
+    "groups": {
+      "chest": "Chest",
+      "back": "Back",
+      "shoulders": "Shoulders",
+      "arms": "Arms",
+      "core": "Core",
+      "legs": "Legs",
+      "runners": "For runners"
+    },
+    "last": "Last: {sets}",
+    "newExercise": "New exercise",
+    "name": "Name",
+    "group": "Group",
+    "measures": {
+      "kg": "Weight",
+      "bw": "Bodyweight",
+      "time": "Time"
+    },
+    "create": "Add",
+    "reps": "reps",
+    "kg": "kg",
+    "bw": "BW",
+    "sec": "s",
+    "addSet": "+ Set",
+    "removeSet": "− Set",
+    "remove": "Remove",
+    "hintKg": "+{kg} kg: you did all reps last time",
+    "hintReps": "+1 rep: you did all reps last time",
+    "finish": "Finish",
+    "delete": "Delete session",
+    "deleteConfirm": "Delete this session?",
+    "deleteYes": "Delete",
+    "cancel": "Cancel",
+    "fromWatch": "From your watch",
+    "watchLine": "{date}, from your watch: {min} min",
+    "watchLineKcal": "{date}, from your watch: {min} min, {kcal} kcal",
+    "saveError": "Couldn't save. Try again.",
+    "minutes": "{min} min",
+    "missed": "Missed",
+    "sessions": "sessions",
+    "since": "{from} → {to} since {month}",
+    "favourite": "Favourite",
+    "done": "Done",
+    "empty": "Add your first exercise.",
+    "added": "Added"
   }
 }
