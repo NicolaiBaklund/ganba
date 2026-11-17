@@ -58,7 +58,8 @@ Den sist synkede løpeturen. Er den koblet til en planøkt (`planned_workouts.ac
 Gjelder terskel, intervall, tempo, fartlek og formtest.
 
 1. **Økter fra klokka:** Garmin merker rundene med `intensityType` (`ACTIVE`/`INTERVAL` for drag, `WARMUP`, `REST`, `COOLDOWN`) og `wktStepIndex`. Drag-rundene i rekkefølge pares med øktas «run»-steg etter at gjentakelsene er pakket ut (`blocks`). Hvert drag får sin sone (`target.minSecPerKm`–`maxSecPerKm`).
-2. **Når antallet ikke stemmer**, for eksempel fordi økta ikke ble kjørt fra klokka: drag er runder på minst 400 m eller 90 s som er raskere enn rolig sone minus 10 s. Alle måles mot sonen til øktas første «run»-steg.
+   **Avbrutt økt** (færre drag-runder enn steg, men alle har `wktStepIndex`): de løpte dragene dømmes, og tallinja får «1 of 2 reps».
+2. **Uten `wktStepIndex`**, fordi økta ikke ble kjørt fra klokka: drag er runder på minst 400 m eller 90 s som er raskere enn rolig sone minus 10 s. Alle måles mot sonen til øktas første «run»-steg.
 3. **Ingen drag funnet:** ingen dom-ord, bare tallene for hele turen.
 4. **Fart per runde:** `movingDuration / distance`. Når Garmin gir `avgGradeAdjustedSpeed`, dømmes runden på den (bakker skal ikke gi «Too slow»). Tallet som vises er den vanlige farten.
 5. **Avvik** = sekunder per km utenfor sonen, 0 når runden er innenfor.
@@ -81,7 +82,7 @@ Steg uten fartsmål (`target.kind = "none"`, for eksempel bakker) får ikke ord,
 ### 5.4 Rolig tur, restitusjon, langtur, drag
 Disse har ikke fartsmål i planen.
 
-- **Fart:** snittet av rundene etter at drag-runder er tatt ut (under 200 m eller under 40 s). Måles mot rolig sone fra planens VDOT (`pacesFor(vdot).easy`). Uten plan brukes VDOT fra `fitnessFrom`.
+- **Fart:** snittet av rundene etter at drag-runder er tatt ut (under 200 m eller under 40 s). Klokka lager ofte en ekstra runde etter at økta er ferdig (gåing eller litt ekstra løping). Den blir med i snittet, fordi den er en del av turen. Måles mot rolig sone fra planens VDOT (`pacesFor(vdot).easy`). Uten plan brukes VDOT fra `fitnessFrom`.
 - **Vanlig puls:** medianen av snittpuls på rolige turer de siste 42 dagene (`isEasyRun`, minst 5 turer). Med færre turer sjekkes ikke pulsen.
 
 | Regel | Ord | Farge |
@@ -200,6 +201,15 @@ Reglene (rundematching, ord, spøkelse, malvalg, avgjørelse, kontoen) ligger i 
 - **Plan uten VDOT eller sykkelplan:** ingen dom på rolige turer, fordi det ikke finnes noen rolig sone. Sykkelplaner får ingen utfordring.
 - **Lasting feiler:** plassen er borte, som `MorningNote` i dag. Resten av siden påvirkes ikke.
 - **Lys modus:** samme farger via tokens (`--success`, `--warning`, `--destructive`).
+
+## 12a. Sjekket mot ekte økter (2026-11-18)
+
+Alle 21 løpte planøkter fra én bruker sjekket mot klokkas runder. Både motorens og coachens økter er med.
+- **Kvalitetsøkter** (terskel, intervall, fartlek): antall drag-runder (`ACTIVE`) er likt antall «run»-steg, og alle har `wktStepIndex`. Én avbrutt terskeløkt hadde 1 av 2 drag (derfor «1 of 2 reps»).
+- **Rolig tur med drag:** første runde er den rolige delen, dragene er runder på cirka 20 s. Regelen om under 40 s tar dem ut.
+- **Rolige turer og langturer:** ett steg gir én runde, pluss ofte en kort ekstra runde. Rolig dom, spøkelse og pulsutfordringer virker. «Second half …» virker ikke før motoren deler langturer (§13).
+- **Tur uten økt på klokka:** én runde merket `INTERVAL`, uten `wktStepIndex`. Den bruker reserveregelen.
+- **Formtesten** er ett «run»-steg på 5 km uten fartsmål. Det gir én runde, og tiden på den runden er testtiden.
 
 ## 13. Avhengigheter (egen diskusjon etterpå)
 
