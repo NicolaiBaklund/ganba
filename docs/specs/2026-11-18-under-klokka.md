@@ -1,6 +1,6 @@
 # Under klokka: dom, spøkelse, ukas utfordring, hva uka kjøpte, løpsfart
 
-Dato: 2026-11-18. Status: **utkast**. Erstatter morgenlappen fra Health-specen (docs/specs/2026-11-02-health.md §7), men ikke varslene. Skisser: https://claude.ai/artifact/XZvHN34RE4Ar9sUgzR9QUo (mørk modus, med brukerens egne tall).
+Dato: 2026-11-18. Status: **godkjent** 2026-11-18 («Bygge da?»). Plan: docs/plans/2026-11-18-under-klokka-plan.md. Erstatter morgenlappen fra Health-specen (docs/specs/2026-11-02-health.md §7), men ikke varslene. Skisser: https://claude.ai/artifact/XZvHN34RE4Ar9sUgzR9QUo (mørk modus, med brukerens egne tall).
 
 ## 1. Hvorfor
 

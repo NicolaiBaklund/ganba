@@ -119,7 +119,8 @@ export function verdictFor(i: VerdictInput): Verdict {
   if (w && REP_TYPES.has(w.type)) {
     const { pairs, planned } = workLaps(i.laps, runSteps(w.blocks), i.easyZone?.min ?? null);
     if (!pairs.length) return { ...base, easy: { ...whole, hrVsNormal: null } };
-    const reps = pairs.map((p) => ({ secPerKm: r(lapPace(p.lap)), hr: p.lap.avgHr == null ? null : r(p.lap.avgHr) }));
+    // Shown cut down to the second like Garmin does: 4:28.6 is 4:28, never "4:29" next to a zone starting 4:29.
+    const reps = pairs.map((p) => ({ secPerKm: Math.floor(lapPace(p.lap)), hr: p.lap.avgHr == null ? null : r(p.lap.avgHr) }));
     const zoned = pairs.filter((p) => paceZone(p.step));
     const out = { ...base, reps, zone: zoned.length ? paceZone(zoned[0]!.step) : null, repsDone: pairs.length, repsPlanned: planned };
     if (i.run.indoor || !zoned.length) return out;
@@ -135,7 +136,7 @@ export function verdictFor(i: VerdictInput): Verdict {
   // Easy, recovery, long and strides sessions, or a run without a plan session.
   const avg = lapsAverage(easyPart(i.laps)) ?? whole;
   const hrVsNormal = avg.hr != null && i.normalHr != null ? r(avg.hr - i.normalHr) : null;
-  const easy = { secPerKm: r(avg.secPerKm), hr: avg.hr == null ? null : r(avg.hr), hrVsNormal };
+  const easy = { secPerKm: Math.floor(avg.secPerKm), hr: avg.hr == null ? null : r(avg.hr), hrVsNormal };
   const out = { ...base, easy, secondHalfDeltaS: secondHalf(easyPart(i.laps)) };
   if (i.run.indoor || !i.easyZone || (!w && !i.run.easy)) return out;
   const word: VerdictWord = avg.secPerKm < i.easyZone.min ? "too_fast_easy" : hrVsNormal != null && hrVsNormal > VERDICT.hrHighBpm ? "hr_high" : "nice_easy";

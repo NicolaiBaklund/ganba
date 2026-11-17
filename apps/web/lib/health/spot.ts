@@ -2,6 +2,7 @@ import "server-only";
 import {
   addDays,
   easyPart,
+  formatPace,
   ghostFor,
   isRun,
   lapsAverage,
@@ -180,4 +181,16 @@ export async function loadSpot(userId: string, today: ISODate, opts: { now?: Dat
   const open = challenge && !challenge.result ? challenge : null;
   const { main, challengeLine } = pickSpot({ alert: !!alert && !alert.waiting, verdict: !!verdict, week: !!week, challengeOpen: !!open });
   return { alert, verdict, week, challenge: open, main, challengeLine };
+}
+
+/** The verdict in one plain line for the coach. */
+export function verdictForCoach(v: SpotVerdict): string {
+  const pace = (s: number) => formatPace(s);
+  const parts = [`Last run ${v.date}${v.title ? ` (${v.title})` : ""}: verdict ${v.word ?? "none"}`];
+  if (v.reps?.length) parts.push(`reps ${v.reps.map((r) => pace(r.secPerKm)).join(", ")}${v.zone ? ` vs zone ${pace(v.zone.min)}–${pace(v.zone.max)}` : ""}${v.repsDone != null && v.repsPlanned != null && v.repsDone < v.repsPlanned ? `, ${v.repsDone} of ${v.repsPlanned} reps` : ""}`);
+  if (v.easy) parts.push(`pace ${pace(v.easy.secPerKm)}${v.easy.hr != null ? `, HR ${v.easy.hr}` : ""}${v.easy.hrVsNormal != null ? ` (${v.easy.hrVsNormal >= 0 ? "+" : ""}${v.easy.hrVsNormal} vs usual easy HR)` : ""}`);
+  if (v.test) parts.push(`test ${v.test.km} km in ${v.test.timeS} s${v.test.beat != null ? (v.test.beat ? ", beat Garmin's estimate" : ", slower than Garmin's estimate") : ""}`);
+  if (v.race) parts.push(`race ${v.race.km} km in ${v.race.timeS} s`);
+  if (v.ghost) parts.push(`vs a similar ${v.ghost.km} km easy run on ${v.ghost.date}: ${v.ghost.deltaS} s/km, ${v.ghost.deltaHr} bpm`);
+  return `${parts.join("; ")}.`;
 }

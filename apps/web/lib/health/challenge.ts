@@ -143,3 +143,11 @@ export async function decideChallenges(userId: string, today: ISODate): Promise<
     if (res) await db().from("weekly_challenges").update({ result: res.result, result_value: res.value, decided_at: new Date().toISOString() }).eq("id", row.id).is("result", null);
   }
 }
+
+/** This week's challenge in one plain line for the coach, or null. */
+export async function challengeForCoach(userId: string, today: ISODate): Promise<string | null> {
+  const { data: row } = await db().from("weekly_challenges").select("kind, params, result, result_value").eq("user_id", userId).eq("week_start", weekStartOn(today, 1)).maybeSingle();
+  if (!row) return null;
+  const status = row.result ? `${row.result} (${Number(row.result_value)})` : "open";
+  return `This week's challenge shown to them: ${row.kind} ${JSON.stringify(row.params)}, ${status}.`;
+}

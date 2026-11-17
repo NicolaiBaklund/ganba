@@ -921,8 +921,6 @@
       "secondFaster": "Second half {s} s/km faster.",
       "secondSlower": "Second half {s} s/km slower.",
       "inTime": "{dist} in {time}",
-      "testBeat": "Faster than Garmin's {time}.",
-      "testNotBeat": "Garmin said {time}.",
       "newPaces": "New paces suggested",
       "raceFaster": "{time} faster than the clock.",
       "raceSlower": "{time} slower than the clock.",
@@ -958,7 +956,8 @@
       "garminEstimate": "Garmin's estimate for you now.",
       "allWeek": "All week.",
       "won": "Challenge won",
-      "lost": "Challenge missed"
+      "lost": "Challenge missed",
+      "run": "Run"
     }
   },
   "strength": {

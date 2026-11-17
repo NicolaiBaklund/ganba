@@ -8,7 +8,7 @@ import { hrZoneLabel } from "@/lib/training/format";
 import { loadClock } from "@/lib/health/view";
 import { loadRacePace } from "@/lib/health/racePace";
 import { RaceRoad } from "@/components/health/RaceRoad";
-import { MorningNote } from "@/components/health/MorningNote";
+import { UnderClock } from "@/components/health/UnderClock";
 import { ProposalCard } from "@/components/training/ProposalCard";
 import { WorkoutRow } from "@/components/training/WorkoutRow";
 import { StrengthRow } from "@/components/strength/StrengthRow";
@@ -18,7 +18,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /**
- * Training: the race and the road there, the coach's morning note, this week, the paces, and a way into the whole
+ * Training: the race and the road there, what's new under the clock (spec 2026-11-18), this week, the paces, and a way into the whole
  * plan (spec 2026-11-02 §4). The plan itself lives on /training/plan.
  */
 export default async function TrainingPage() {
@@ -33,7 +33,7 @@ export default async function TrainingPage() {
       <main className="flex flex-col px-[18px] pt-5">
         <h1 className="cond text-[34px] leading-none">{t("title")}</h1>
         {clock && <RaceRoad clock={clock} today={v.today} racePace={racePace} />}
-        <MorningNote />
+        <UnderClock />
         {v.strength.length > 0 && (
           <section className="mt-2">
             <SectionHead title={t("thisWeek")} />
@@ -72,7 +72,7 @@ export default async function TrainingPage() {
     <main className="flex flex-col px-[18px] pb-4 pt-5">
       <h1 className="cond text-[34px] leading-none">{t("title")}</h1>
       {clock && <RaceRoad clock={clock} today={v.today} racePace={racePace} />}
-      <MorningNote />
+      <UnderClock />
 
       {v.proposals.length > 0 && (
         <div className="mt-6 flex flex-col gap-3">

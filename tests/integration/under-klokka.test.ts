@@ -88,7 +88,7 @@ describe("under the clock (spec 2026-11-18)", () => {
     const v = await threshold([warm, lap(2698, 720, 178, 1), lap(116, 90, 157, 2, "RECOVERY"), lap(2681, 720, 182, 1), lap(1537, 571, 163, 4, "COOLDOWN")]);
     console.log("loadSpot + setup ms", Date.now() - t0);
     expect(v).toMatchObject({ word: "bit_fast", tone: "warn", zone: { min: 269, max: 279 }, repsDone: 2, repsPlanned: 2 });
-    expect(v.reps!.map((r) => r.secPerKm)).toEqual([267, 269]);
+    expect(v.reps!.map((r) => r.secPerKm)).toEqual([266, 268]);
     expect(v.reps!.map((r) => r.hr)).toEqual([178, 182]);
   });
 
