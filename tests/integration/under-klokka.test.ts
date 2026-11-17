@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { addDays, lastSunday, zonedTime } from "@loop/core";
+import { addDays, lastSunday, weekStartOn, zonedTime } from "@loop/core";
+import { decideChallenges, ensureChallenge } from "@/lib/health/challenge";
 import { saveTokens } from "@/lib/garmin/accounts";
 import { loadSpot } from "@/lib/health/spot";
 // @ts-expect-error — plain JS helper shared with the smoke scripts
@@ -143,4 +144,92 @@ describe("under the clock (spec 2026-11-18)", () => {
     await admin().from("daily_notes").update({ alert_done: true }).eq("user_id", u.id).eq("local_date", today);
     expect((await loadSpot(u.id, today)).main).not.toBe("alert");
   });
+});
+
+describe("the weekly challenge (spec 2026-11-18 §7)", () => {
+  let u: TestUser;
+  let today: string;
+  let planId: string;
+  const week = () => weekStartOn(today, 1);
+  const act = async (date: string, km: number, secPerKm: number, hr: number, laps?: object[]) =>
+    (
+      await admin()
+        .from("activities")
+        .insert({ user_id: u.id, source: "manual", local_date: date, start_time: `${date}T07:00:00Z`, type_key: "running", distance_m: km * 1000, duration_s: km * secPerKm, moving_s: km * secPerKm, avg_hr: hr, splits: laps ? { lapDTOs: laps } : null } as never)
+        .select("id")
+        .single()
+    ).data!.id as string;
+  const workout = async (date: string, type: string, blocks: object[], activityId: string | null = null) =>
+    (
+      await admin()
+        .from("planned_workouts")
+        .insert({ user_id: u.id, plan_id: planId, date, type, title: `${type} session`, blocks, planned_km: 10, planned_duration_s: 3600, phase: "build", week: 3, status: activityId ? "done" : "planned", activity_id: activityId } as never)
+        .select("id")
+        .single()
+    ).data!.id as string;
+  const reset = async () => {
+    await admin().from("weekly_challenges").delete().eq("user_id", u.id);
+    await admin().from("planned_workouts").delete().eq("user_id", u.id).gte("date", week());
+  };
+  const TEST = [step("warmup", { kind: "distance", m: 2000 }, easyT), step("run", { kind: "distance", m: 5000 }, { kind: "none" }), step("cooldown", { kind: "distance", m: 2000 }, easyT)];
+
+  beforeAll(async () => {
+    u = await createTestUser("challenge");
+    ({ today } = await seedUser(admin(), u.id, { days: 3 }));
+    await saveTokens(u.id, JSON.stringify({ di_token: "fake" }));
+    const { data: plan } = await admin()
+      .from("training_plans")
+      .insert({ user_id: u.id, goal_kind: "build", distance_km: 10, start_date: addDays(today, -60), generated_until: addDays(today, 40), weekdays: [0, 1, 2, 3, 4, 5, 6], long_run_weekday: 6, runs_per_week: 4, vdot: 45.7, start_km_per_week: 30 } as never)
+      .select("id")
+      .single();
+    planId = plan!.id;
+    // Usual easy heart rate 150, from five easy runs before this week.
+    for (const n of [8, 9, 10, 11, 12]) await act(addDays(week(), -n), 6, 340, 150);
+  });
+  afterAll(cleanup);
+
+  it("a fitness test: beat Garmin's estimate; decided by the test lap once the run is in", async () => {
+    await reset();
+    await admin().from("prediction_days").upsert({ user_id: u.id, local_date: today, time_5k_s: 1236, source: "garmin" } as never, { onConflict: "user_id,local_date" });
+    const w = await workout(today, "test", TEST);
+    expect((await loadSpot(u.id, today)).challenge).toMatchObject({ kind: "test_beat", params: { targetS: 1236, km: 5 }, result: null, workoutDate: today });
+
+    const id = await act(today, 9, 330, 170, [lap(2000, 700, 140, 0, "WARMUP"), lap(5000, 1221, 178, 1), lap(2000, 720, 150, 2, "COOLDOWN")]);
+    await admin().from("planned_workouts").update({ status: "done", activity_id: id } as never).eq("id", w);
+    await decideChallenges(u.id, today);
+    const spot = await loadSpot(u.id, today);
+    expect(spot.challenge).toBeNull(); // decided: no longer open
+    expect(spot.verdict).toMatchObject({ test: { timeS: 1221, beat: true }, challenge: { kind: "test_beat", result: "won", value: 1221 } });
+  }, 300_000);
+
+  it("intervals: last time in the zone → last rep fastest; not the same template two weeks running; two loads make one row", async () => {
+    await reset();
+    await admin().from("activities").delete().eq("user_id", u.id).gte("local_date", addDays(today, -1));
+    const before = await act(addDays(week(), -3), 10, 300, 165, [lap(2000, 680, 140, 0, "WARMUP"), lap(1000, 274, 170, 1), lap(1000, 273, 172, 1)]);
+    await workout(addDays(week(), -3), "threshold", THRESHOLD, before);
+    const w = await workout(today, "threshold", THRESHOLD);
+    expect((await ensureChallenge(u.id, today))).toMatchObject({ kind: "last_rep_fastest" });
+
+    await admin().from("weekly_challenges").delete().eq("user_id", u.id);
+    await admin().from("weekly_challenges").insert({ user_id: u.id, week_start: addDays(week(), -7), kind: "last_rep_fastest", params: {} } as never);
+    const [a, b] = await Promise.all([ensureChallenge(u.id, today), ensureChallenge(u.id, today)]);
+    expect(a).toMatchObject({ kind: "reps_in_zone", params: { min: 269, max: 279 } });
+    expect(b).toEqual(a);
+    expect((await admin().from("weekly_challenges").select("id").eq("user_id", u.id).eq("week_start", week())).data).toHaveLength(1);
+
+    // Swapped to an easy run: the challenge goes, no ✗.
+    await admin().from("planned_workouts").update({ type: "easy", edited: true } as never).eq("id", w);
+    expect(await ensureChallenge(u.id, today)).toBeNull();
+  }, 300_000);
+
+  it("a week without a key session: every easy run under the usual heart rate, lost at the first one over", async () => {
+    await reset();
+    await admin().from("activities").delete().eq("user_id", u.id).gte("local_date", week());
+    await workout(today, "easy", EASY);
+    expect(await ensureChallenge(u.id, today)).toMatchObject({ kind: "easy_hr_week", params: { bpm: 150 } });
+    await act(today, 6, 340, 161);
+    await decideChallenges(u.id, today);
+    const { data: row } = await admin().from("weekly_challenges").select("result, result_value").eq("user_id", u.id).eq("week_start", week()).single();
+    expect(row).toMatchObject({ result: "lost", result_value: 161 });
+  }, 300_000);
 });
