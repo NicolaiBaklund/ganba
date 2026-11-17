@@ -124,25 +124,13 @@ describe("health: race clock, stamps and the morning note (spec 2026-11-02)", ()
 
   it("the sick note names a session it would swap, never an easy one", () => {
     const facts = (todayType: string, tomorrow: { type: string; title: string } | null) =>
-      templateNote({ alert: { kind: "sick", facts: { rhrUp: 6, hrv: 44 } }, lastSession: null, today: { type: todayType, title: todayType === "easy" ? "Easy run 6 km" : "Intervals 6 × 1 km", km: 6, hrMax: null }, tomorrow, clockDeltaS: null, raceName: null });
+      templateNote({ alert: { kind: "sick", facts: { rhrUp: 6, hrv: 44 } }, today: { type: todayType, title: todayType === "easy" ? "Easy run 6 km" : "Intervals 6 × 1 km", km: 6, hrMax: null }, tomorrow });
     expect(facts("intervals", null)).toContain("Swap today's intervals");
     expect(facts("easy", { type: "threshold", title: "Threshold 2 × 12 min" })).toContain("Swap tomorrow's threshold");
     expect(facts("easy", null)).not.toContain("Swap");
   });
 
-  it("a session already done today is the one the note talks about, then tomorrow's", () => {
-    const text = templateNote({
-      alert: null,
-      lastSession: { when: "today", type: "intervals", title: "Intervals 6 × 1 km", km: 12, avgSecPerKm: 325, avgHr: 160, repsAvgSecPerKm: 260, bestYet: true },
-      today: null,
-      tomorrow: { type: "easy", title: "Recovery run 5 km" },
-      clockDeltaS: null,
-      raceName: null,
-    });
-    expect(text).toBe("Today's intervals 6 × 1 km averaged 4:20/km on the reps, your fastest yet. Tomorrow: Recovery run 5 km.");
-  });
-
-  it("two first loads at once store one note and show the same text", async () => {
+  it("no alert, no note: nothing is stored, with or without a plan (spec 2026-11-18 §10)", async () => {
     const other = await createTestUser("health-twice");
     const day = (await seedUser(admin(), other.id, { days: 2 })).today;
     const notes = await Promise.all([dailyNote(other.id, day), dailyNote(other.id, day)]);
@@ -155,9 +143,10 @@ describe("health: race clock, stamps and the morning note (spec 2026-11-02)", ()
       .single();
     await admin().from("planned_workouts").insert({ user_id: other.id, plan_id: plan!.id, date: day, type: "easy", title: "Easy run 5 km", planned_km: 5, planned_duration_s: 1800, blocks: [], phase: "build", week: 1 } as never);
     const [a, b] = await Promise.all([dailyNote(other.id, day), dailyNote(other.id, day)]);
-    expect(a!.text).toBe(b!.text);
+    expect(a).toBeNull();
+    expect(b).toBeNull();
     const { data: rows } = await admin().from("daily_notes").select("id").eq("user_id", other.id);
-    expect(rows).toHaveLength(1);
+    expect(rows).toHaveLength(0);
   });
 
   it("pickRace: a race plan's goal, a build focus, and a passed race moves on", () => {
@@ -231,7 +220,7 @@ describe("health without Garmin", () => {
     expect(await dailyNote(u.id, today)).toBeNull();
   });
 
-  it("with a plan: the clock comes from the plan's VDOT and the note from a template", async () => {
+  it("with a plan: the clock comes from the plan's VDOT; no alert, no note", async () => {
     const { data: plan } = await admin()
       .from("training_plans")
       .insert({ user_id: u.id, goal_kind: "build", distance_km: 21.0975, start_date: addDays(today, -10), generated_until: addDays(today, 60), weekdays: [1, 2, 3, 5], long_run_weekday: 5, runs_per_week: 4, vdot: 45, start_km_per_week: 30 })
@@ -242,9 +231,7 @@ describe("health without Garmin", () => {
     const c = await loadClock(u.id, today);
     expect(c!.race.distance).toBe("half");
     expect(c!.seconds).toBe(planPrediction(45).timeHalfMarathon);
-    const n = await dailyNote(u.id, today);
-    expect(n!.alert).toBeNull();
-    expect(n!.text).toContain("Easy run 6 km");
+    expect(await dailyNote(u.id, today)).toBeNull();
   });
 });
 

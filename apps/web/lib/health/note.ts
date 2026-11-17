@@ -1,35 +1,19 @@
 import "server-only";
-import {
-  addDays,
-  alertFor,
-  HARD_TYPES,
-  localHour,
-  NOTE_PROMPT,
-  noteMessage,
-  NoteSchema,
-  pacesFor,
-  templateNote,
-  type HealthAlertKind,
-  type ISODate,
-  type NoteFacts,
-} from "@loop/core";
+import { addDays, alertFor, HARD_TYPES, localHour, pacesFor, templateNote, type HealthAlertKind, type ISODate, type NoteFacts } from "@loop/core";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import type { Json } from "@/lib/db/types";
-import { anthropicRecoveryAi, type RecoveryAi } from "@/lib/ai/recovery";
 import { getGarminStatus } from "@/lib/garmin/accounts";
 import { loadRecoveryDays } from "@/lib/recovery/load";
-import { gate } from "./ai";
 import { activePlan, planWorkoutsWithKm, savePlanChanges, type WorkoutRow } from "@/lib/training/service";
-import { loadClock } from "./view";
 
 const db = () => createAdminSupabase();
-const QUALITY: ReadonlySet<string> = new Set(["intervals", "threshold", "tempo"]);
 /** Hard sessions a "Swap to easy" may replace: never a race or a fitness test. */
 const SWAPPABLE: ReadonlySet<string> = new Set([...HARD_TYPES].filter((t) => t !== "race" && t !== "test"));
 const HISTORY_DAYS = 120;
 
+/** Today's alert (spec 2026-11-18 §10): only on days with one; the place under the clock shows it first. */
 export interface DailyNote {
-  /** Garmin users: last night's sleep hasn't synced yet, so there is no note yet (the text is empty). */
+  /** Garmin users: last night's sleep hasn't synced yet, so the alert can't be told yet (the text is empty). */
   waiting?: boolean;
   text: string;
   alert: HealthAlertKind | null;
@@ -38,23 +22,13 @@ export interface DailyNote {
   swap: { title: string; km: number } | null;
 }
 
-type Lap = { intensityType?: string | null; distance?: number | null; duration?: number | null; movingDuration?: number | null };
-type Act = { id: string; local_date: string; distance_m: number | null; moving_s: number | null; duration_s: number | null; avg_hr: number | null; splits: Json | null };
+type Act = { id: string; distance_m: number | null; moving_s: number | null; duration_s: number | null };
 
 const paceOf = (a: Pick<Act, "distance_m" | "moving_s" | "duration_s">) => {
   const km = Number(a.distance_m ?? 0) / 1000;
   const s = Number(a.moving_s ?? a.duration_s ?? 0);
   return km > 0 && s > 0 ? s / km : null;
 };
-
-/** Mean pace of the fast laps (Garmin marks them ACTIVE or INTERVAL in a structured workout). */
-function repsPace(splits: Json | null): number | null {
-  const laps = ((splits as { lapDTOs?: Lap[] } | null)?.lapDTOs ?? []).filter((l) => (l.intensityType === "ACTIVE" || l.intensityType === "INTERVAL") && Number(l.distance) > 0);
-  if (!laps.length) return null;
-  const m = laps.reduce((s, l) => s + Number(l.distance), 0);
-  const t = laps.reduce((s, l) => s + Number(l.movingDuration ?? l.duration ?? 0), 0);
-  return m > 0 ? t / (m / 1000) : null;
-}
 
 /** The plan side only: enough to find a session to swap, without building the whole note. */
 async function planPart(userId: string) {
@@ -70,49 +44,26 @@ async function factsFor(userId: string, today: ISODate) {
   const { data: rows } = plan
     ? await db().from("planned_workouts").select("date, type, title, status, activity_id").eq("plan_id", plan.id).gte("date", from).lte("date", today)
     : { data: [] as Pick<WorkoutRow, "date" | "type" | "title" | "status" | "activity_id">[] };
-  const doneRows = (rows ?? []).filter((w) => w.status === "done" && w.activity_id);
-  const { data: acts } = doneRows.length
-    ? await db().from("activities").select("id, local_date, distance_m, moving_s, duration_s, avg_hr, splits").in("id", doneRows.map((w) => w.activity_id!))
+  const easyRows = (rows ?? []).filter((w) => w.status === "done" && w.activity_id && w.type === "easy");
+  const { data: acts } = easyRows.length
+    ? await db().from("activities").select("id, distance_m, moving_s, duration_s").in("id", easyRows.map((w) => w.activity_id!))
     : { data: [] as Act[] };
   const actOf = new Map((acts ?? []).map((a) => [a.id, a as Act]));
-
-  const easyRuns = doneRows.filter((w) => w.type === "easy").flatMap((w) => {
+  const easyRuns = easyRows.flatMap((w) => {
     const p = paceOf(actOf.get(w.activity_id!) ?? ({} as Act));
     return p ? [{ date: w.date, secPerKm: p }] : [];
   });
   const days = await loadRecoveryDays(userId, today, 40);
   const alert = alertFor({ days, today, easyRuns, easyFastSecPerKm: paces?.easy.min ?? null });
 
-  // Today's session if it is already done (the note can be written after a morning run), else yesterday's.
-  const yRow = doneRows.find((w) => w.date === today) ?? doneRows.find((w) => w.date === addDays(today, -1));
-  const yAct = yRow ? actOf.get(yRow.activity_id!) : undefined;
-  let lastSession: NoteFacts["lastSession"] = null;
-  if (yRow && yAct) {
-    const reps = QUALITY.has(yRow.type) ? repsPace(yAct.splits) : null;
-    const earlier = doneRows.filter((w) => w.type === yRow.type && w.date < yRow.date).map((w) => repsPace(actOf.get(w.activity_id!)?.splits ?? null)).filter((p): p is number => p != null);
-    lastSession = {
-      when: yRow.date === today ? "today" : "yesterday",
-      type: yRow.type,
-      title: yRow.title,
-      km: Math.round(Number(yAct.distance_m ?? 0) / 100) / 10,
-      avgSecPerKm: paceOf(yAct) && Math.round(paceOf(yAct)!),
-      avgHr: yAct.avg_hr,
-      repsAvgSecPerKm: reps && Math.round(reps),
-      bestYet: reps != null && earlier.length > 0 && reps < Math.min(...earlier),
-    };
-  }
   // Rides count as the day's session too (a ride plan, or a ride day in a running plan).
   const planned = (d: ISODate) => workouts.find((w) => w.date === d && w.status === "planned");
   const t = planned(today);
   const tomorrow = planned(addDays(today, 1));
-  const clock = await loadClock(userId, today).catch(() => null);
   const facts: NoteFacts = {
     alert,
-    lastSession,
     today: t ? { type: t.type, title: t.title, km: t.plannedKm, hrMax: null } : null,
     tomorrow: tomorrow ? { type: tomorrow.type, title: tomorrow.title } : null,
-    clockDeltaS: clock?.deltaS ?? null,
-    raceName: clock?.race.name ?? null,
   };
   return { facts, plan, workouts, paces };
 }
@@ -142,11 +93,11 @@ async function morningIsIn(userId: string, today: ISODate): Promise<boolean> {
 }
 
 /**
- * Today's note (spec §7): written once, stored and reused. With Garmin it waits for today's sleep (a note written
- * before it would miss the alert): until then it is `waiting` and nothing is stored. No plan and nothing to warn
- * about: no note at all.
+ * Today's alert (spec 2026-11-18 §10): written once, stored and reused. With Garmin it waits for today's sleep (an
+ * alert told before it would miss the night): until then it is `waiting` and nothing is stored. No alert: no note,
+ * nothing stored.
  */
-export async function dailyNote(userId: string, today: ISODate, opts: { ai?: RecoveryAi } = {}): Promise<DailyNote | null> {
+export async function dailyNote(userId: string, today: ISODate): Promise<DailyNote | null> {
   const stored = await storedNote(userId, today);
   if (stored) return stored;
 
@@ -155,26 +106,16 @@ export async function dailyNote(userId: string, today: ISODate, opts: { ai?: Rec
   const { facts } = built;
   const garmin = await getGarminStatus(userId);
   if (garmin && !(await morningIsIn(userId, today))) return { text: "", alert: null, alertDone: false, swap: null, waiting: true };
-  if (!built.plan && !facts.alert) return null;
+  if (!facts.alert) return null;
   const text = templateNote(facts);
 
-  // Claim the day with the template first: two tabs opened at once never both pay for an AI note.
+  // Two tabs opened at once store one row.
   const { data: claimed } = await db()
     .from("daily_notes")
-    .upsert({ user_id: userId, local_date: today, text, alert: facts.alert?.kind ?? null, facts: facts as unknown as Json, source: "template" }, { onConflict: "user_id,local_date", ignoreDuplicates: true })
+    .upsert({ user_id: userId, local_date: today, text, alert: facts.alert.kind, facts: facts as unknown as Json, source: "template" }, { onConflict: "user_id,local_date", ignoreDuplicates: true })
     .select("id");
-  if (!claimed?.length) return (await storedNote(userId, today)) ?? { text, alert: facts.alert?.kind ?? null, alertDone: false, swap };
-
-  let out = text;
-  const g = await gate(userId);
-  if (g.ok) {
-    const res = await (opts.ai ?? anthropicRecoveryAi).ask(g.apiKey, NOTE_PROMPT, noteMessage(facts, g.language), NoteSchema);
-    if (res.ok) {
-      out = res.value.text.trim();
-      await db().from("daily_notes").update({ text: out, source: "ai" }).eq("id", claimed[0]!.id);
-    }
-  }
-  return { text: out, alert: facts.alert?.kind ?? null, alertDone: false, swap };
+  if (!claimed?.length) return (await storedNote(userId, today)) ?? { text, alert: facts.alert.kind, alertDone: false, swap };
+  return { text, alert: facts.alert.kind, alertDone: false, swap };
 }
 
 /** A stored note; the plan is only read when its alert still offers a swap. */
