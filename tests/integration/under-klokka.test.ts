@@ -3,6 +3,7 @@ import { addDays, lastSunday, weekStartOn, zonedTime } from "@loop/core";
 import { decideChallenges, ensureChallenge } from "@/lib/health/challenge";
 import { saveTokens } from "@/lib/garmin/accounts";
 import { loadSpot } from "@/lib/health/spot";
+import { loadRacePace } from "@/lib/health/racePace";
 // @ts-expect-error — plain JS helper shared with the smoke scripts
 import { seedUser } from "../smoke/seed.mjs";
 import { admin, cleanup, createTestUser, type TestUser } from "./setup";
@@ -231,5 +232,40 @@ describe("the weekly challenge (spec 2026-11-18 §7)", () => {
     await decideChallenges(u.id, today);
     const { data: row } = await admin().from("weekly_challenges").select("result, result_value").eq("user_id", u.id).eq("week_start", week()).single();
     expect(row).toMatchObject({ result: "lost", result_value: 161 });
+  }, 300_000);
+});
+
+describe("race-pace account (spec 2026-11-18 §9)", () => {
+  let u: TestUser;
+  let today: string;
+  let planId: string;
+  const RACE = [step("run", { kind: "distance", m: 21098 }, pace("race", 278, 284))];
+  const LONG_FINISH = [step("run", { kind: "distance", m: 13000 }, easyT), step("run", { kind: "distance", m: 4000 }, pace("race", 278, 284))];
+  const workout = (date: string, type: string, blocks: object[], status = "planned") =>
+    admin().from("planned_workouts").insert({ user_id: u.id, plan_id: planId, date, type, title: `${type} session`, blocks, planned_km: 10, planned_duration_s: 3600, phase: "build", week: 3, status } as never);
+
+  beforeAll(async () => {
+    u = await createTestUser("racepace");
+    ({ today } = await seedUser(admin(), u.id, { days: 3 }));
+    await saveTokens(u.id, JSON.stringify({ di_token: "fake" }));
+    const { data: plan } = await admin()
+      .from("training_plans")
+      .insert({ user_id: u.id, goal_kind: "race", distance_km: 21.0975, race_date: addDays(today, 20), start_date: addDays(today, -30), generated_until: addDays(today, 20), weekdays: [1, 3, 6], long_run_weekday: 6, runs_per_week: 3, vdot: 45.7, start_km_per_week: 30 } as never)
+      .select("id")
+      .single();
+    planId = plan!.id;
+  });
+  afterAll(cleanup);
+
+  it("race pace km run against race pace km planned; none in a plan without a race, none after it", async () => {
+    expect(await loadRacePace(u.id, today)).toBeNull(); // no race day in the plan yet
+    await workout(addDays(today, 20), "race", RACE);
+    expect(await loadRacePace(u.id, today)).toBeNull(); // a race, but no race pace planned before it
+    await workout(addDays(today, 10), "long", LONG_FINISH);
+    // 2 × 1 km at 4:40 count; 4:50 is outside the zone (+3 s) and 350 m is too short.
+    const laps = [lap(1000, 280, 170), lap(1000, 280, 171), lap(1000, 290, 172), lap(350, 98, 170)];
+    await admin().from("activities").insert({ user_id: u.id, source: "manual", local_date: addDays(today, -2), start_time: `${addDays(today, -2)}T07:00:00Z`, type_key: "running", distance_m: 3350, duration_s: 948, moving_s: 948, avg_hr: 170, splits: { lapDTOs: laps } } as never);
+    expect(await loadRacePace(u.id, today)).toEqual({ secPerKm: 281, doneKm: 2, plannedKm: 4 });
+    expect(await loadRacePace(u.id, addDays(today, 21))).toBeNull();
   }, 300_000);
 });

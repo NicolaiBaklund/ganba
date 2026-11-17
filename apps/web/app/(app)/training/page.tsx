@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/supabase/server";
 import { loadTrainingView, type TrainingView } from "@/lib/training/view";
 import { hrZoneLabel } from "@/lib/training/format";
 import { loadClock } from "@/lib/health/view";
+import { loadRacePace } from "@/lib/health/racePace";
 import { RaceRoad } from "@/components/health/RaceRoad";
 import { MorningNote } from "@/components/health/MorningNote";
 import { ProposalCard } from "@/components/training/ProposalCard";
@@ -24,14 +25,14 @@ export default async function TrainingPage() {
   const t = await getTranslations("training");
   const { user } = await requireUser();
   const v = await loadTrainingView(user.id);
-  const clock = await loadClock(user.id, v.today);
+  const [clock, racePace] = await Promise.all([loadClock(user.id, v.today), loadRacePace(user.id, v.today)]);
 
   // No Garmin needed: without it the runner logs what was done (spec 2026-10-29).
   if (!v.plan) {
     return (
       <main className="flex flex-col px-[18px] pt-5">
         <h1 className="cond text-[34px] leading-none">{t("title")}</h1>
-        {clock && <RaceRoad clock={clock} today={v.today} />}
+        {clock && <RaceRoad clock={clock} today={v.today} racePace={racePace} />}
         <MorningNote />
         {v.strength.length > 0 && (
           <section className="mt-2">
@@ -70,7 +71,7 @@ export default async function TrainingPage() {
   return (
     <main className="flex flex-col px-[18px] pb-4 pt-5">
       <h1 className="cond text-[34px] leading-none">{t("title")}</h1>
-      {clock && <RaceRoad clock={clock} today={v.today} />}
+      {clock && <RaceRoad clock={clock} today={v.today} racePace={racePace} />}
       <MorningNote />
 
       {v.proposals.length > 0 && (
