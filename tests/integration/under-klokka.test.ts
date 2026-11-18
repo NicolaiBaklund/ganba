@@ -229,7 +229,9 @@ describe("the weekly challenge (spec 2026-11-18 §7)", () => {
     await admin().from("activities").delete().eq("user_id", u.id).gte("local_date", week());
     await workout(today, "easy", EASY);
     expect(await ensureChallenge(u.id, today)).toMatchObject({ kind: "easy_hr_week", params: { bpm: 150 } });
-    await act(today, 6, 340, 161);
+    // Only runs after the challenge was made count (review fix): this one starts after it.
+    const later = await act(today, 6, 340, 161);
+    await admin().from("activities").update({ start_time: new Date(Date.now() + 60_000).toISOString() } as never).eq("id", later);
     await decideChallenges(u.id, today);
     const { data: row } = await admin().from("weekly_challenges").select("result, result_value").eq("user_id", u.id).eq("week_start", week()).single();
     expect(row).toMatchObject({ result: "lost", result_value: 161 });
@@ -327,6 +329,8 @@ describe("review fixes (under-klokka final review)", () => {
     expect(v).toMatchObject({ word: "nice_easy", easy: { secPerKm: 320 }, finish: { km: 4, secPerKm: 290, zone: { min: 287, max: 297 } }, ghost: null });
     // Easy part faster than easy: still the finish lap decides "Last 4 km at 4:57 or faster".
     await admin().from("activities").update({ splits: { lapDTOs: [lap(12000, 12000 * 0.305, 150, 0), lap(4000, 4000 * 0.29, 165, 1)] } } as never).eq("id", id);
+    // loadSpot above stored this week's pick ("none": the long run is already done); put the challenge in its place.
+    await admin().from("weekly_challenges").delete().eq("user_id", u.id).eq("week_start", week());
     await admin().from("weekly_challenges").insert({ user_id: u.id, week_start: week(), workout_id: w, kind: "finish_fast", params: { km: 4, maxSecPerKm: 297 } } as never);
     await decideChallenges(u.id, today);
     const { data: row } = await admin().from("weekly_challenges").select("result, result_value").eq("workout_id", w).single();

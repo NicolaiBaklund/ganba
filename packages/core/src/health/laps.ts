@@ -31,35 +31,45 @@ type RawLap = {
 };
 const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : Number(v));
 
-/**
- * Laps from `activities.splits`; laps without distance or time (pauses, manual laps at a stop) are dropped, and a
- * workout step split by a lap press (two laps in a row with the same step) is one lap again.
- */
+/** Laps from `activities.splits`; laps without distance or time (pauses, manual laps at a stop) are dropped. */
 export function lapsFrom(splits: unknown): RunLap[] {
-  return mergeSplitSteps(rawLaps(splits));
+  return rawLaps(splits);
 }
 
-function mergeSplitSteps(laps: RunLap[]): RunLap[] {
-  const out: RunLap[] = [];
-  for (const l of laps) {
-    const prev = out.at(-1);
-    if (prev && l.stepIndex != null && prev.stepIndex === l.stepIndex && prev.intensity === l.intensity) {
-      const t = prev.movingS + l.movingS;
-      const hrs = [prev, l].filter((x) => x.avgHr != null);
-      const ht = hrs.reduce((s, x) => s + x.movingS, 0);
-      const gaps = [prev, l].filter((x) => x.gapSecPerKm != null);
-      const gm = gaps.reduce((s, x) => s + x.distanceM, 0);
-      out[out.length - 1] = {
-        ...prev,
-        distanceM: prev.distanceM + l.distanceM,
-        movingS: t,
-        elapsedS: prev.elapsedS + l.elapsedS,
-        avgHr: ht > 0 ? hrs.reduce((s, x) => s + x.avgHr! * x.movingS, 0) / ht : null,
-        gapSecPerKm: gm > 0 ? gaps.reduce((s, x) => s + x.gapSecPerKm! * x.distanceM, 0) / gm : null,
-      };
-    } else out.push(l);
+/** Two laps as one (a step split by a lap press): summed, heart rate and grade-adjusted pace weighted. */
+function joinLaps(a: RunLap, b: RunLap): RunLap {
+  const hrs = [a, b].filter((x) => x.avgHr != null);
+  const ht = hrs.reduce((s, x) => s + x.movingS, 0);
+  const gaps = [a, b].filter((x) => x.gapSecPerKm != null);
+  const gm = gaps.reduce((s, x) => s + x.distanceM, 0);
+  return {
+    ...a,
+    distanceM: a.distanceM + b.distanceM,
+    movingS: a.movingS + b.movingS,
+    elapsedS: a.elapsedS + b.elapsedS,
+    avgHr: ht > 0 ? hrs.reduce((s, x) => s + x.avgHr! * x.movingS, 0) / ht : null,
+    gapSecPerKm: gm > 0 ? gaps.reduce((s, x) => s + x.gapSecPerKm! * x.distanceM, 0) / gm : null,
+  };
+}
+
+/**
+ * More work laps than steps: a lap press split a step. Joins neighbouring laps of the same step (nothing between
+ * them in the run), shortest pair first, until the counts match; reps of a repeat without rest stay apart otherwise.
+ */
+function joinSplitSteps(laps: readonly RunLap[], marked: readonly RunLap[], steps: number): RunLap[] {
+  const out = marked.map((lap) => ({ lap, first: laps.indexOf(lap), last: laps.indexOf(lap) }));
+  while (out.length > steps) {
+    let best = -1;
+    for (let i = 0; i + 1 < out.length; i++) {
+      const x = out[i]!, y = out[i + 1]!;
+      if (x.lap.stepIndex !== y.lap.stepIndex || y.first !== x.last + 1) continue;
+      if (best < 0 || x.lap.distanceM + y.lap.distanceM < out[best]!.lap.distanceM + out[best + 1]!.lap.distanceM) best = i;
+    }
+    if (best < 0) break;
+    const x = out[best]!, y = out[best + 1]!;
+    out.splice(best, 2, { lap: joinLaps(x.lap, y.lap), first: x.first, last: y.last });
   }
-  return out;
+  return out.map((o) => o.lap);
 }
 
 function rawLaps(splits: unknown): RunLap[] {
@@ -120,7 +130,8 @@ export const isWorkStep = (s: Step): boolean => !(s.target.kind === "pace" && s.
 export function workLaps(laps: readonly RunLap[], steps: readonly Step[], easyMinSecPerKm: number | null): { pairs: { lap: RunLap; step: Step }[]; planned: number } {
   const workSteps = steps.filter(isWorkStep);
   const work = workSteps.length ? workSteps : [...steps];
-  const marked = laps.filter((l) => isWorkIntensity(l) && l.stepIndex != null && !isStride(l));
+  const markedRaw = laps.filter((l) => isWorkIntensity(l) && l.stepIndex != null && !isStride(l));
+  const marked = markedRaw.length > steps.length ? joinSplitSteps(laps, markedRaw, steps.length) : markedRaw;
   if (marked.length && marked.length === steps.length) {
     const pairs = marked.map((lap, i) => ({ lap, step: steps[i]! })).filter((p) => !workSteps.length || isWorkStep(p.step));
     return { pairs, planned: work.length };
