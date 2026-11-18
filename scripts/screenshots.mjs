@@ -162,14 +162,57 @@ try {
   await admin.from("planned_workouts").update({ date: today, garmin_push_status: "pushed", garmin_workout_id: 1 }).eq("id", quality.id);
   await admin.from("planned_workouts").update({ garmin_push_status: "pushed", garmin_workout_id: 1 }).eq("plan_id", plan.id).lte("date", day(13));
 
+  // Yesterday's threshold, run from the watch: the verdict under the race clock on Training ("On target").
+  const zone = { kind: "pace", zone: "threshold", minSecPerKm: 268, maxSecPerKm: 278 };
+  await admin.from("activities").delete().eq("user_id", uid).eq("local_date", day(-1));
+  const { data: thr } = must(
+    await admin
+      .from("activities")
+      .insert({
+        user_id: uid, garmin_activity_id: 9_100_000, local_date: day(-1), start_time: `${day(-1)}T05:00:00Z`, type_key: "running", name: "Morning run", distance_m: 10100, duration_s: 3105, moving_s: 3100, avg_hr: 164, max_hr: 181,
+        splits: { lapDTOs: [
+          { distance: 3000, duration: 1080, averageHR: 142, intensityType: "WARMUP", wktStepIndex: 0 },
+          { distance: 2640, duration: 720, averageHR: 174, intensityType: "ACTIVE", wktStepIndex: 1 },
+          { distance: 200, duration: 90, averageHR: 150, intensityType: "RECOVERY", wktStepIndex: 2 },
+          { distance: 2652, duration: 720, averageHR: 177, intensityType: "ACTIVE", wktStepIndex: 1 },
+          { distance: 1608, duration: 495, averageHR: 155, intensityType: "COOLDOWN", wktStepIndex: 3 },
+        ] },
+      })
+      .select("id")
+      .single(),
+  );
+  await admin.from("planned_workouts").delete().eq("plan_id", plan.id).eq("date", day(-1));
+  must(
+    await admin.from("planned_workouts").insert({
+      user_id: uid, plan_id: plan.id, date: day(-1), week: 1, phase: "base", type: "threshold", title: "Threshold 2 × 12 min", planned_km: 10, planned_duration_s: 3100, status: "done", activity_id: thr.id, garmin_push_status: "pushed",
+      blocks: [
+        { kind: "warmup", duration: { kind: "distance", m: 3000 }, target: { kind: "pace", zone: "easy", minSecPerKm: 330, maxSecPerKm: 366 } },
+        { kind: "repeat", times: 2, steps: [{ kind: "run", duration: { kind: "time", s: 720 }, target: zone }, { kind: "recover", duration: { kind: "time", s: 90 }, target: { kind: "none" } }] },
+        { kind: "cooldown", duration: { kind: "distance", m: 1500 }, target: { kind: "pace", zone: "easy", minSecPerKm: 330, maxSecPerKm: 366 } },
+      ],
+    }),
+  );
+  // A strength session two days ago (logged in Ganba).
+  const { data: gym } = must(await admin.from("strength_sessions").insert({ user_id: uid, local_date: day(-2), finished_at: new Date().toISOString() }).select("id").single());
+  const sets = (key, position, reps, kg) => [1, 2, 3].map((set_no) => ({ user_id: uid, session_id: gym.id, exercise_key: key, position, set_no, reps, kg }));
+  must(await admin.from("strength_sets").insert([...sets("bench-press", 0, 8, 62.5), ...sets("pull-ups", 1, 8, null), ...sets("shoulder-press", 2, 10, 20)]));
+  must(await admin.from("user_exercises").insert([
+    { user_id: uid, key: "bench-press", muscle_group: "chest", measure: "kg", favorite: true },
+    { user_id: uid, key: "pull-ups", muscle_group: "back", measure: "bw", favorite: true },
+  ]));
+
   await page.goto(`${BASE}/today`);
   await page.getByText(/^\+\d+ activity$/).first().waitFor();
-  await page.getByText("Coach, this morning").waitFor();
   await shot("today");
 
   await page.goto(`${BASE}/training`);
   await page.getByText("This week").waitFor();
+  await page.getByText("On target").waitFor({ timeout: 60_000 });
   await shot("training");
+
+  await page.goto(`${BASE}/training/strength/${gym.id}`);
+  await page.getByText("Bench press").first().waitFor();
+  await shot("strength");
 
   await page.goto(`${BASE}/training/workout/${quality.id}`);
   await page.getByText("Fuel", { exact: true }).waitFor();
@@ -179,7 +222,7 @@ try {
   await page.waitForTimeout(800);
   await shot("body");
 
-  // Progress, opened from the race clock on Today: the clock, the globe and the stamp book.
+  // Progress, opened from the race clock on Training: the clock, the globe and the stamp book.
   await page.goto(`${BASE}/progress`);
   await page.getByRole("heading", { name: "Progress" }).waitFor();
   await page.waitForTimeout(1200); // the globe loads its map
@@ -193,7 +236,7 @@ try {
       const { data: thread } = await admin.from("coach_threads").select("id").eq("user_id", uid).is("archived_at", null).single();
       await admin.from("coach_messages").insert({ thread_id: thread.id, user_id: uid, role: "user", text: QUESTION, options: [] });
       const { data: msg } = await admin.from("coach_messages").insert({ thread_id: thread.id, user_id: uid, role: "coach", text: ANSWER, options: [] }).select("*").single();
-      const done = { type: "done", message: { id: msg.id, role: "coach", text: ANSWER, aboutWorkoutId: null, options: [], usedHealth: true, createdAt: msg.created_at } };
+      const done = { type: "done", message: { id: msg.id, role: "coach", text: ANSWER, aboutWorkoutId: null, options: [], usedHealth: true, meta: { tools: ["food_log", "plan"], remembered: [], forgot: [] }, createdAt: msg.created_at } };
       await route.fulfill({ status: 200, contentType: "application/x-ndjson", body: [{ type: "start" }, { type: "status", label: "Looking at your food log…" }, done].map((e) => JSON.stringify(e)).join("\n") + "\n" });
     });
   }

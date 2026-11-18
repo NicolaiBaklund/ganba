@@ -1006,7 +1006,7 @@
     "saveError": "Couldn't save. Try again.",
     "minutes": "{min} min",
     "missed": "Missed",
-    "sessions": "sessions",
+    "sessions": "{n, plural, one {session} other {sessions}}",
     "since": "{from} → {to} since {month}",
     "favourite": "Favourite",
     "done": "Done",
