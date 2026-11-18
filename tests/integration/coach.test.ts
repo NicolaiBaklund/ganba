@@ -92,7 +92,7 @@ describe("coach: tool loop, options, memory, consent", () => {
     await setAiHealthConsent(u.id, true);
     ai.script = [() => tool("reply", { message: "ok", options: [] })];
     await runCoach(u.id, { text: "hi again" }, { ai });
-    expect(ctxOf(ai.calls.at(-1)!)).toContain("No morning note yet today.");
+    expect(ctxOf(ai.calls.at(-1)!)).toContain("No health alert today.");
   });
 
   it("one reply at a time per conversation", async () => {

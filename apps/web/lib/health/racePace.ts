@@ -19,6 +19,8 @@ export async function loadRacePace(userId: string, today: ISODate): Promise<Race
     .from("activities")
     .select("local_date, type_key, splits")
     .eq("user_id", userId)
+    // Runs only (all but virtual runs end in "running"): rides, strength and walks never carry race pace.
+    .ilike("type_key", "%running")
     .gte("local_date", plan.start_date)
     .lte("local_date", today);
   return racePaceAccount({

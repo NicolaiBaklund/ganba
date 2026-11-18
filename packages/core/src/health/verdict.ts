@@ -1,6 +1,6 @@
 import type { ISODate } from "../dates";
 import type { Block } from "../training/types";
-import { easyPart, judgedPace, lapPace, lapsAverage, paceZone, runSteps, workLaps, type RunLap } from "./laps";
+import { covers, easyPart, judgedPace, lapPace, lapsAverage, paceZone, runSteps, workLaps, type RunLap } from "./laps";
 
 /** Thresholds for the verdict (spec 2026-11-18 §5): seconds per km and beats per minute. */
 export const VERDICT = { bitS: 5, unevenS: 8, hrHighBpm: 5, fasterEachMin: 3, halfMinDeltaS: 5 } as const;
@@ -36,6 +36,8 @@ export interface Verdict {
   repsDone: number | null;
   repsPlanned: number | null;
   easy: { secPerKm: number; hr: number | null; hrVsNormal: number | null } | null;
+  /** A long run's fast finish (marathon or race pace), judged apart from the easy part. */
+  finish: { km: number; secPerKm: number; zone: { min: number; max: number } | null } | null;
   /** Second half minus first half of a long run in ~1 km laps, s/km; null under 5 s or without such laps. */
   secondHalfDeltaS: number | null;
   test: { km: number; timeS: number; beat: boolean | null; proposal: boolean } | null;
@@ -43,7 +45,8 @@ export interface Verdict {
 }
 
 export interface VerdictInput {
-  run: { id: string; date: ISODate; distanceM: number; movingS: number; avgHr: number | null; indoor: boolean; easy: boolean };
+  /** `elapsedS`: clock time with pauses, for race times. */
+  run: { id: string; date: ISODate; distanceM: number; movingS: number; elapsedS?: number; avgHr: number | null; indoor: boolean; easy: boolean };
   laps: readonly RunLap[];
   workout: { type: string; title: string; blocks: readonly Block[] } | null;
   /** Easy zone from the plan's VDOT (min = fastest easy pace). */
@@ -97,22 +100,24 @@ export function verdictFor(i: VerdictInput): Verdict {
     repsDone: null,
     repsPlanned: null,
     easy: null,
+    finish: null,
     secondHalfDeltaS: null,
     test: null,
     race: null,
   };
 
   if (w?.type === "race") {
-    const timeS = r(i.run.movingS);
+    const timeS = r(i.run.elapsedS || i.run.movingS);
     return { ...base, race: { km: Math.round(km * 10) / 10, timeS, deltaS: i.raceClockS ? timeS - i.raceClockS : null }, tone: i.raceClockS && timeS < i.raceClockS ? "good" : "plain" };
   }
 
   if (w?.type === "test") {
     const { pairs } = workLaps(i.laps, runSteps(w.blocks), i.easyZone?.min ?? null);
     if (!pairs.length) return { ...base, easy: { ...whole, hrVsNormal: null } };
-    const timeS = r(pairs.reduce((s, p) => s + p.lap.movingS, 0));
+    // Clock time, like a race; a test stopped short of its distance doesn't beat anything.
+    const timeS = r(pairs.reduce((s, p) => s + p.lap.elapsedS, 0));
     const testKm = Math.round(pairs.reduce((s, p) => s + p.lap.distanceM, 0) / 100) / 10;
-    const beat = i.testPredictionS ? timeS < i.testPredictionS : null;
+    const beat = i.testPredictionS && covers(pairs) ? timeS < i.testPredictionS : null;
     return { ...base, test: { km: testKm, timeS, beat, proposal: !!i.proposal }, tone: beat ? "good" : "plain" };
   }
 
@@ -133,11 +138,17 @@ export function verdictFor(i: VerdictInput): Verdict {
     return { ...out, word, tone: WORD_TONE[word] };
   }
 
-  // Easy, recovery, long and strides sessions, or a run without a plan session.
-  const avg = lapsAverage(easyPart(i.laps)) ?? whole;
+  // Easy, recovery, long and strides sessions, or a run without a plan session. A long run's fast finish is its own
+  // line: its laps stay out of the easy pace and heart rate.
+  const fin = w && w.type !== "strides" ? workLaps(i.laps, runSteps(w.blocks), i.easyZone?.min ?? null).pairs.filter((p) => paceZone(p.step)) : [];
+  const finLaps = new Set(fin.map((p) => p.lap));
+  const finAvg = fin.length ? lapsAverage(fin.map((p) => p.lap)) : null;
+  const finish = finAvg ? { km: Math.round(fin.reduce((s, p) => s + p.lap.distanceM, 0) / 100) / 10, secPerKm: Math.floor(finAvg.secPerKm), zone: paceZone(fin[0]!.step) } : null;
+  const easyLaps = easyPart(i.laps.filter((l) => !finLaps.has(l)));
+  const avg = lapsAverage(easyLaps) ?? whole;
   const hrVsNormal = avg.hr != null && i.normalHr != null ? r(avg.hr - i.normalHr) : null;
   const easy = { secPerKm: Math.floor(avg.secPerKm), hr: avg.hr == null ? null : r(avg.hr), hrVsNormal };
-  const out = { ...base, easy, secondHalfDeltaS: secondHalf(easyPart(i.laps)) };
+  const out = { ...base, easy, finish, secondHalfDeltaS: secondHalf(easyLaps) };
   if (i.run.indoor || !i.easyZone || (!w && !i.run.easy)) return out;
   const word: VerdictWord = avg.secPerKm < i.easyZone.min ? "too_fast_easy" : hrVsNormal != null && hrVsNormal > VERDICT.hrHighBpm ? "hr_high" : "nice_easy";
   return { ...out, word, tone: WORD_TONE[word] };

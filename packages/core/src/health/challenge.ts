@@ -1,6 +1,6 @@
 import type { ISODate } from "../dates";
 import type { Block, Step } from "../training/types";
-import { judgedPace, paceZone, runSteps, workLaps, type RunLap } from "./laps";
+import { covers, judgedPace, paceZone, runSteps, workLaps, type RunLap } from "./laps";
 import { REP_TYPES } from "./verdict";
 
 /** The weekly challenge (spec 2026-11-18 §7). */
@@ -87,8 +87,10 @@ export function decideChallenge(c: ChallengePick, i: { laps: readonly RunLap[]; 
   const { pairs } = workLaps(i.laps, runSteps(i.blocks), i.easyMinSecPerKm);
   if (!pairs.length) return null;
   const paces = pairs.map((p) => judgedPace(p.lap));
+  // A test or finish stopped short of its distance can't be told.
+  if ((c.kind === "test_beat" || c.kind === "finish_fast") && !covers(c.kind === "finish_fast" ? pairs.slice(-1) : pairs)) return null;
   if (c.kind === "test_beat") {
-    const t = Math.round(pairs.reduce((s, p) => s + p.lap.movingS, 0));
+    const t = Math.round(pairs.reduce((s, p) => s + p.lap.elapsedS, 0));
     return { result: t < c.params.targetS! ? "won" : "lost", value: t };
   }
   if (c.kind === "finish_fast") {

@@ -925,7 +925,6 @@
       "raceFaster": "{time} faster than the clock.",
       "raceSlower": "{time} slower than the clock.",
       "ghost": "{km} km easy on {date}: {pace} at {hr}.",
-      "samePaceLower": "Same pace, {hr} bpm lower.",
       "paceHr": "{s} s/km {dir}, {hr}.",
       "faster": "faster",
       "slower": "slower",
@@ -957,7 +956,9 @@
       "allWeek": "All week.",
       "won": "Challenge won",
       "lost": "Challenge missed",
-      "run": "Run"
+      "run": "Run",
+      "samePace": "Same pace, {hr}.",
+      "finish": "Last {km} km at {pace}. Zone {zone}."
     }
   },
   "strength": {

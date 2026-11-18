@@ -122,7 +122,7 @@ export async function latestVerdict(userId: string, today: ISODate): Promise<Spo
   if (workout?.type === "race") raceClockS = (await loadClock(userId, addDays(act.local_date, -1)).catch(() => null))?.seconds ?? null;
 
   const v = verdictFor({
-    run: { id: act.id, date: act.local_date, distanceM: num(act.distance_m), movingS: movingOf(act), avgHr: act.avg_hr == null ? null : num(act.avg_hr), indoor: INDOOR.test(act.type_key), easy },
+    run: { id: act.id, date: act.local_date, distanceM: num(act.distance_m), movingS: movingOf(act), elapsedS: num(act.duration_s), avgHr: act.avg_hr == null ? null : num(act.avg_hr), indoor: INDOOR.test(act.type_key), easy },
     laps,
     workout,
     easyZone: zone,
@@ -132,12 +132,12 @@ export async function latestVerdict(userId: string, today: ISODate): Promise<Spo
     raceClockS,
   });
 
-  const ghostable = v.easy && easy && !INDOOR.test(act.type_key) && (!workout || !(REP_TYPES.has(workout.type) || workout.type === "test" || workout.type === "race"));
+  const ghostable = v.easy && !v.finish && easy && !INDOOR.test(act.type_key) && (!workout || !(REP_TYPES.has(workout.type) || workout.type === "test" || workout.type === "race"));
   const ghost = ghostable && act.avg_hr ? await ghostOf(userId, { ...act, secPerKm: v.easy!.secPerKm, avg_hr: v.easy!.hr ?? act.avg_hr }, quality) : null;
 
   let challenge: SpotVerdict["challenge"] = null;
-  if (wo) {
-    const { data: c } = await db().from("weekly_challenges").select("kind, params, result, result_value").eq("user_id", userId).eq("workout_id", wo.id).not("result", "is", null).maybeSingle();
+  {
+    const { data: c } = await db().from("weekly_challenges").select("kind, params, result, result_value").eq("user_id", userId).eq("decided_activity_id", act.id).not("result", "is", null).limit(1).maybeSingle();
     if (c) challenge = { kind: c.kind as ChallengeKind, params: c.params as Record<string, number>, result: c.result as "won" | "lost", value: Number(c.result_value) };
   }
   return { ...v, ghost, challenge };
@@ -168,13 +168,19 @@ async function weekView(userId: string, today: ISODate, tz: string, now: Date): 
 /** The place under the race clock (spec §4): alert, verdict, what the week bought, the challenge. */
 export async function loadSpot(userId: string, today: ISODate, opts: { now?: Date } = {}): Promise<SpotView> {
   const now = opts.now ?? new Date();
-  // The alert is the slow part (recovery days): read it alongside the rest.
-  const notePromise = dailyNote(userId, today);
+  // The alert is the slow part (recovery days): read it alongside the rest. No part may take the others down: the
+  // alert especially must show even when the new parts fail.
+  const safe = <T,>(what: string, p: Promise<T>) =>
+    p.catch((e) => {
+      console.error(`spot ${what} failed`, userId, e instanceof Error ? e.message : e);
+      return null;
+    });
+  const notePromise = safe("alert", dailyNote(userId, today));
   const [garmin, tz] = await Promise.all([getGarminStatus(userId), timezone(userId)]);
   let verdict: SpotVerdict | null = null, week: SpotWeek | null = null, challenge: ChallengeView | null = null;
   if (garmin) {
     await decideChallenges(userId, today).catch((e) => console.error("challenge decide failed", userId, e instanceof Error ? e.message : e));
-    [verdict, week, challenge] = await Promise.all([latestVerdict(userId, today), weekView(userId, today, tz, now), ensureChallenge(userId, today)]);
+    [verdict, week, challenge] = await Promise.all([safe("verdict", latestVerdict(userId, today)), safe("week", weekView(userId, today, tz, now)), safe("challenge", ensureChallenge(userId, today))]);
   }
   const note = await notePromise;
   const alert = note && (note.waiting || (note.alert && !note.alertDone)) ? note : null;

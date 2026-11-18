@@ -4,6 +4,7 @@ import { decideChallenges, ensureChallenge } from "@/lib/health/challenge";
 import { saveTokens } from "@/lib/garmin/accounts";
 import { loadSpot } from "@/lib/health/spot";
 import { loadRacePace } from "@/lib/health/racePace";
+import { dailyNote } from "@/lib/health/note";
 // @ts-expect-error — plain JS helper shared with the smoke scripts
 import { seedUser } from "../smoke/seed.mjs";
 import { admin, cleanup, createTestUser, type TestUser } from "./setup";
@@ -267,5 +268,127 @@ describe("race-pace account (spec 2026-11-18 §9)", () => {
     await admin().from("activities").insert({ user_id: u.id, source: "manual", local_date: addDays(today, -2), start_time: `${addDays(today, -2)}T07:00:00Z`, type_key: "running", distance_m: 3350, duration_s: 948, moving_s: 948, avg_hr: 170, splits: { lapDTOs: laps } } as never);
     expect(await loadRacePace(u.id, today)).toEqual({ secPerKm: 281, doneKm: 2, plannedKm: 4 });
     expect(await loadRacePace(u.id, addDays(today, 21))).toBeNull();
+  }, 300_000);
+});
+
+describe("review fixes (under-klokka final review)", () => {
+  let u: TestUser;
+  let today: string;
+  let planId: string;
+  const week = () => weekStartOn(today, 1);
+  const LONG_FINISH = [step("run", { kind: "distance", m: 12000 }, easyT), step("run", { kind: "distance", m: 4000 }, pace("marathon", 287, 297))];
+  const TEST = [step("warmup", { kind: "distance", m: 2000 }, easyT), step("run", { kind: "distance", m: 5000 }, { kind: "none" }), step("cooldown", { kind: "distance", m: 2000 }, easyT)];
+  const act = async (date: string, km: number, secPerKm: number, hr: number | null, laps?: object[], startTime?: string) =>
+    (
+      await admin()
+        .from("activities")
+        .insert({ user_id: u.id, source: "manual", local_date: date, start_time: startTime ?? `${date}T07:00:00Z`, type_key: "running", distance_m: km * 1000, duration_s: km * secPerKm, moving_s: km * secPerKm, avg_hr: hr, splits: laps ? { lapDTOs: laps } : null } as never)
+        .select("id")
+        .single()
+    ).data!.id as string;
+  const workout = async (date: string, type: string, blocks: object[], activityId: string | null = null, plan = planId) =>
+    (
+      await admin()
+        .from("planned_workouts")
+        .insert({ user_id: u.id, plan_id: plan, date, type, title: `${type} session`, blocks, planned_km: 10, planned_duration_s: 3600, phase: "build", week: 3, status: activityId ? "done" : "planned", activity_id: activityId } as never)
+        .select("id")
+        .single()
+    ).data!.id as string;
+  const reset = async () => {
+    await admin().from("weekly_challenges").delete().eq("user_id", u.id);
+    await admin().from("planned_workouts").delete().eq("user_id", u.id).gte("date", addDays(week(), -7));
+    await admin().from("activities").delete().eq("user_id", u.id).gte("local_date", addDays(week(), -7));
+  };
+  const newPlan = async () =>
+    (
+      await admin()
+        .from("training_plans")
+        .insert({ user_id: u.id, goal_kind: "build", distance_km: 21.0975, start_date: addDays(today, -60), generated_until: addDays(today, 40), weekdays: [0, 1, 2, 3, 4, 5, 6], long_run_weekday: 6, runs_per_week: 4, vdot: 45.7, start_km_per_week: 30 } as never)
+        .select("id")
+        .single()
+    ).data!.id as string;
+
+  beforeAll(async () => {
+    u = await createTestUser("klokkafix");
+    ({ today } = await seedUser(admin(), u.id, { days: 3 }));
+    await saveTokens(u.id, JSON.stringify({ di_token: "fake" }));
+    planId = await newPlan();
+    // Usual easy heart rate 150, from five easy runs two to three weeks back.
+    for (const n of [15, 16, 17, 18, 19]) await act(addDays(today, -n), 6, 340, 150);
+  });
+  afterAll(cleanup);
+
+  it("a long run with a marathon-pace finish: the easy part is judged alone, the finish has its own line and decides the challenge", async () => {
+    await reset();
+    const laps = [lap(12000, 12000 * 0.32, 150, 0), lap(4000, 4000 * 0.29, 165, 1)];
+    const id = await act(today, 16, 312.5, 154, laps);
+    const w = await workout(today, "long", LONG_FINISH, id);
+    const v = (await loadSpot(u.id, today)).verdict!;
+    expect(v).toMatchObject({ word: "nice_easy", easy: { secPerKm: 320 }, finish: { km: 4, secPerKm: 290, zone: { min: 287, max: 297 } }, ghost: null });
+    // Easy part faster than easy: still the finish lap decides "Last 4 km at 4:57 or faster".
+    await admin().from("activities").update({ splits: { lapDTOs: [lap(12000, 12000 * 0.305, 150, 0), lap(4000, 4000 * 0.29, 165, 1)] } } as never).eq("id", id);
+    await admin().from("weekly_challenges").insert({ user_id: u.id, week_start: week(), workout_id: w, kind: "finish_fast", params: { km: 4, maxSecPerKm: 297 } } as never);
+    await decideChallenges(u.id, today);
+    const { data: row } = await admin().from("weekly_challenges").select("result, result_value").eq("workout_id", w).single();
+    expect(row).toMatchObject({ result: "won", result_value: 290 });
+  }, 300_000);
+
+  it("a test stopped short neither beats the estimate nor decides the challenge; the time is elapsed time", async () => {
+    await reset();
+    await admin().from("prediction_days").upsert({ user_id: u.id, local_date: today, time_5k_s: 1236, source: "garmin" } as never, { onConflict: "user_id,local_date" });
+    const id = await act(today, 5, 330, 170, [lap(2000, 700, 140, 0, "WARMUP"), { ...lap(3000, 720, 178, 1), duration: 730 }]);
+    const w = await workout(today, "test", TEST, id);
+    await admin().from("weekly_challenges").insert({ user_id: u.id, week_start: week(), workout_id: w, kind: "test_beat", params: { targetS: 1236, km: 5 } } as never);
+    await decideChallenges(u.id, today);
+    const { data: row } = await admin().from("weekly_challenges").select("result").eq("workout_id", w).single();
+    expect(row!.result).toBeNull();
+    const v = (await loadSpot(u.id, today)).verdict!;
+    expect(v.test).toMatchObject({ km: 3, timeS: 730, beat: null });
+    expect(v.tone).toBe("plain");
+  }, 300_000);
+
+  it("every easy run under the usual heart rate: runs before the challenge don't count, and the run that loses it shows ✗", async () => {
+    await reset();
+    await workout(today, "easy", EASY);
+    const c = await ensureChallenge(u.id, today);
+    expect(c).toMatchObject({ kind: "easy_hr_week" });
+    const { data: created } = await admin().from("weekly_challenges").select("created_at").eq("user_id", u.id).eq("week_start", week()).single();
+    const before = new Date(Date.parse(created!.created_at) - 60_000).toISOString();
+    await act(today, 6, 340, 170, undefined, before);
+    await decideChallenges(u.id, today);
+    expect((await admin().from("weekly_challenges").select("result").eq("user_id", u.id).eq("week_start", week()).single()).data!.result).toBeNull();
+    const after = new Date(Date.now() + 60_000).toISOString();
+    await act(today, 6, 340, 165, undefined, after);
+    const spot = await loadSpot(u.id, today);
+    expect(spot.verdict!.challenge).toMatchObject({ kind: "easy_hr_week", result: "lost", value: 165 });
+  }, 300_000);
+
+  it("a challenge from a plan that was replaced is dropped and picked again from the new plan", async () => {
+    await reset();
+    await workout(today, "threshold", THRESHOLD);
+    const old = await ensureChallenge(u.id, today);
+    expect(old?.kind).toMatch(/reps_in_zone|last_rep_fastest/);
+    await admin().from("training_plans").update({ status: "cancelled" } as never).eq("id", planId);
+    planId = await newPlan();
+    await admin().from("prediction_days").upsert({ user_id: u.id, local_date: today, time_5k_s: 1236, source: "garmin" } as never, { onConflict: "user_id,local_date" });
+    await workout(today, "test", TEST);
+    expect(await ensureChallenge(u.id, today)).toMatchObject({ kind: "test_beat" });
+  }, 300_000);
+
+  it("a done session whose challenge can't be told (no heart rate) stops showing the next day", async () => {
+    await reset();
+    if (today === week()) return; // Monday: yesterday is last week
+    const yesterday = addDays(today, -1);
+    const id = await act(yesterday, 16, 330, null);
+    const w = await workout(yesterday, "long", [step("run", { kind: "distance", m: 16000 }, easyT)], id);
+    await admin().from("weekly_challenges").insert({ user_id: u.id, week_start: week(), workout_id: w, kind: "long_hr", params: { bpm: 155 } } as never);
+    expect(await ensureChallenge(u.id, today)).toBeNull();
+  }, 300_000);
+
+  it("days without an alert store one row without an alert, so the check runs once a day", async () => {
+    await admin().from("recovery_days").upsert({ user_id: u.id, local_date: today, resting_hr: 50, hrv_avg: 60, hrv_baseline_low: 52, hrv_baseline_high: 68, sleep_score: 80 } as never, { onConflict: "user_id,local_date" });
+    expect(await dailyNote(u.id, today)).toBeNull();
+    const { data } = await admin().from("daily_notes").select("alert").eq("user_id", u.id).eq("local_date", today);
+    expect(data).toEqual([{ alert: null }]);
   }, 300_000);
 });

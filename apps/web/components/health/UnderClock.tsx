@@ -77,14 +77,18 @@ function verdictLines(t: T, v: SpotVerdict): string[] {
     const d = v.easy.hrVsNormal;
     if (d != null) out.push(Math.abs(d) <= 2 ? t("spot.normal") : d > 0 ? t("spot.aboveNormal", { n: d }) : t("spot.belowNormal", { n: -d }));
   }
+  if (v.finish) {
+    const zone = v.finish.zone ? `${formatPace(v.finish.zone.min)}–${formatPace(v.finish.zone.max)}` : "–";
+    out.push(t("spot.finish", { km: v.finish.km, pace: formatPace(v.finish.secPerKm), zone }));
+  }
   if (v.secondHalfDeltaS != null) out.push(t(v.secondHalfDeltaS < 0 ? "spot.secondFaster" : "spot.secondSlower", { s: Math.abs(v.secondHalfDeltaS) }));
   return out;
 }
 
 function ghostText(t: T, g: NonNullable<SpotVerdict["ghost"]>): { lead: string; delta: string } {
   const lead = t("spot.ghost", { km: g.km, date: dayMonth(g.date), pace: formatPace(g.secPerKm), hr: g.hr });
-  if (Math.abs(g.deltaS) <= 5 && g.deltaHr <= -3) return { lead, delta: t("spot.samePaceLower", { hr: -g.deltaHr }) };
   const hr = g.deltaHr === 0 ? t("spot.sameHr") : g.deltaHr < 0 ? t("spot.bpmLower", { n: -g.deltaHr }) : t("spot.bpmHigher", { n: g.deltaHr });
+  if (Math.abs(g.deltaS) <= 5) return { lead, delta: t("spot.samePace", { hr }) };
   return { lead, delta: t("spot.paceHr", { s: Math.abs(g.deltaS), dir: t(g.deltaS <= 0 ? "spot.faster" : "spot.slower"), hr }) };
 }
 
@@ -214,6 +218,8 @@ export function UnderClock() {
   const t = useTranslations("health");
   // undefined while loading.
   const [spot, setSpot] = useState<SpotView | null | undefined>(undefined);
+  // Bumped after a swap: the session (and a challenge on it) changed, so ask again.
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -229,7 +235,7 @@ export function UnderClock() {
       ctrl.abort();
       window.removeEventListener(GARMIN_SYNCED, load);
     };
-  }, []);
+  }, [reload]);
 
   if (spot === undefined) {
     return (
@@ -240,7 +246,14 @@ export function UnderClock() {
     );
   }
   if (!spot?.main) return null;
-  const onAlertDone = () => setSpot((s) => (s ? { ...s, alert: null, main: s.verdict ? "verdict" : s.week ? "week" : s.challenge ? "challenge" : null } : s));
+  const onAlertDone = (keep: boolean) => {
+    if (!keep) return setReload((n) => n + 1);
+    setSpot((s) => {
+      if (!s) return s;
+      const main = s.verdict ? "verdict" : s.week ? "week" : s.challenge ? "challenge" : null;
+      return { ...s, alert: null, main, challengeLine: !!s.challenge && main !== "challenge" && main !== null };
+    });
+  };
   return (
     <section className="mt-7 border-t border-border pt-4">
       {spot.main === "alert" && spot.alert && <AlertBlock note={spot.alert} onDone={onAlertDone} />}

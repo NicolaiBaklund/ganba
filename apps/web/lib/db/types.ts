@@ -1640,6 +1640,7 @@ export type Database = {
       weekly_challenges: {
         Row: {
           created_at: string
+          decided_activity_id: string | null
           decided_at: string | null
           id: string
           kind: string
@@ -1652,6 +1653,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          decided_activity_id?: string | null
           decided_at?: string | null
           id?: string
           kind: string
@@ -1664,6 +1666,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          decided_activity_id?: string | null
           decided_at?: string | null
           id?: string
           kind?: string
@@ -1675,6 +1678,13 @@ export type Database = {
           workout_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "weekly_challenges_decided_activity_id_fkey"
+            columns: ["decided_activity_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "weekly_challenges_workout_id_fkey"
             columns: ["workout_id"]

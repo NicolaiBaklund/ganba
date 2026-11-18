@@ -4,6 +4,8 @@ import type { Block, Step } from "../training/types";
 export interface RunLap {
   distanceM: number;
   movingS: number;
+  /** Clock time of the lap (pauses included): what a test or race time is. */
+  elapsedS: number;
   avgHr: number | null;
   /** Grade-adjusted pace when Garmin gives it, so hills are not "too slow". */
   gapSecPerKm: number | null;
@@ -36,7 +38,8 @@ export function lapsFrom(splits: unknown): RunLap[] {
   return raw.flatMap((l) => {
     const distanceM = n(l.distance);
     const moving = n(l.movingDuration);
-    const movingS = moving > 0 ? moving : n(l.duration);
+    const elapsed = n(l.duration);
+    const movingS = moving > 0 ? moving : elapsed;
     if (!(distanceM > 0) || !(movingS > 0)) return [];
     const gap = n(l.avgGradeAdjustedSpeed);
     const hr = n(l.averageHR);
@@ -44,6 +47,7 @@ export function lapsFrom(splits: unknown): RunLap[] {
       {
         distanceM,
         movingS,
+        elapsedS: elapsed > 0 ? elapsed : movingS,
         avgHr: hr > 0 ? hr : null,
         gapSecPerKm: gap > 0 ? 1000 / gap : null,
         intensity: typeof l.intensityType === "string" ? l.intensityType : null,
@@ -74,24 +78,42 @@ export function paceZone(s: Step): { min: number; max: number } | null {
   return s.target.kind === "pace" ? { min: s.target.minSecPerKm, max: s.target.maxSecPerKm } : null;
 }
 
+/** A step that is work, not easy running: a pace zone other than easy, or no target at all (a test, hills). */
+export const isWorkStep = (s: Step): boolean => !(s.target.kind === "pace" && s.target.zone === "easy");
+
 /**
- * Work laps paired with the steps they ran. From the watch (laps marked with a step): the work laps in order, one per
- * run step, fewer when cut short. Without step marks: laps of at least 400 m or 90 s faster than easy minus 10 s,
- * each against the first run step. Only steps with a pace zone count as planned work.
+ * Work laps paired with the steps they ran (spec 2026-11-18 §5.2). From the watch, one work lap per run step: lap i
+ * is step i, and only the work steps are kept (a long run's easy part is not its finish). Fewer or more marked laps
+ * than steps (cut short, a manual lap): the marked laps faster than easy, in order, against the work steps. Without
+ * step marks: laps of at least 400 m or 90 s faster than easy minus 10 s, against the first work step.
  */
 export function workLaps(laps: readonly RunLap[], steps: readonly Step[], easyMinSecPerKm: number | null): { pairs: { lap: RunLap; step: Step }[]; planned: number } {
-  const zoned = steps.filter((s) => paceZone(s) && paceZone(s)!.max < (easyMinSecPerKm ?? Infinity));
-  const work = zoned.length ? zoned : steps;
+  const workSteps = steps.filter(isWorkStep);
+  const work = workSteps.length ? workSteps : [...steps];
   const marked = laps.filter((l) => isWorkIntensity(l) && l.stepIndex != null && !isStride(l));
+  if (marked.length && marked.length === steps.length) {
+    const pairs = marked.map((lap, i) => ({ lap, step: steps[i]! })).filter((p) => !workSteps.length || isWorkStep(p.step));
+    return { pairs, planned: work.length };
+  }
   if (marked.length && laps.some((l) => l.stepIndex != null)) {
     // A run with strides marks the easy part ACTIVE too: skip laps at easy pace when the work is faster.
-    const fast = easyMinSecPerKm != null && zoned.length ? marked.filter((l) => judgedPace(l) < easyMinSecPerKm) : marked;
+    const fast = easyMinSecPerKm != null && workSteps.length ? marked.filter((l) => judgedPace(l) < easyMinSecPerKm) : marked;
     const used = fast.slice(0, work.length);
     return { pairs: used.map((lap, i) => ({ lap, step: work[i]! })), planned: work.length };
   }
   if (!work.length || easyMinSecPerKm == null) return { pairs: [], planned: work.length };
   const found = laps.filter((l) => (l.distanceM >= WORK_LAP.m || l.movingS >= WORK_LAP.s) && judgedPace(l) < easyMinSecPerKm - WORK_LAP.fasterS);
   return { pairs: found.map((lap) => ({ lap, step: work[0]! })), planned: work.length };
+}
+
+/** The planned km of a step, or null when it is timed or open. */
+export const stepKm = (s: Step): number | null => (s.duration.kind === "distance" ? s.duration.m / 1000 : null);
+/** Laps cover their steps: at least 97 % of the planned distance (a test or finish stopped short doesn't count). */
+export const COVERED_SHARE = 0.97;
+export function covers(pairs: readonly { lap: RunLap; step: Step }[]): boolean {
+  const planned = pairs.reduce((s, p) => s + (stepKm(p.step) ?? 0), 0);
+  const ran = pairs.reduce((s, p) => s + p.lap.distanceM / 1000, 0);
+  return planned <= 0 || ran >= planned * COVERED_SHARE;
 }
 
 /** The laps of a run without its strides; all laps when that leaves nothing. */

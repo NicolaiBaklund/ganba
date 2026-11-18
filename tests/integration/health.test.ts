@@ -130,7 +130,7 @@ describe("health: race clock, stamps and the morning note (spec 2026-11-02)", ()
     expect(facts("easy", null)).not.toContain("Swap");
   });
 
-  it("no alert, no note: nothing is stored, with or without a plan (spec 2026-11-18 §10)", async () => {
+  it("no alert, no note: one row without an alert, so the check runs once a day (spec 2026-11-18 §10)", async () => {
     const other = await createTestUser("health-twice");
     const day = (await seedUser(admin(), other.id, { days: 2 })).today;
     const notes = await Promise.all([dailyNote(other.id, day), dailyNote(other.id, day)]);
@@ -145,8 +145,8 @@ describe("health: race clock, stamps and the morning note (spec 2026-11-02)", ()
     const [a, b] = await Promise.all([dailyNote(other.id, day), dailyNote(other.id, day)]);
     expect(a).toBeNull();
     expect(b).toBeNull();
-    const { data: rows } = await admin().from("daily_notes").select("id").eq("user_id", other.id);
-    expect(rows).toHaveLength(0);
+    const { data: rows } = await admin().from("daily_notes").select("alert").eq("user_id", other.id);
+    expect(rows).toEqual([{ alert: null }]);
   });
 
   it("pickRace: a race plan's goal, a build focus, and a passed race moves on", () => {

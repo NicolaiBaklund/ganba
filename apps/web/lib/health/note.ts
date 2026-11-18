@@ -93,37 +93,36 @@ async function morningIsIn(userId: string, today: ISODate): Promise<boolean> {
 }
 
 /**
- * Today's alert (spec 2026-11-18 §10): written once, stored and reused. With Garmin it waits for today's sleep (an
- * alert told before it would miss the night): until then it is `waiting` and nothing is stored. No alert: no note,
- * nothing stored.
+ * Today's alert (spec 2026-11-18 §10): told once a day, stored and reused; days without one store a row without an
+ * alert, so the check (recovery days, food, the plan) runs once a day, not on every open. With Garmin it waits for
+ * today's sleep (an alert told before it would miss the night): until then it is `waiting` and nothing is stored.
  */
 export async function dailyNote(userId: string, today: ISODate): Promise<DailyNote | null> {
   const stored = await storedNote(userId, today);
-  if (stored) return stored;
-
-  const built = await factsFor(userId, today);
-  const swap = swapOffer(built.facts.alert?.kind ?? null, built, today);
-  const { facts } = built;
+  if (stored !== undefined) return stored;
   const garmin = await getGarminStatus(userId);
   if (garmin && !(await morningIsIn(userId, today))) return { text: "", alert: null, alertDone: false, swap: null, waiting: true };
-  if (!facts.alert) return null;
-  const text = templateNote(facts);
 
+  const built = await factsFor(userId, today);
+  const { facts } = built;
+  const swap = swapOffer(facts.alert?.kind ?? null, built, today);
+  const text = templateNote(facts);
   // Two tabs opened at once store one row.
   const { data: claimed } = await db()
     .from("daily_notes")
-    .upsert({ user_id: userId, local_date: today, text, alert: facts.alert.kind, facts: facts as unknown as Json, source: "template" }, { onConflict: "user_id,local_date", ignoreDuplicates: true })
+    .upsert({ user_id: userId, local_date: today, text, alert: facts.alert?.kind ?? null, facts: facts as unknown as Json, source: "template" }, { onConflict: "user_id,local_date", ignoreDuplicates: true })
     .select("id");
-  if (!claimed?.length) return (await storedNote(userId, today)) ?? { text, alert: facts.alert.kind, alertDone: false, swap };
-  return { text, alert: facts.alert.kind, alertDone: false, swap };
+  if (!claimed?.length) return (await storedNote(userId, today)) ?? null;
+  return facts.alert ? { text, alert: facts.alert.kind, alertDone: false, swap } : null;
 }
 
-/** A stored note; the plan is only read when its alert still offers a swap. */
-async function storedNote(userId: string, today: ISODate): Promise<DailyNote | null> {
+/** A stored day: its alert (null when the day has none), or undefined when the day hasn't been checked yet. */
+async function storedNote(userId: string, today: ISODate): Promise<DailyNote | null | undefined> {
   const { data: row } = await db().from("daily_notes").select("text, alert, alert_done").eq("user_id", userId).eq("local_date", today).maybeSingle();
-  if (!row) return null;
+  if (!row) return undefined;
   const alert = row.alert as HealthAlertKind | null;
-  const swap = alert && !row.alert_done ? swapOffer(alert, await planPart(userId), today) : null;
+  if (!alert) return null;
+  const swap = !row.alert_done ? swapOffer(alert, await planPart(userId), today) : null;
   return { text: row.text, alert, alertDone: row.alert_done, swap };
 }
 

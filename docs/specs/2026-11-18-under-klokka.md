@@ -173,7 +173,7 @@ En fast linje i `RaceRoad`, under «{n} days»: «Race pace 4:41: 0 of 4 km», m
 ## 10. Varsler (beholdes) og hva som forsvinner
 
 - **Varsler** (`alertFor`: sick, easy_fast, sleep) virker som i dag: setningen fra `templateNote`, «Coach, this morning» i varselfarge, og «Swap to easy N km» / «Keep the plan» / «Got it». `daily_notes` beholdes for varsler (`alert`, `alert_done`, `text` = varselsetningen). Ventingen på søvn gjelder bare varselet. Mens appen venter, vises de andre tingene som vanlig, og teksten «waiting» vises ikke lenger.
-- **Dager uten varsel:** ingen rad i `daily_notes`.
+- **Dager uten varsel:** en rad uten varsel i `daily_notes` (rettet etter gjennomgangen): sjekken (søvn, mat, planen) kjøres da én gang om dagen, ikke ved hver åpning.
 - **Forsvinner:**
   - AI-kallet: `NOTE_PROMPT`, `noteMessage`, `NoteSchema` og `NOTE_PROMPT_VERSION`.
   - `lastSession`, `today`, `tomorrow` og `clockDeltaS` i `NoteFacts`, og resten av `templateNote` utenom varselsetningene.
