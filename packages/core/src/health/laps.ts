@@ -31,8 +31,38 @@ type RawLap = {
 };
 const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : Number(v));
 
-/** Laps from `activities.splits`; laps without distance or time (pauses, manual laps at a stop) are dropped. */
+/**
+ * Laps from `activities.splits`; laps without distance or time (pauses, manual laps at a stop) are dropped, and a
+ * workout step split by a lap press (two laps in a row with the same step) is one lap again.
+ */
 export function lapsFrom(splits: unknown): RunLap[] {
+  return mergeSplitSteps(rawLaps(splits));
+}
+
+function mergeSplitSteps(laps: RunLap[]): RunLap[] {
+  const out: RunLap[] = [];
+  for (const l of laps) {
+    const prev = out.at(-1);
+    if (prev && l.stepIndex != null && prev.stepIndex === l.stepIndex && prev.intensity === l.intensity) {
+      const t = prev.movingS + l.movingS;
+      const hrs = [prev, l].filter((x) => x.avgHr != null);
+      const ht = hrs.reduce((s, x) => s + x.movingS, 0);
+      const gaps = [prev, l].filter((x) => x.gapSecPerKm != null);
+      const gm = gaps.reduce((s, x) => s + x.distanceM, 0);
+      out[out.length - 1] = {
+        ...prev,
+        distanceM: prev.distanceM + l.distanceM,
+        movingS: t,
+        elapsedS: prev.elapsedS + l.elapsedS,
+        avgHr: ht > 0 ? hrs.reduce((s, x) => s + x.avgHr! * x.movingS, 0) / ht : null,
+        gapSecPerKm: gm > 0 ? gaps.reduce((s, x) => s + x.gapSecPerKm! * x.distanceM, 0) / gm : null,
+      };
+    } else out.push(l);
+  }
+  return out;
+}
+
+function rawLaps(splits: unknown): RunLap[] {
   const raw = (splits as { lapDTOs?: RawLap[] } | null)?.lapDTOs;
   if (!Array.isArray(raw)) return [];
   return raw.flatMap((l) => {

@@ -116,3 +116,20 @@ export function decideEasyWeek(bpm: number, easyHrs: readonly number[], weekOver
   if (weekOver && easyHrs.length) return { result: "won", value: Math.round(Math.max(...easyHrs)) };
   return null;
 }
+
+/**
+ * The numbers of a stored challenge against its session as it is now: a coach edit that changes the zone or the
+ * finish moves the target with it.
+ */
+export function currentParams(c: Pick<ChallengePick, "kind" | "params">, blocks: readonly Block[]): Record<string, number> {
+  if (c.kind === "reps_in_zone") {
+    const z = runSteps(blocks).map(paceZone).find((x) => x);
+    return z ? { ...c.params, min: z.min, max: z.max } : c.params;
+  }
+  if (c.kind === "finish_fast") {
+    const f = finishStep({ id: "", date: "", type: "long", blocks });
+    const z = f && paceZone(f);
+    return f && z && kmOf(f) > 0 ? { ...c.params, km: kmOf(f), maxSecPerKm: z.max } : c.params;
+  }
+  return c.params;
+}

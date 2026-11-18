@@ -16,6 +16,7 @@ import {
   verdictFor,
   weekBought,
   weekday,
+  zonedTime,
   GHOST,
   type Block,
   type ChallengeKind,
@@ -116,7 +117,8 @@ export async function latestVerdict(userId: string, today: ISODate): Promise<Spo
   if (workout?.type === "test") {
     const testKm = runSteps(workout.blocks).reduce((s, x) => s + (x.duration.kind === "distance" ? x.duration.m / 1000 : 0), 0) || num(act.distance_m) / 1000;
     testPredictionS = await predictionOn(userId, act.local_date, testKm);
-    const { count } = await db().from("plan_proposals").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("kind", "paces").eq("status", "pending").gte("created_at", `${act.local_date}T00:00:00Z`);
+    const from = zonedTime(act.local_date, "00:00", await timezone(userId)).toISOString();
+    const { count } = await db().from("plan_proposals").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("kind", "paces").eq("status", "pending").gte("created_at", from);
     proposal = (count ?? 0) > 0;
   }
   if (workout?.type === "race") raceClockS = (await loadClock(userId, addDays(act.local_date, -1)).catch(() => null))?.seconds ?? null;
@@ -140,6 +142,8 @@ export async function latestVerdict(userId: string, today: ISODate): Promise<Spo
     const { data: c } = await db().from("weekly_challenges").select("kind, params, result, result_value").eq("user_id", userId).eq("decided_activity_id", act.id).not("result", "is", null).limit(1).maybeSingle();
     if (c) challenge = { kind: c.kind as ChallengeKind, params: c.params as Record<string, number>, result: c.result as "won" | "lost", value: Number(c.result_value) };
   }
+  // A test with a challenge: beaten or not is the challenge's (its target was set on Monday), so ✓ and green agree.
+  if (v.test && challenge?.kind === "test_beat") return { ...v, test: { ...v.test, beat: challenge.result === "won" }, tone: challenge.result === "won" ? "good" : "plain", ghost, challenge };
   return { ...v, ghost, challenge };
 }
 

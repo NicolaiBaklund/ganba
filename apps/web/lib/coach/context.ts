@@ -2,6 +2,7 @@ import "server-only";
 import { strengthForCoach } from "@/lib/strength/view";
 import { latestVerdict, verdictForCoach } from "@/lib/health/spot";
 import { challengeForCoach } from "@/lib/health/challenge";
+import { getGarminStatus } from "@/lib/garmin/accounts";
 import {
   addDays,
   describeBlocks,
@@ -94,7 +95,9 @@ async function dayBlock(userId: string, today: ISODate, workouts: PlanWorkout[],
     else lines.push("No health alert today.");
   } else lines.push("Health data (sleep, HRV, resting HR) is switched off for AI.");
   // What the app showed under the race clock (spec 2026-11-18 §10): the verdict on the last run and this week's challenge.
-  const [verdict, challenge] = await Promise.all([latestVerdict(userId, today).catch(() => null), challengeForCoach(userId, today).catch(() => null)]);
+  // Garmin only (spec §4.3): without the watch there is nothing under the clock.
+  const garmin = await getGarminStatus(userId);
+  const [verdict, challenge] = garmin ? await Promise.all([latestVerdict(userId, today).catch(() => null), challengeForCoach(userId, today).catch(() => null)]) : [null, null];
   if (verdict) lines.push(verdictForCoach(verdict));
   if (challenge) lines.push(challenge);
   return lines.join("\n");

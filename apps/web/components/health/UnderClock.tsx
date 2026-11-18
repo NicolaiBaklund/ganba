@@ -127,7 +127,11 @@ function VerdictBlock({ t, v }: { t: T; v: SpotVerdict }) {
         </div>
       )}
       {lines.length > 0 && <p className="num text-[15px] leading-snug [font-stretch:100%]">{lines.join(" ")}</p>}
-      {v.test?.proposal && <p className="text-[15px] font-semibold text-primary">{t("spot.newPaces")}</p>}
+      {v.test?.proposal && (
+        <a href="#proposals" className="w-fit text-[15px] font-semibold text-primary">
+          {t("spot.newPaces")}
+        </a>
+      )}
       {ghost && (
         <p className="flex gap-2.5 border-t border-border pt-2.5 text-[14px] text-muted-foreground">
           <GhostIcon />
@@ -166,7 +170,7 @@ function WeekBlock({ t, w }: { t: T; w: SpotWeek }) {
 }
 
 function ChallengeBlock({ t, c }: { t: T; c: ChallengeView }) {
-  const sub = c.kind === "easy_hr_week" ? t("spot.allWeek") : c.kind === "test_beat" ? `${day(c.workoutDate!, "long")}. ${t("spot.garminEstimate")}` : t("spot.when", { day: day(c.workoutDate!, "long"), title: c.workoutTitle ?? "" });
+  const sub = c.kind === "easy_hr_week" ? t("spot.allWeek") : c.kind === "test_beat" ? `${day(c.workoutDate!, "long")}. ${t(c.params.garmin === 0 ? "spot.planEstimate" : "spot.garminEstimate")}` : t("spot.when", { day: day(c.workoutDate!, "long"), title: c.workoutTitle ?? "" });
   return (
     <div className="flex flex-col gap-2">
       <span className="w-fit rounded-full border border-warning px-2.5 py-0.5 text-[12px] font-bold text-warning">{t("spot.thisWeek")}</span>

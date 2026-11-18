@@ -1,8 +1,10 @@
 import "server-only";
 import {
   addDays,
+  currentParams,
   decideChallenge,
   decideEasyWeek,
+  formatPace,
   judgedPace,
   lapsFrom,
   pacesFor,
@@ -23,6 +25,7 @@ import {
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { isEasyRun, QUALITY_TYPES } from "@/lib/recovery/load";
 import { activePlan } from "@/lib/training/service";
+import { fmtClock } from "@/lib/training/format";
 import { distanceFor, normalEasyHr, predictionOn } from "./runs";
 
 const db = () => createAdminSupabase();
@@ -69,8 +72,11 @@ async function lastInZone(userId: string, type: string, before: ISODate, easyMin
  * a day ago without being decided.
  */
 function viewOf(row: Row, w: WorkoutBits | null, today: ISODate): ChallengeView | null {
+  if (row.kind === "none") return null;
   const kind = row.kind as ChallengeKind;
-  const base = { kind, params: row.params as Record<string, number>, result: (row.result as "won" | "lost" | null) ?? null, value: row.result_value == null ? null : Number(row.result_value) };
+  const stored = row.params as Record<string, number>;
+  const params = w ? currentParams({ kind, params: stored }, w.blocks as Block[]) : stored;
+  const base = { kind, params, result: (row.result as "won" | "lost" | null) ?? null, value: row.result_value == null ? null : Number(row.result_value) };
   if (!row.workout_id) return kind === "easy_hr_week" ? { ...base, workoutDate: null, workoutTitle: null } : null;
   if (!w || w.status === "removed" || !FOR_TYPES[kind]?.has(w.type)) return null;
   const weekEnd = addDays(row.week_start, 6);
@@ -93,8 +99,10 @@ export async function ensureChallenge(userId: string, today: ISODate): Promise<C
   const existing = await read();
   if (existing) {
     const w = await workoutOf(existing);
-    // Made from a plan that has since been replaced: drop it (while open) and pick from the new plan.
-    if (w && w.plan_id !== plan?.id && !existing.result) await db().from("weekly_challenges").delete().eq("id", existing.id).is("result", null);
+    // Made from a plan that has since been replaced (or nothing to pick before a new plan came): drop it while open
+    // and pick from the new plan.
+    const stale = w ? w.plan_id !== plan?.id : existing.kind === "none" && !!plan && plan.created_at > existing.created_at;
+    if (stale && !existing.result) await db().from("weekly_challenges").delete().eq("id", existing.id).is("result", null);
     else return viewOf(existing, w, today);
   }
   if (!plan || plan.sport === "ride") return null;
@@ -107,25 +115,27 @@ export async function ensureChallenge(userId: string, today: ISODate): Promise<C
   const workouts: ChallengeWorkout[] = (ws ?? []).filter((w) => w.sport !== "ride").map((w) => ({ id: w.id, date: w.date, type: w.type, blocks: w.blocks as unknown as Block[] }));
   const repTypes = [...new Set(workouts.filter((w) => REP_TYPES.has(w.type)).map((w) => w.type))];
   const inZone = new Map(await Promise.all(repTypes.map(async (t) => [t, await lastInZone(userId, t, today, easyMin)] as const)));
-  const preds = new Map<number, number | null>();
+  // Garmin's estimate, else the plan's (`garmin` says which, for the words under the challenge).
+  const preds = new Map<number, { s: number | null; garmin: boolean }>();
   for (const w of workouts.filter((x) => x.type === "test")) {
     const km = runSteps(w.blocks).reduce((s, x) => s + (x.duration.kind === "distance" ? x.duration.m / 1000 : 0), 0);
     const d = distanceFor(km);
-    preds.set(km, (await predictionOn(userId, today, km)) ?? (d ? predictionSeconds(planPrediction(Number(plan.vdot)), d) : null));
+    const g = await predictionOn(userId, today, km);
+    preds.set(km, { s: g ?? (d ? predictionSeconds(planPrediction(Number(plan.vdot)), d) : null), garmin: g != null });
   }
-  const pick = pickChallenge({ workouts, lastKind: (last?.kind as ChallengeKind | undefined) ?? null, lastSameTypeInZone: (t) => inZone.get(t) ?? null, predictionS: (km) => preds.get(km) ?? null, normalHr });
-  if (!pick) return null;
-  // Two loads at once: the unique week keeps one row; both read the same one back.
+  const pick = pickChallenge({ workouts, lastKind: (last?.kind as ChallengeKind | undefined) ?? null, lastSameTypeInZone: (t) => inZone.get(t) ?? null, predictionS: (km) => preds.get(km)?.s ?? null, normalHr });
+  const params = pick?.kind === "test_beat" ? { ...pick.params, garmin: preds.get(pick.params.km!)?.garmin ? 1 : 0 } : (pick?.params ?? {});
+  // Two loads at once: the unique week keeps one row; both read the same one back. Nothing to pick is stored too.
   await db()
     .from("weekly_challenges")
-    .upsert({ user_id: userId, week_start: weekStart, workout_id: pick.workoutId, kind: pick.kind, params: pick.params }, { onConflict: "user_id,week_start", ignoreDuplicates: true });
+    .upsert({ user_id: userId, week_start: weekStart, workout_id: pick?.workoutId ?? null, kind: pick?.kind ?? "none", params }, { onConflict: "user_id,week_start", ignoreDuplicates: true });
   const row = await read();
   return row ? viewOf(row, await workoutOf(row), today) : null;
 }
 
 /** Decides open challenges of this week and last week from synced runs (spec §7.4). */
 export async function decideChallenges(userId: string, today: ISODate): Promise<void> {
-  const { data: rows } = await db().from("weekly_challenges").select(ROW_COLS).eq("user_id", userId).is("result", null).gte("week_start", addDays(weekStartOn(today, 1), -7));
+  const { data: rows } = await db().from("weekly_challenges").select(ROW_COLS).eq("user_id", userId).is("result", null).neq("kind", "none").gte("week_start", addDays(weekStartOn(today, 1), -7));
   if (!rows?.length) return;
   const plan = await activePlan(userId);
   const easyMin = plan && plan.sport !== "ride" ? pacesFor(Number(plan.vdot)).easy.min : null;
@@ -149,6 +159,7 @@ export async function decideChallenges(userId: string, today: ISODate): Promise<
       const { data: w } = await db().from("planned_workouts").select("type, status, activity_id, blocks").eq("id", row.workout_id).maybeSingle();
       if (!w || w.status !== "done" || !w.activity_id || !FOR_TYPES[pick.kind]?.has(w.type)) continue;
       const { data: a } = await db().from("activities").select("splits, avg_hr").eq("id", w.activity_id).single();
+      pick.params = currentParams(pick, w.blocks as unknown as Block[]);
       res = decideChallenge(pick, { laps: lapsFrom(a?.splits), blocks: w.blocks as unknown as Block[], avgHr: a?.avg_hr == null ? null : Number(a.avg_hr), easyMinSecPerKm: easyMin });
       by = w.activity_id;
     }
@@ -156,10 +167,35 @@ export async function decideChallenges(userId: string, today: ISODate): Promise<
   }
 }
 
-/** This week's challenge in one plain line for the coach, or null. */
+/** The challenge in one English sentence, as the app shows it ("Beat 20:36 in the 5K test"). */
+export function challengeSentence(c: Pick<ChallengeView, "kind" | "params">): string {
+  const p = c.params;
+  switch (c.kind) {
+    case "test_beat": {
+      const d = distanceFor(p.km!);
+      return `Beat ${fmtClock(p.targetS!)} in the ${d ? { "5k": "5K", "10k": "10K", half: "half marathon", marathon: "marathon" }[d] : `${p.km} km`} test`;
+    }
+    case "reps_in_zone":
+      return `Every rep in ${formatPace(p.min!)}–${formatPace(p.max!)}`;
+    case "last_rep_fastest":
+      return "Make the last rep the fastest";
+    case "finish_fast":
+      return `Last ${p.km} km at ${formatPace(p.maxSecPerKm!)} or faster`;
+    case "long_hr":
+      return `Long run under ${p.bpm} bpm`;
+    default:
+      return `Every easy run under ${p.bpm} bpm`;
+  }
+}
+
+/** This week's challenge as the person sees it, in one line for the coach; null when none is shown. */
 export async function challengeForCoach(userId: string, today: ISODate): Promise<string | null> {
-  const { data: row } = await db().from("weekly_challenges").select("kind, params, result, result_value").eq("user_id", userId).eq("week_start", weekStartOn(today, 1)).maybeSingle();
+  const { data: row } = await db().from("weekly_challenges").select(ROW_COLS).eq("user_id", userId).eq("week_start", weekStartOn(today, 1)).maybeSingle();
   if (!row) return null;
-  const status = row.result ? `${row.result} (${Number(row.result_value)})` : "open";
-  return `This week's challenge shown to them: ${row.kind} ${JSON.stringify(row.params)}, ${status}.`;
+  const { data: w } = row.workout_id ? await db().from("planned_workouts").select("id, plan_id, date, type, title, status, activity_id, blocks").eq("id", row.workout_id).maybeSingle() : { data: null };
+  const v = viewOf(row as Row, w as WorkoutBits | null, today);
+  if (!v) return null;
+  const on = v.workoutTitle ? ` (${v.workoutTitle}, ${v.workoutDate})` : "";
+  const status = v.result ? (v.result === "won" ? "won" : "missed") : "open";
+  return `This week's challenge shown to them: "${challengeSentence(v)}"${on}, ${status}.`;
 }

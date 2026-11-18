@@ -124,7 +124,7 @@ En linje under dommen etter rolige turer og langturer (ikke kvalitetsøkter):
 ## 7. Ukas utfordring
 
 ### 7.1 Når den lages
-Ved første lasting av Training (eller I dag) i en uke (mandag til søndag), når det finnes en aktiv løpeplan og Garmin. Den lagres (§11), så den ikke endrer seg i løpet av uka. Lages den midt i uka, velges bare blant økter som ikke er løpt ennå.
+Ved første lasting av Training i en uke (der den vises) (mandag til søndag), når det finnes en aktiv løpeplan og Garmin. Den lagres (§11), så den ikke endrer seg i løpet av uka. Lages den midt i uka, velges bare blant økter som ikke er løpt ennå.
 
 ### 7.2 Nøkkeløkta
 Blant ukas planlagte løpeøkter som ikke er løpt, velges første type i lista:
@@ -145,7 +145,7 @@ formtest, langtur med fartsavslutning (et «run»-steg i sonen race eller marath
 
 **Ikke samme mal to uker på rad** når en annen mal passer ukas økter. Maler med puls hoppes over når vanlig puls mangler.
 
-Under utfordringen: ukedagen og øktas tittel («Friday, Fitness test: 5K time trial»). For formtest står «Garmin's estimate for you now».
+Under utfordringen: ukedagen og øktas tittel («Friday, Fitness test: 5K time trial»). For formtest står «Garmin's estimate for you now», eller «Your plan's estimate for you now» når tallet er planens.
 
 ### 7.4 Avgjørelse
 - Avgjøres når økta synkes (`afterGarminSync`), med samme rundematching som dommen.

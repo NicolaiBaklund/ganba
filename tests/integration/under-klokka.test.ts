@@ -392,3 +392,89 @@ describe("review fixes (under-klokka final review)", () => {
     expect(data).toEqual([{ alert: null }]);
   }, 300_000);
 });
+
+describe("minor fixes (under-klokka final review)", () => {
+  let u: TestUser;
+  let today: string;
+  let planId: string;
+  const week = () => weekStartOn(today, 1);
+  const TEST = [step("warmup", { kind: "distance", m: 2000 }, easyT), step("run", { kind: "distance", m: 5000 }, { kind: "none" }), step("cooldown", { kind: "distance", m: 2000 }, easyT)];
+  const act = async (date: string, km: number, secPerKm: number, laps?: object[]) =>
+    (
+      await admin()
+        .from("activities")
+        .insert({ user_id: u.id, source: "manual", local_date: date, start_time: `${date}T07:00:00Z`, type_key: "running", distance_m: km * 1000, duration_s: km * secPerKm, moving_s: km * secPerKm, avg_hr: 165, splits: laps ? { lapDTOs: laps } : null } as never)
+        .select("id")
+        .single()
+    ).data!.id as string;
+  const workout = async (date: string, type: string, blocks: object[], activityId: string | null = null) =>
+    (
+      await admin()
+        .from("planned_workouts")
+        .insert({ user_id: u.id, plan_id: planId, date, type, title: `${type} session`, blocks, planned_km: 10, planned_duration_s: 3600, phase: "build", week: 3, status: activityId ? "done" : "planned", activity_id: activityId } as never)
+        .select("id")
+        .single()
+    ).data!.id as string;
+  const reset = async () => {
+    await admin().from("weekly_challenges").delete().eq("user_id", u.id);
+    await admin().from("planned_workouts").delete().eq("user_id", u.id).gte("date", addDays(week(), -7));
+    await admin().from("activities").delete().eq("user_id", u.id).gte("local_date", addDays(week(), -7));
+  };
+
+  beforeAll(async () => {
+    u = await createTestUser("klokkaminor");
+    ({ today } = await seedUser(admin(), u.id, { days: 3 }));
+    await saveTokens(u.id, JSON.stringify({ di_token: "fake" }));
+    planId = (
+      await admin()
+        .from("training_plans")
+        .insert({ user_id: u.id, goal_kind: "build", distance_km: 21.0975, start_date: addDays(today, -60), generated_until: addDays(today, 40), weekdays: [0, 1, 2, 3, 4, 5, 6], long_run_weekday: 6, runs_per_week: 4, vdot: 45.7, start_km_per_week: 30 } as never)
+        .select("id")
+        .single()
+    ).data!.id;
+  });
+  afterAll(cleanup);
+
+  it("a rep split by a lap press counts as one rep", async () => {
+    await reset();
+    const laps = [lap(3000, 1110, 146, 0, "WARMUP"), lap(1400, 380, 176, 1), lap(1298, 340, 180, 1), lap(116, 90, 157, 2, "RECOVERY"), lap(2700, 735, 182, 1)];
+    const id = await act(today, 10, 300, laps);
+    await workout(today, "threshold", THRESHOLD, id);
+    const v = (await loadSpot(u.id, today)).verdict!;
+    expect(v).toMatchObject({ repsDone: 2, repsPlanned: 2 });
+    expect(v.reps!.map((r) => r.secPerKm)).toEqual([Math.floor(720 / 2.698), Math.floor(735 / 2.7)]);
+  }, 300_000);
+
+  it("a coach edit to the session's zone moves the challenge with it", async () => {
+    await reset();
+    const w = await workout(today, "threshold", THRESHOLD);
+    await admin().from("weekly_challenges").insert({ user_id: u.id, week_start: week(), workout_id: w, kind: "reps_in_zone", params: { min: 269, max: 279 } } as never);
+    const edited = JSON.parse(JSON.stringify(THRESHOLD).replaceAll('"minSecPerKm":269', '"minSecPerKm":260').replaceAll('"maxSecPerKm":279', '"maxSecPerKm":270'));
+    await admin().from("planned_workouts").update({ blocks: edited, edited: true } as never).eq("id", w);
+    expect(await ensureChallenge(u.id, today)).toMatchObject({ kind: "reps_in_zone", params: { min: 260, max: 270 } });
+  }, 300_000);
+
+  it("a week with nothing to challenge is stored once as none", async () => {
+    await reset();
+    expect(await ensureChallenge(u.id, today)).toBeNull();
+    expect(await ensureChallenge(u.id, today)).toBeNull();
+    const { data } = await admin().from("weekly_challenges").select("kind").eq("user_id", u.id).eq("week_start", week());
+    expect(data).toEqual([{ kind: "none" }]);
+  }, 300_000);
+
+  it("a test with a challenge: the verdict's beaten agrees with the challenge, and the plan's estimate is named as such", async () => {
+    await reset();
+    // No Garmin estimate: the plan's estimate is the target, and the words say so.
+    const w = await workout(today, "test", TEST);
+    const c = await ensureChallenge(u.id, today);
+    expect(c).toMatchObject({ kind: "test_beat", params: { garmin: 0 } });
+    // Garmin's estimate on the test day is faster than the run; the challenge's target (Monday's) is slower.
+    await admin().from("weekly_challenges").update({ params: { targetS: 1400, km: 5, garmin: 1 } } as never).eq("user_id", u.id).eq("week_start", week());
+    await admin().from("prediction_days").upsert({ user_id: u.id, local_date: today, time_5k_s: 1200, source: "garmin" } as never, { onConflict: "user_id,local_date" });
+    const id = await act(today, 9, 330, [lap(2000, 700, 140, 0, "WARMUP"), lap(5000, 1300, 178, 1), lap(2000, 720, 150, 2, "COOLDOWN")]);
+    await admin().from("planned_workouts").update({ status: "done", activity_id: id } as never).eq("id", w);
+    const v = (await loadSpot(u.id, today)).verdict!;
+    expect(v.challenge).toMatchObject({ kind: "test_beat", result: "won", value: 1300 });
+    expect(v).toMatchObject({ test: { beat: true }, tone: "good" });
+  }, 300_000);
+});

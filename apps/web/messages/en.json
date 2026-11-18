@@ -958,7 +958,8 @@
       "lost": "Challenge missed",
       "run": "Run",
       "samePace": "Same pace, {hr}.",
-      "finish": "Last {km} km at {pace}. Zone {zone}."
+      "finish": "Last {km} km at {pace}. Zone {zone}.",
+      "planEstimate": "Your plan's estimate for you now."
     }
   },
   "strength": {

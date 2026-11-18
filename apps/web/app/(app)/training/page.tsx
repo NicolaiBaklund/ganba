@@ -75,7 +75,7 @@ export default async function TrainingPage() {
       <UnderClock />
 
       {v.proposals.length > 0 && (
-        <div className="mt-6 flex flex-col gap-3">
+        <div id="proposals" className="mt-6 flex scroll-mt-4 flex-col gap-3">
           {v.proposals.map((pr) => (
             <ProposalCard key={pr.id} p={pr} />
           ))}
