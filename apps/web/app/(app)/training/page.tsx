@@ -6,8 +6,9 @@ import { requireUser } from "@/lib/supabase/server";
 import { loadTrainingView, type TrainingView } from "@/lib/training/view";
 import { hrZoneLabel } from "@/lib/training/format";
 import { loadClock } from "@/lib/health/view";
+import { loadRacePace } from "@/lib/health/racePace";
 import { RaceRoad } from "@/components/health/RaceRoad";
-import { MorningNote } from "@/components/health/MorningNote";
+import { UnderClock } from "@/components/health/UnderClock";
 import { ProposalCard } from "@/components/training/ProposalCard";
 import { WorkoutRow } from "@/components/training/WorkoutRow";
 import { StrengthRow } from "@/components/strength/StrengthRow";
@@ -17,22 +18,22 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /**
- * Training: the race and the road there, the coach's morning note, this week, the paces, and a way into the whole
+ * Training: the race and the road there, what's new under the clock (spec 2026-11-18), this week, the paces, and a way into the whole
  * plan (spec 2026-11-02 §4). The plan itself lives on /training/plan.
  */
 export default async function TrainingPage() {
   const t = await getTranslations("training");
   const { user } = await requireUser();
   const v = await loadTrainingView(user.id);
-  const clock = await loadClock(user.id, v.today);
+  const [clock, racePace] = await Promise.all([loadClock(user.id, v.today), loadRacePace(user.id, v.today)]);
 
   // No Garmin needed: without it the runner logs what was done (spec 2026-10-29).
   if (!v.plan) {
     return (
       <main className="flex flex-col px-[18px] pt-5">
         <h1 className="cond text-[34px] leading-none">{t("title")}</h1>
-        {clock && <RaceRoad clock={clock} today={v.today} />}
-        <MorningNote />
+        {clock && <RaceRoad clock={clock} today={v.today} racePace={racePace} />}
+        <UnderClock />
         {v.strength.length > 0 && (
           <section className="mt-2">
             <SectionHead title={t("thisWeek")} />
@@ -70,11 +71,11 @@ export default async function TrainingPage() {
   return (
     <main className="flex flex-col px-[18px] pb-4 pt-5">
       <h1 className="cond text-[34px] leading-none">{t("title")}</h1>
-      {clock && <RaceRoad clock={clock} today={v.today} />}
-      <MorningNote />
+      {clock && <RaceRoad clock={clock} today={v.today} racePace={racePace} />}
+      <UnderClock />
 
       {v.proposals.length > 0 && (
-        <div className="mt-6 flex flex-col gap-3">
+        <div id="proposals" className="mt-6 flex scroll-mt-4 flex-col gap-3">
           {v.proposals.map((pr) => (
             <ProposalCard key={pr.id} p={pr} />
           ))}

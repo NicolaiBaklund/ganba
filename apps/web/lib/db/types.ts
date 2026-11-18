@@ -1637,6 +1637,63 @@ export type Database = {
         }
         Relationships: []
       }
+      weekly_challenges: {
+        Row: {
+          created_at: string
+          decided_activity_id: string | null
+          decided_at: string | null
+          id: string
+          kind: string
+          params: Json
+          result: string | null
+          result_value: number | null
+          user_id: string
+          week_start: string
+          workout_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          decided_activity_id?: string | null
+          decided_at?: string | null
+          id?: string
+          kind: string
+          params?: Json
+          result?: string | null
+          result_value?: number | null
+          user_id: string
+          week_start: string
+          workout_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          decided_activity_id?: string | null
+          decided_at?: string | null
+          id?: string
+          kind?: string
+          params?: Json
+          result?: string | null
+          result_value?: number | null
+          user_id?: string
+          week_start?: string
+          workout_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_challenges_decided_activity_id_fkey"
+            columns: ["decided_activity_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_challenges_workout_id_fkey"
+            columns: ["workout_id"]
+            isOneToOne: false
+            referencedRelation: "planned_workouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       weekly_checkins: {
         Row: {
           avg_intake_kcal: number | null

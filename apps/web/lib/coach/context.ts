@@ -1,5 +1,8 @@
 import "server-only";
 import { strengthForCoach } from "@/lib/strength/view";
+import { latestVerdict, verdictForCoach } from "@/lib/health/spot";
+import { challengeForCoach } from "@/lib/health/challenge";
+import { getGarminStatus } from "@/lib/garmin/accounts";
 import {
   addDays,
   describeBlocks,
@@ -88,9 +91,15 @@ async function dayBlock(userId: string, today: ISODate, workouts: PlanWorkout[],
   ];
   if (consent) {
     const { data } = await createAdminSupabase().from("daily_notes").select("text, alert, alert_done").eq("user_id", userId).eq("local_date", today).maybeSingle();
-    if (data) lines.push(`This morning's note to them: "${data.text}"${data.alert ? ` (alert ${data.alert}${data.alert_done ? ", dealt with" : ", not dealt with yet"})` : ""}.`);
-    else lines.push("No morning note yet today.");
+    if (data?.alert) lines.push(`Alert shown to them this morning: "${data.text}" (${data.alert}${data.alert_done ? ", dealt with" : ", not dealt with yet"}).`);
+    else lines.push("No health alert today.");
   } else lines.push("Health data (sleep, HRV, resting HR) is switched off for AI.");
+  // What the app showed under the race clock (spec 2026-11-18 §10): the verdict on the last run and this week's challenge.
+  // Garmin only (spec §4.3): without the watch there is nothing under the clock.
+  const garmin = await getGarminStatus(userId);
+  const [verdict, challenge] = garmin ? await Promise.all([latestVerdict(userId, today).catch(() => null), challengeForCoach(userId, today).catch(() => null)]) : [null, null];
+  if (verdict) lines.push(verdictForCoach(verdict));
+  if (challenge) lines.push(challenge);
   return lines.join("\n");
 }
 

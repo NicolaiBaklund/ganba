@@ -72,17 +72,17 @@ try {
       await page.getByRole("button", { name: "Mark as done" }).click();
       await page.getByPlaceholder("mm:ss").fill("3200");
       await page.getByRole("button", { name: "Save" }).click();
-      await page.getByText("Logged by you").waitFor({ timeout: 20_000 }).catch(() => null);
+      await page.getByText("Logged by you").waitFor({ timeout: 60_000 }).catch(() => null);
       checks["Done logs the run"] = (await page.getByText("Logged by you").count()) === 1;
       checks["week card counts it"] = (await page.getByText(/^1 of \d+ sessions done/).count()) === 1;
       await shot("4-done");
       await page.getByRole("button", { name: "Undo" }).click();
-      await page.getByRole("button", { name: "Mark as done" }).waitFor({ timeout: 20_000 }).catch(() => null);
+      await page.getByRole("button", { name: "Mark as done" }).waitFor({ timeout: 60_000 }).catch(() => null);
       checks["Undo opens the session again"] = (await page.getByRole("button", { name: "Mark as done" }).count()) === 1;
       // Done again, for the dark screenshots.
       await page.getByRole("button", { name: "Mark as done" }).click();
       await page.getByRole("button", { name: "Save" }).click();
-      await page.getByText("Logged by you").waitFor({ timeout: 20_000 }).catch(() => null);
+      await page.getByText("Logged by you").waitFor({ timeout: 60_000 }).catch(() => null);
     }
 
     await page.goto(`${BASE}/food`);

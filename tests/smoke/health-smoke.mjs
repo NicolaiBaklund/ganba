@@ -1,7 +1,8 @@
-// Health (spec 2026-11-02): seeded user with a plan, a race session, predicted times and nights where resting HR
-// is up and HRV low two mornings running. Training shows the race, the morning note with "Swap to easy", this week and the
-// paces; "Plan" opens the whole plan;
-// swapping turns today's intervals into an easy run. Progress shows the clock and the stamp book.
+// Health (spec 2026-11-02, under the clock 2026-11-18): seeded Garmin user (synced just now, so no sync runs) with a
+// plan, a race session with race pace before it, predicted times, a threshold run yesterday and nights where resting
+// HR is up and HRV low two mornings running. Training shows the race, the race-pace line, the alert with "Swap to
+// easy", this week and the paces; "Plan" opens the whole plan; swapping turns today's intervals into an easy run and
+// the verdict on yesterday's threshold ("A bit fast") takes the place. Progress shows the clock and the stamp book.
 import { config } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import { chromium } from "playwright";
@@ -41,13 +42,50 @@ try {
     await admin.from("planned_workouts").insert([
       w(today, "intervals", "Intervals 6 × 1 km", 12, 60, 9),
       w(day(25), "test", "Fitness test 5K", 10, 50, 12),
-      w(day(46), "race", "Doomsday: Half Marathon", 21.1, 105, 15),
+      { ...w(day(46), "race", "Doomsday: Half Marathon", 21.1, 105, 15), blocks: [{ kind: "run", duration: { kind: "distance", m: 21098 }, target: { kind: "pace", zone: "race", minSecPerKm: 278, maxSecPerKm: 284 } }] },
+      {
+        ...w(day(30), "long", "Long run 17 km, last 4 km race pace", 17, 95, 13),
+        blocks: [
+          { kind: "run", duration: { kind: "distance", m: 13000 }, target: { kind: "pace", zone: "easy", minSecPerKm: 320, maxSecPerKm: 355 } },
+          { kind: "run", duration: { kind: "distance", m: 4000 }, target: { kind: "pace", zone: "race", minSecPerKm: 278, maxSecPerKm: 284 } },
+        ],
+      },
     ]),
+  );
+  // Garmin connected and synced just now: the page doesn't sync, and the place under the clock is on.
+  const now = new Date().toISOString();
+  must(await admin.from("garmin_accounts").insert({ user_id: uid, ciphertext: "x", iv: "x", auth_tag: "x", status: "active", last_synced_at: now, last_synced_date: today, history_imported_at: now, history_scanned_at: now }));
+  // Yesterday's threshold 2 × 12 min: 4:27 and 4:28 against 4:29–4:39, the verdict once the alert is dealt with.
+  const zone = { kind: "pace", zone: "threshold", minSecPerKm: 269, maxSecPerKm: 279 };
+  const { data: thr } = must(
+    await admin
+      .from("activities")
+      .insert({
+        user_id: uid, source: "manual", local_date: day(-1), start_time: `${day(-1)}T07:00:00Z`, type_key: "running", distance_m: 10000, duration_s: 3100, moving_s: 3100, avg_hr: 165,
+        splits: { lapDTOs: [
+          { distance: 3000, duration: 1110, averageHR: 146, intensityType: "WARMUP", wktStepIndex: 0 },
+          { distance: 2698, duration: 720, averageHR: 178, intensityType: "ACTIVE", wktStepIndex: 1 },
+          { distance: 116, duration: 90, averageHR: 157, intensityType: "RECOVERY", wktStepIndex: 2 },
+          { distance: 2681, duration: 720, averageHR: 182, intensityType: "ACTIVE", wktStepIndex: 1 },
+        ] },
+      })
+      .select("id")
+      .single(),
+  );
+  must(
+    await admin.from("planned_workouts").insert({
+      ...w(day(-1), "threshold", "Threshold 2 × 12 min", 10, 52, 9),
+      status: "done",
+      activity_id: thr.id,
+      blocks: [{ kind: "repeat", times: 2, steps: [{ kind: "run", duration: { kind: "time", s: 720 }, target: zone }, { kind: "recover", duration: { kind: "time", s: 90 }, target: { kind: "none" } }] }],
+    }),
   );
   // Predicted half marathon falling over 60 days (the plan's own value lands on today when the page loads).
   must(await admin.from("prediction_days").insert(Array.from({ length: 60 }, (_, i) => ({ user_id: uid, local_date: day(-60 + i), time_half_s: Math.round(6500 - i * 7 + (i % 5 === 0 ? 25 : 0)), time_5k_s: 1500 - i, time_10k_s: 3100 - i * 2, time_marathon_s: 13800 - i * 14, source: "plan" }))));
   // Singapore is too small for the globe's map: it shows as a dot.
   must(await admin.from("stamps").insert({ user_id: uid, kind: "country", key: "SGP", earned_on: day(-400) }));
+  // With Garmin the Tokyo run's stamps come from a sync (tests/integration/health.test.ts), and no sync runs here.
+  must(await admin.from("stamps").insert({ user_id: uid, kind: "country", key: "JPN", earned_on: day(-5) }));
   // A 15 km run in Tokyo last week: country, distance and volume stamps when the page loads.
   must(await admin.from("activities").insert({ user_id: uid, source: "manual", local_date: day(-5), start_time: `${day(-5)}T07:00:00Z`, type_key: "running", distance_m: 15200, duration_s: 5400, moving_s: 5400, raw: { startLatitude: 35.69, startLongitude: 139.7 } }));
   // Easy runs at 145 bpm: 6:00/km six to twelve weeks ago, 5:48 the last six weeks (Progress: easy pace at heart rate).
@@ -85,6 +123,7 @@ try {
     results[`${scheme}: paces`] = (await page.getByRole("heading", { name: "Paces" }).count()) === 1;
     results[`${scheme}: this week`] = (await page.getByRole("heading", { name: "This week" }).count()) === 1;
     results[`${scheme}: swap offered`] = (await page.getByRole("button", { name: /Swap to easy/ }).count()) === 1;
+    results[`${scheme}: race-pace line`] = (await page.getByText("Race pace 4:41").count()) === 1 && (await page.getByText("0 of 4 km").count()) === 1;
     await page.screenshot({ path: `tests/smoke/out/60-health-training-${scheme}.png`, fullPage: true, caret: "initial" });
     await page.goto(`${BASE}/progress`);
     await page.getByRole("heading", { name: "Stamps" }).waitFor();
@@ -124,6 +163,8 @@ try {
     if (scheme === "light") {
       await page.getByRole("button", { name: /Swap to easy/ }).click();
       await page.getByText("Swapped to an easy run").waitFor();
+      await page.getByText("A bit fast").waitFor();
+      results["verdict after the alert"] = (await page.getByText(/^4:26 and 4:28\. Zone 4:29–4:39\./).count()) === 1;
       await page.screenshot({ path: "tests/smoke/out/61-health-swapped.png", fullPage: true, caret: "initial" });
     }
     await ctx.close();

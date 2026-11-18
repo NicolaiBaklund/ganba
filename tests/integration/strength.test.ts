@@ -62,8 +62,10 @@ describe("strength (spec 2026-11-10)", () => {
     expect(own.otherKcal).toBe(Math.round((20 / 60) * (metFor("strength_training") - 1) * kg));
 
     // Two Garmin strength activities that day: the one nearest the logging links (one strength row per day).
-    const far = await strengthAct(date, 1, 250);
-    const near = await strengthAct(date, new Date().getUTCHours(), 300);
+    // The session was logged just now, the activities are yesterday: 23:00 is always nearer than 00:00, whatever the
+    // hour the test runs (the current hour vs 01:00 tied at 01 UTC).
+    const far = await strengthAct(date, 0, 250);
+    const near = await strengthAct(date, 23, 300);
     await linkStrength(u.id);
     const { data: row } = await admin().from("strength_sessions").select("activity_id").eq("id", s).single();
     expect(row!.activity_id).toBe(near);

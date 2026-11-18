@@ -956,6 +956,13 @@ export async function afterGarminSync(userId: string, today: ISODate, source?: G
     console.error("strength link failed", userId, e instanceof Error ? e.message : e);
   }
   try {
+    // Loaded here: the challenge code reads the plan through this module.
+    const { decideChallenges } = await import("@/lib/health/challenge");
+    await decideChallenges(userId, today);
+  } catch (e) {
+    console.error("challenge decide failed", userId, e instanceof Error ? e.message : e);
+  }
+  try {
     await computeHealth(userId, today);
   } catch (e) {
     console.error("health compute failed", userId, e instanceof Error ? e.message : e);

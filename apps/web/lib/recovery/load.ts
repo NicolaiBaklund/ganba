@@ -25,7 +25,7 @@ export const QUALITY_TYPES = new Set(["intervals", "threshold", "tempo", "race",
 export const HARD_TE = { aerobic: 3.5, anaerobic: 2.0 } as const;
 const LONG_RUN_S = 90 * 60;
 const EASY_MIN_S = 20 * 60;
-const INDOOR = /treadmill|indoor|virtual/;
+export const INDOOR = /treadmill|indoor|virtual/;
 
 type EasyRunRow = { id: string; type_key: string; duration_s: unknown; avg_hr: unknown; distance_m: unknown; te_anaerobic: unknown };
 

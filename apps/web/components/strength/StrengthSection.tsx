@@ -13,7 +13,7 @@ export async function StrengthSection({ sessions, rows }: { sessions: number; ro
       <div className="flex items-baseline justify-between border-b-2 border-foreground pb-1.5">
         <h2 className="cond text-[22px] leading-none">{t("title")}</h2>
         <span className="num text-[17px] font-extrabold">
-          {sessions} <span className="text-[13px] font-semibold text-muted-foreground">{t("sessions")}</span>
+          {sessions} <span className="text-[13px] font-semibold text-muted-foreground">{t("sessions", { n: sessions })}</span>
         </span>
       </div>
       {rows.map((r) => {
